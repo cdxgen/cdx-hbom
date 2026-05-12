@@ -1,7 +1,7 @@
 {
   "name": "@cdxgen/cdx-hbom",
   "version": "0.1.0",
-  "description": "Dependency-free hardware bill of materials discovery library for Node.js",
+  "description": "Dependency-free hardware bill of materials discovery library.",
   "homepage": "https://github.com/cdxgen/cdx-hbom",
   "bugs": {
     "url": "https://github.com/cdxgen/cdx-hbom/issues"
