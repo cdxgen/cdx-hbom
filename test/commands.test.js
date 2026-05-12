@@ -13,12 +13,18 @@ test("getCommandPlan returns the Darwin arm64 collector plan", () => {
   assert.ok(plan.length >= 4);
   assert.equal(plan[0].id, "system-profiler-json");
   assert.equal(plan[0].phase, "collector-v1");
+  assert.ok(plan[0].args.includes("SPUSBDataType"));
+  assert.ok(plan[0].args.includes("SPAirPortDataType"));
+  assert.ok(plan[0].args.includes("SPAudioDataType"));
+  assert.ok(plan[0].args.includes("SPCameraDataType"));
   assert.ok(
     plan.some(
       (spec) =>
         spec.id === "platform-registry" && spec.phase === "planned-enrichment",
     ),
   );
+  assert.ok(plan.some((spec) => spec.id === "apfs-topology"));
+  assert.ok(plan.some((spec) => spec.id === "interface-details"));
 });
 
 test("getCommandPlan rejects unsupported targets", () => {

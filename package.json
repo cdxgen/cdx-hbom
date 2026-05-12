@@ -2,7 +2,7 @@
   "name": "@cdxgen/cdx-hbom",
   "version": "0.1.0",
   "description": "Dependency-free hardware bill of materials discovery library for Node.js",
-  "homepage": "http://github.com/cdxgen/cdx-hbom",
+  "homepage": "https://github.com/cdxgen/cdx-hbom",
   "bugs": {
     "url": "https://github.com/cdxgen/cdx-hbom/issues"
   },
@@ -12,11 +12,15 @@
   },
   "type": "module",
   "main": "./index.js",
+  "types": "./index.d.ts",
   "bin": {
     "cdx-hbom": "./bin/cdx-hbom.js"
   },
   "exports": {
-    ".": "./index.js",
+    ".": {
+      "types": "./index.d.ts",
+      "default": "./index.js"
+    },
     "./schema": "./src/common/schema.js",
     "./darwin/arm64": "./src/darwin/arm64/index.js",
     "./linux/amd64": "./src/linux/amd64/index.js",
@@ -24,9 +28,9 @@
   },
   "files": [
     "bin/",
+    "index.d.ts",
     "index.js",
     "src/",
-    "docs/",
     "README.md"
   ],
   "keywords": [
@@ -44,6 +48,9 @@
   "scripts": {
     "dump": "node ./bin/cdx-hbom.js --pretty",
     "test": "node --test"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "engines": {
     "node": ">=20"

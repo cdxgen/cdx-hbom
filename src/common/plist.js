@@ -98,9 +98,17 @@ function parseValue(state) {
     state.index += 1;
     return parseDict(state);
   }
+  if (token === "<dict/>") {
+    state.index += 1;
+    return {};
+  }
   if (token === "<array>") {
     state.index += 1;
     return parseArray(state);
+  }
+  if (token === "<array/>") {
+    state.index += 1;
+    return [];
   }
   if (token === "<true/>") {
     state.index += 1;

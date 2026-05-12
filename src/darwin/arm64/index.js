@@ -123,6 +123,68 @@ export function parsePmsetBattery(stdout) {
 }
 
 /**
+ * Parse `ifconfig <iface>` output.
+ *
+ * @param {string} stdout Command stdout.
+ * @returns {{ flags?: string[], mtu?: number, macAddress?: string, ipv4Count: number, ipv6Count: number, media?: string, status?: string }} Parsed interface state.
+ */
+export function parseIfconfigText(stdout) {
+  const lines = stdout.split(/\r?\n/u).filter(Boolean);
+  const header = lines[0] ?? "";
+  const flags = header.match(/<([^>]+)>/u)?.[1]?.split(",") ?? [];
+  const mtu = Number.parseInt(header.match(/mtu\s+(\d+)/u)?.[1] ?? "", 10);
+  const macAddress = lines
+    .find((line) => line.trim().startsWith("ether "))
+    ?.trim()
+    .slice("ether ".length)
+    .trim()
+    .toLowerCase();
+  const media = lines
+    .find((line) => line.trim().startsWith("media:"))
+    ?.trim()
+    .slice("media:".length)
+    .trim();
+  const status = lines
+    .find((line) => line.trim().startsWith("status:"))
+    ?.trim()
+    .slice("status:".length)
+    .trim();
+
+  return {
+    flags,
+    mtu: Number.isNaN(mtu) ? undefined : mtu,
+    macAddress,
+    ipv4Count: lines.filter((line) => line.trim().startsWith("inet ")).length,
+    ipv6Count: lines.filter((line) => line.trim().startsWith("inet6 ")).length,
+    media,
+    status,
+  };
+}
+
+/**
+ * Normalize a `diskutil apfs list -plist` result into container and volume records.
+ *
+ * @param {Record<string, unknown> | undefined} plist Parsed APFS plist.
+ * @returns {{ containers: Array<Record<string, unknown>>, volumes: Array<Record<string, unknown>> }} Normalized APFS topology.
+ */
+export function normalizeApfsTopology(plist) {
+  const containers = Array.isArray(plist?.Containers) ? plist.Containers : [];
+
+  return {
+    containers,
+    volumes: containers.flatMap((container) =>
+      Array.isArray(container?.Volumes)
+        ? container.Volumes.map((volume) => ({
+            ...volume,
+            ContainerReference: container.ContainerReference,
+            APFSContainerUUID: container.APFSContainerUUID,
+          }))
+        : [],
+    ),
+  };
+}
+
+/**
  * Build an HBOM-like object from pre-collected Darwin arm64 command outputs.
  *
  * @param {{
@@ -130,9 +192,15 @@ export function parsePmsetBattery(stdout) {
  *     profiler?: Record<string, unknown>,
  *     sysctl?: Record<string, string>,
  *     networksetup?: Array<{ hardwarePort?: string, device?: string, ethernetAddress?: string }>,
+ *     ifconfig?: Record<string, { flags?: string[], mtu?: number, macAddress?: string, ipv4Count: number, ipv6Count: number, media?: string, status?: string }>,
  *     pmsetBattery?: { powerSource?: string, batteryId?: string, chargePercent?: number, isAcAttached?: boolean, isCharging?: boolean } | null,
  *     diskutilPlists?: Record<string, unknown>[],
- *     ioregPlatform?: Record<string, unknown>[] | Record<string, unknown> | null
+ *     ioregPlatform?: Record<string, unknown>[] | Record<string, unknown> | null,
+ *     usb?: unknown[],
+ *     airport?: unknown[],
+ *     audio?: unknown[],
+ *     camera?: unknown[],
+ *     apfsTopology?: Record<string, unknown>
  *   },
  *   includeSensitiveIdentifiers?: boolean,
  *   collectedAt?: string,
@@ -145,6 +213,7 @@ export function buildDarwinArm64Hbom(options = {}) {
   const profiler = sources.profiler ?? {};
   const sysctl = sources.sysctl ?? {};
   const networkPorts = sources.networksetup ?? [];
+  const ifconfig = sources.ifconfig ?? {};
   const pmsetBattery = sources.pmsetBattery ?? null;
   const diskutilPlists = Array.isArray(sources.diskutilPlists)
     ? sources.diskutilPlists
@@ -161,6 +230,27 @@ export function buildDarwinArm64Hbom(options = {}) {
   const storageGroups = Array.isArray(profiler.SPNVMeDataType)
     ? profiler.SPNVMeDataType
     : [];
+  const usbEntries = Array.isArray(sources.usb)
+    ? sources.usb
+    : Array.isArray(profiler.SPUSBDataType)
+      ? profiler.SPUSBDataType
+      : [];
+  const airportEntries = Array.isArray(sources.airport)
+    ? sources.airport
+    : Array.isArray(profiler.SPAirPortDataType)
+    ? profiler.SPAirPortDataType
+    : [];
+  const audioEntries = Array.isArray(sources.audio)
+    ? sources.audio
+    : Array.isArray(profiler.SPAudioDataType)
+    ? profiler.SPAudioDataType
+    : [];
+  const cameraEntries = Array.isArray(sources.camera)
+    ? sources.camera
+    : Array.isArray(profiler.SPCameraDataType)
+    ? profiler.SPCameraDataType
+    : [];
+  const apfsTopology = normalizeApfsTopology(sources.apfsTopology);
   const bluetoothEntries = Array.isArray(profiler.SPBluetoothDataType)
     ? profiler.SPBluetoothDataType
     : [];
@@ -195,12 +285,12 @@ export function buildDarwinArm64Hbom(options = {}) {
     },
     description: chipName,
     properties: compact([
-      createProperty("hbom:platform", "darwin"),
-      createProperty("hbom:architecture", "arm64"),
-      createProperty("hbom:chip", chipName),
-      createProperty("hbom:memory", memoryValue),
+      createProperty("cdx:hbom:platform", "darwin"),
+      createProperty("cdx:hbom:architecture", "arm64"),
+      createProperty("cdx:hbom:chip", chipName),
+      createProperty("cdx:hbom:memory", memoryValue),
       createProperty(
-        "hbom:serialNumber",
+        "cdx:hbom:serialNumber",
         redactIdentifier(
           getStringValue(hardwareOverview, "serial_number") ??
             getStringValue(ioregPlatform, "IOPlatformSerialNumber"),
@@ -208,7 +298,7 @@ export function buildDarwinArm64Hbom(options = {}) {
         ),
       ),
       createProperty(
-        "hbom:platformUuid",
+        "cdx:hbom:platformUuid",
         redactIdentifier(
           getStringValue(hardwareOverview, "platform_UUID") ??
             getStringValue(ioregPlatform, "IOPlatformUUID"),
@@ -216,14 +306,14 @@ export function buildDarwinArm64Hbom(options = {}) {
         ),
       ),
       createProperty(
-        "hbom:modelNumber",
+        "cdx:hbom:modelNumber",
         getStringValue(hardwareOverview, "model_number"),
       ),
       createProperty(
-        "hbom:registryEntryName",
+        "cdx:hbom:registryEntryName",
         getStringValue(ioregPlatform, "IORegistryEntryName"),
       ),
-      createProperty("hbom:identifierPolicy", identifierPolicy),
+      createProperty("cdx:hbom:identifierPolicy", identifierPolicy),
     ]),
   });
   const components = compact([
@@ -232,20 +322,25 @@ export function buildDarwinArm64Hbom(options = {}) {
       version: modelIdentifier,
       manufacturer: { name: "Apple" },
       properties: compact([
-        createProperty("hbom:coreCount", sysctl["hw.ncpu"]),
-        createProperty("hbom:logicalCpuCount", sysctl["hw.logicalcpu"]),
-        createProperty("hbom:physicalCpuCount", sysctl["hw.physicalcpu"]),
+        createProperty("cdx:hbom:coreCount", sysctl["hw.ncpu"]),
+        createProperty("cdx:hbom:logicalCpuCount", sysctl["hw.logicalcpu"]),
+        createProperty("cdx:hbom:physicalCpuCount", sysctl["hw.physicalcpu"]),
       ]),
     }),
     memoryValue
       ? createHardwareComponent("memory", {
           name: "Unified Memory",
           manufacturer: { name: "Apple" },
-          properties: compact([createProperty("hbom:size", memoryValue)]),
+          properties: compact([createProperty("cdx:hbom:size", memoryValue)]),
         })
       : undefined,
     ...collectStorageComponents(storageGroups, diskutilPlists, options),
     ...collectDisplayComponents(displayEntries, options),
+    ...collectUsbComponents(usbEntries, options),
+    ...collectAirportComponents(airportEntries, options),
+    ...collectAudioComponents(audioEntries),
+    ...collectCameraComponents(cameraEntries, options),
+    ...collectApfsComponents(apfsTopology, options),
     ...collectBluetoothComponents(bluetoothEntries, options),
     ...collectThunderboltComponents(thunderboltEntries, options),
     ...networkPorts.map((port) =>
@@ -254,8 +349,19 @@ export function buildDarwinArm64Hbom(options = {}) {
         version: port.device,
         properties: compact([
           createProperty(
-            "hbom:macAddress",
-            redactIdentifier(port.ethernetAddress, options),
+            "cdx:hbom:macAddress",
+            redactIdentifier(port.ethernetAddress ?? ifconfig[port.device]?.macAddress, options),
+          ),
+          createProperty("cdx:hbom:mtu", ifconfig[port.device]?.mtu),
+          createProperty("cdx:hbom:media", ifconfig[port.device]?.media),
+          createProperty("cdx:hbom:status", ifconfig[port.device]?.status),
+          createProperty("cdx:hbom:ipv4Count", ifconfig[port.device]?.ipv4Count),
+          createProperty("cdx:hbom:ipv6Count", ifconfig[port.device]?.ipv6Count),
+          createProperty(
+            "cdx:hbom:flags",
+            Array.isArray(ifconfig[port.device]?.flags) && ifconfig[port.device].flags.length
+              ? ifconfig[port.device].flags.join(", ")
+              : undefined,
           ),
         ]),
       }),
@@ -280,12 +386,12 @@ export function buildDarwinArm64Hbom(options = {}) {
     },
     components,
     properties: compact([
-      createProperty("hbom:targetPlatform", "darwin"),
-      createProperty("hbom:targetArchitecture", "arm64"),
-      createProperty("hbom:identifierPolicy", identifierPolicy),
-      createProperty("hbom:collectorProfile", "darwin-arm64-v1"),
+      createProperty("cdx:hbom:targetPlatform", "darwin"),
+      createProperty("cdx:hbom:targetArchitecture", "arm64"),
+      createProperty("cdx:hbom:identifierPolicy", identifierPolicy),
+      createProperty("cdx:hbom:collectorProfile", "darwin-arm64-v1"),
       createProperty(
-        "hbom:evidence:commandCount",
+        "cdx:hbom:evidence:commandCount",
         (options.executedCommands ??
           DARWIN_ARM64_COMMANDS.filter((spec) => spec.phase === "collector-v1")).length,
       ),
@@ -328,9 +434,11 @@ export async function collectDarwinArm64Hardware(options = {}) {
    *   profiler?: Record<string, unknown>,
    *   sysctl?: Record<string, string>,
    *   networksetup?: Array<{ hardwarePort?: string, device?: string, ethernetAddress?: string }>,
+     *   ifconfig?: Record<string, { flags?: string[], mtu?: number, macAddress?: string, ipv4Count: number, ipv6Count: number, media?: string, status?: string }>,
    *   pmsetBattery?: { powerSource?: string, batteryId?: string, chargePercent?: number, isAcAttached?: boolean, isCharging?: boolean } | null,
    *   diskutilPlists?: Record<string, unknown>[],
-   *   ioregPlatform?: Record<string, unknown>[] | null
+     *   ioregPlatform?: Record<string, unknown>[] | null,
+     *   apfsTopology?: Record<string, unknown>
    * }} */ ({});
   const executedCommands = [];
 
@@ -366,6 +474,21 @@ export async function collectDarwinArm64Hardware(options = {}) {
     },
     allowPartial,
   );
+
+  sources.ifconfig = {};
+  const networkDevices = [
+    ...new Set((sources.networksetup ?? []).map((entry) => entry.device).filter(Boolean)),
+  ];
+  for (const deviceName of networkDevices) {
+    await attemptCollection(
+      async () => {
+        const spec = createIfconfigCommand(deviceName);
+        sources.ifconfig[deviceName] = parseIfconfigText(await runCommand(spec, options));
+        executedCommands.push(toEvidenceCommand(spec));
+      },
+      allowPartial,
+    );
+  }
 
   await attemptCollection(
     async () => {
@@ -407,6 +530,15 @@ export async function collectDarwinArm64Hardware(options = {}) {
       },
       allowPartial,
     );
+
+    await attemptCollection(
+      async () => {
+        const spec = getRequiredCommand("apfs-topology");
+        sources.apfsTopology = parsePlistDict(await runCommand(spec, options));
+        executedCommands.push(toEvidenceCommand(spec));
+      },
+      allowPartial,
+    );
   }
 
   return buildDarwinArm64Hbom({
@@ -444,24 +576,24 @@ function collectDisplayComponents(displayEntries, options = {}) {
         description: getStringValue(display, "spdisplays_display_type"),
         properties: compact([
           createProperty(
-            "hbom:resolution",
+            "cdx:hbom:resolution",
             getStringValue(display, "_spdisplays_resolution") ??
               getStringValue(display, "spdisplays_pixelresolution"),
           ),
           createProperty(
-            "hbom:connectionType",
+            "cdx:hbom:connectionType",
             getStringValue(display, "spdisplays_connection_type"),
           ),
           createProperty(
-            "hbom:vendorId",
+            "cdx:hbom:vendorId",
             getStringValue(display, "_spdisplays_display-vendor-id"),
           ),
           createProperty(
-            "hbom:productId",
+            "cdx:hbom:productId",
             getStringValue(display, "_spdisplays_display-product-id"),
           ),
           createProperty(
-            "hbom:displaySerialNumber",
+            "cdx:hbom:displaySerialNumber",
             redactIdentifier(
               getStringValue(display, "_spdisplays_display-serial-number"),
               options,
@@ -471,6 +603,308 @@ function collectDisplayComponents(displayEntries, options = {}) {
       }),
     );
   });
+}
+
+/**
+ * Collect USB controller and device components from `system_profiler` JSON.
+ *
+ * @param {unknown[]} usbEntries USB entries.
+ * @param {{ includeSensitiveIdentifiers?: boolean }} [options={}] Redaction options.
+ * @returns {Array<object>} USB components.
+ */
+function collectUsbComponents(usbEntries, options = {}) {
+  return usbEntries.flatMap((entry) => {
+    const controllerName = getStringValue(entry, "_name");
+    const children = Array.isArray(entry?._items) ? entry._items : [];
+
+    return compact([
+      controllerName
+        ? createHardwareComponent("usb-controller", {
+            name: controllerName,
+            properties: compact([
+              createProperty("cdx:hbom:locationId", getStringValue(entry, "location_id")),
+              createProperty(
+                "cdx:hbom:currentAvailable",
+                getStringValue(entry, "current_available"),
+              ),
+            ]),
+          })
+        : undefined,
+      ...collectUsbChildComponents(children, controllerName, options),
+    ]);
+  });
+}
+
+/**
+ * Collect Wi-Fi adapter components from `SPAirPortDataType`.
+ *
+ * @param {unknown[]} airportEntries Wi-Fi entries.
+ * @param {{ includeSensitiveIdentifiers?: boolean }} [options={}] Redaction options.
+ * @returns {Array<object>} Wi-Fi components.
+ */
+function collectAirportComponents(airportEntries, options = {}) {
+  const interfaces = airportEntries.flatMap((entry) =>
+    Array.isArray(entry?.spairport_airport_interfaces)
+      ? entry.spairport_airport_interfaces
+      : [],
+  );
+
+  return interfaces
+    .filter((entry) => {
+      const name = getStringValue(entry, "_name") ?? "";
+      if (/^(awdl|llw|p2p)/u.test(name)) {
+        return false;
+      }
+
+      return Boolean(
+        getStringValue(entry, "spairport_wireless_card_type") ||
+          getStringValue(entry, "spairport_wireless_firmware_version"),
+      );
+    })
+    .map((entry) => {
+      const currentNetwork = getObjectValue(entry, "spairport_current_network_information");
+      const ids = parseAirportCardIds(getStringValue(entry, "spairport_wireless_card_type"));
+      const supportedChannels = Array.isArray(entry?.spairport_supported_channels)
+        ? entry.spairport_supported_channels
+        : [];
+
+      return createHardwareComponent("wireless-adapter", {
+        name: getStringValue(entry, "_name") ?? "Wi-Fi Interface",
+        description: getStringValue(entry, "spairport_supported_phymodes"),
+        properties: compact([
+          createProperty(
+            "cdx:hbom:macAddress",
+            redactIdentifier(
+              getStringValue(entry, "spairport_wireless_mac_address")?.toLowerCase(),
+              options,
+            ),
+          ),
+          createProperty("cdx:hbom:vendorId", ids.vendorId),
+          createProperty("cdx:hbom:productId", ids.productId),
+          createProperty(
+            "cdx:hbom:firmwareVersion",
+            getStringValue(entry, "spairport_wireless_firmware_version"),
+          ),
+          createProperty("cdx:hbom:status", getStringValue(entry, "spairport_status_information")),
+          createProperty(
+            "cdx:hbom:connected",
+            getStringValue(entry, "spairport_status_information") === "spairport_status_connected",
+          ),
+          createProperty(
+            "cdx:hbom:supportedPhyModes",
+            getStringValue(entry, "spairport_supported_phymodes"),
+          ),
+          createProperty("cdx:hbom:supportedChannelCount", supportedChannels.length || undefined),
+          createProperty(
+            "cdx:hbom:countryCode",
+            getStringValue(currentNetwork, "spairport_network_country_code") ??
+              getStringValue(entry, "spairport_wireless_country_code"),
+          ),
+          createProperty(
+            "cdx:hbom:channel",
+            getStringValue(currentNetwork, "spairport_network_channel"),
+          ),
+          createProperty(
+            "cdx:hbom:phyMode",
+            getStringValue(currentNetwork, "spairport_network_phymode"),
+          ),
+          createProperty(
+            "cdx:hbom:linkRateMbps",
+            getNumberValue(currentNetwork, "spairport_network_rate"),
+          ),
+          createProperty(
+            "cdx:hbom:securityMode",
+            getStringValue(currentNetwork, "spairport_security_mode"),
+          ),
+        ]),
+      });
+    });
+}
+
+/**
+ * Collect CoreAudio devices from `SPAudioDataType`.
+ *
+ * @param {unknown[]} audioEntries Audio entries.
+ * @returns {Array<object>} Audio components.
+ */
+function collectAudioComponents(audioEntries) {
+  const mergedDevices = new Map();
+
+  audioEntries.forEach((entry) => {
+    const items = Array.isArray(entry?._items) ? entry._items : [];
+    items.forEach((device) => {
+      const name = getStringValue(device, "_name") ?? "Audio Device";
+      const manufacturer = getStringValue(device, "coreaudio_device_manufacturer") ?? "";
+      const transport = getStringValue(device, "coreaudio_device_transport") ?? "";
+      const key = [name, manufacturer, transport].join("|");
+      const current = mergedDevices.get(key) ?? {
+        name,
+        manufacturer,
+        transport,
+        inputChannels: undefined,
+        outputChannels: undefined,
+        sampleRates: new Set(),
+        defaultInput: false,
+        defaultOutput: false,
+        defaultSystemOutput: false,
+        inputSources: new Set(),
+        outputSources: new Set(),
+      };
+
+      const inputChannels = getNumberValue(device, "coreaudio_device_input");
+      const outputChannels = getNumberValue(device, "coreaudio_device_output");
+      const sampleRate = getNumberValue(device, "coreaudio_device_srate");
+      if (inputChannels !== undefined) {
+        current.inputChannels = Math.max(current.inputChannels ?? 0, inputChannels);
+      }
+      if (outputChannels !== undefined) {
+        current.outputChannels = Math.max(current.outputChannels ?? 0, outputChannels);
+      }
+      if (sampleRate !== undefined) {
+        current.sampleRates.add(String(sampleRate));
+      }
+      current.defaultInput =
+        current.defaultInput || getStringValue(device, "coreaudio_default_audio_input_device") === "spaudio_yes";
+      current.defaultOutput =
+        current.defaultOutput || getStringValue(device, "coreaudio_default_audio_output_device") === "spaudio_yes";
+      current.defaultSystemOutput =
+        current.defaultSystemOutput || getStringValue(device, "coreaudio_default_audio_system_device") === "spaudio_yes";
+
+      const inputSource = getStringValue(device, "coreaudio_input_source");
+      const outputSource = getStringValue(device, "coreaudio_output_source");
+      if (inputSource) {
+        current.inputSources.add(inputSource);
+      }
+      if (outputSource) {
+        current.outputSources.add(outputSource);
+      }
+
+      mergedDevices.set(key, current);
+    });
+  });
+
+  return [...mergedDevices.values()].map((device) =>
+    createHardwareComponent("audio-device", {
+      name: device.name,
+      manufacturer: device.manufacturer ? { name: device.manufacturer } : undefined,
+      description: normalizeCoreAudioTransport(device.transport),
+      properties: compact([
+        createProperty("cdx:hbom:transport", device.transport),
+        createProperty("cdx:hbom:inputChannels", device.inputChannels),
+        createProperty("cdx:hbom:outputChannels", device.outputChannels),
+        createProperty(
+          "cdx:hbom:sampleRate",
+          device.sampleRates.size === 1 ? [...device.sampleRates][0] : undefined,
+        ),
+        createProperty(
+          "cdx:hbom:sampleRates",
+          device.sampleRates.size > 1 ? [...device.sampleRates].sort().join(", ") : undefined,
+        ),
+        createProperty("cdx:hbom:defaultInput", device.defaultInput),
+        createProperty("cdx:hbom:defaultOutput", device.defaultOutput),
+        createProperty("cdx:hbom:defaultSystemOutput", device.defaultSystemOutput),
+        createProperty(
+          "cdx:hbom:inputSources",
+          device.inputSources.size ? [...device.inputSources].sort().join(", ") : undefined,
+        ),
+        createProperty(
+          "cdx:hbom:outputSources",
+          device.outputSources.size ? [...device.outputSources].sort().join(", ") : undefined,
+        ),
+      ]),
+    }),
+  );
+}
+
+/**
+ * Collect camera components from `SPCameraDataType`.
+ *
+ * @param {unknown[]} cameraEntries Camera entries.
+ * @param {{ includeSensitiveIdentifiers?: boolean }} [options={}] Redaction options.
+ * @returns {Array<object>} Camera components.
+ */
+function collectCameraComponents(cameraEntries, options = {}) {
+  return cameraEntries.map((entry) => {
+    const name = getStringValue(entry, "_name") ?? "Camera";
+    const modelId = getStringValue(entry, "spcamera_model-id");
+    const uniqueId = getStringValue(entry, "spcamera_unique-id");
+    const isVirtual = /(virtual|extension|obs|insta360)/iu.test(`${name} ${modelId ?? ""}`);
+
+    return createHardwareComponent("camera", {
+      name,
+      description: modelId,
+      properties: compact([
+        createProperty("cdx:hbom:cameraModelId", modelId),
+        createProperty("cdx:hbom:isVirtual", isVirtual),
+        createProperty(
+          "cdx:hbom:cameraUniqueId",
+          redactIdentifier(uniqueId, options),
+        ),
+      ]),
+    });
+  });
+}
+
+/**
+ * Collect APFS container and volume components from `diskutil apfs list -plist` output.
+ *
+ * @param {{ containers: Array<Record<string, unknown>>, volumes: Array<Record<string, unknown>> }} topology Normalized APFS topology.
+ * @param {{ includeSensitiveIdentifiers?: boolean }} [options={}] Redaction options.
+ * @returns {Array<object>} APFS components.
+ */
+function collectApfsComponents(topology, options = {}) {
+  return [
+    ...topology.containers.map((container) =>
+      createHardwareComponent("storage-container", {
+        name:
+          `APFS Container ${getStringValue(container, "ContainerReference") ?? "container"}`,
+        version: getStringValue(container, "ContainerReference"),
+        properties: compact([
+          createProperty(
+            "cdx:hbom:containerUuid",
+            redactIdentifier(getStringValue(container, "APFSContainerUUID"), options),
+          ),
+          createProperty(
+            "cdx:hbom:physicalStores",
+            Array.isArray(container.PhysicalStores)
+              ? container.PhysicalStores
+                  .map((store) => getStringValue(store, "DeviceIdentifier"))
+                  .filter(Boolean)
+                  .join(", ")
+              : undefined,
+          ),
+          createProperty("cdx:hbom:capacityBytes", getNumberValue(container, "CapacityCeiling")),
+          createProperty("cdx:hbom:freeBytes", getNumberValue(container, "CapacityFree")),
+        ]),
+      }),
+    ),
+    ...topology.volumes.map((volume) =>
+      createHardwareComponent("storage-volume", {
+        name: getStringValue(volume, "Name") ?? "APFS Volume",
+        version: getStringValue(volume, "DeviceIdentifier"),
+        properties: compact([
+          createProperty(
+            "cdx:hbom:volumeUuid",
+            redactIdentifier(getStringValue(volume, "APFSVolumeUUID"), options),
+          ),
+          createProperty("cdx:hbom:container", getStringValue(volume, "ContainerReference")),
+          createProperty(
+            "cdx:hbom:roles",
+            Array.isArray(volume.Roles) ? volume.Roles.join(", ") : undefined,
+          ),
+          createProperty("cdx:hbom:isEncrypted", getBooleanValue(volume, "Encryption")),
+          createProperty("cdx:hbom:fileVault", getBooleanValue(volume, "FileVault")),
+          createProperty("cdx:hbom:isLocked", getBooleanValue(volume, "Locked")),
+          createProperty("cdx:hbom:capacityInUse", getNumberValue(volume, "CapacityInUse")),
+          createProperty("cdx:hbom:capacityQuota", getNumberValue(volume, "CapacityQuota")),
+          createProperty(
+            "cdx:hbom:capacityReserve",
+            getNumberValue(volume, "CapacityReserve"),
+          ),
+        ]),
+      }),
+    ),
+  ];
 }
 
 /**
@@ -503,31 +937,31 @@ function collectStorageComponents(storageGroups, diskutilPlists, options = {}) {
           "Storage Device",
         version: deviceIdentifier,
         properties: compact([
-          createProperty("hbom:capacity", getStringValue(item, "size")),
+          createProperty("cdx:hbom:capacity", getStringValue(item, "size")),
           createProperty(
-            "hbom:capacityBytes",
+            "cdx:hbom:capacityBytes",
             getStringValue(item, "size_in_bytes") ?? getStringValue(diskutil, "Size"),
           ),
-          createProperty("hbom:revision", getStringValue(item, "device_revision")),
+          createProperty("cdx:hbom:revision", getStringValue(item, "device_revision")),
           createProperty(
-            "hbom:deviceSerial",
+            "cdx:hbom:deviceSerial",
             redactIdentifier(getStringValue(item, "device_serial"), options),
           ),
-          createProperty("hbom:busProtocol", getStringValue(diskutil, "BusProtocol")),
-          createProperty("hbom:smartStatus", getStringValue(diskutil, "SMARTStatus")),
-          createProperty("hbom:mediaType", getStringValue(diskutil, "MediaType")),
-          createProperty("hbom:isInternal", getBooleanValue(diskutil, "Internal")),
-          createProperty("hbom:isRemovable", getBooleanValue(diskutil, "Removable")),
+          createProperty("cdx:hbom:busProtocol", getStringValue(diskutil, "BusProtocol")),
+          createProperty("cdx:hbom:smartStatus", getStringValue(diskutil, "SMARTStatus")),
+          createProperty("cdx:hbom:mediaType", getStringValue(diskutil, "MediaType")),
+          createProperty("cdx:hbom:isInternal", getBooleanValue(diskutil, "Internal")),
+          createProperty("cdx:hbom:isRemovable", getBooleanValue(diskutil, "Removable")),
           createProperty(
-            "hbom:blockSize",
+            "cdx:hbom:blockSize",
             getNumberValue(diskutil, "DeviceBlockSize"),
           ),
           createProperty(
-            "hbom:deviceTreePath",
+            "cdx:hbom:deviceTreePath",
             getStringValue(diskutil, "DeviceTreePath"),
           ),
           createProperty(
-            "hbom:wearPercentageUsed",
+            "cdx:hbom:wearPercentageUsed",
             getNestedNumberValue(
               diskutil,
               "SMARTDeviceSpecificKeysMayVaryNotGuaranteed",
@@ -545,11 +979,11 @@ function collectStorageComponents(storageGroups, diskutilPlists, options = {}) {
         name: getStringValue(plist, "MediaName") ?? "Storage Device",
         version: getStringValue(plist, "DeviceIdentifier"),
         properties: compact([
-          createProperty("hbom:capacityBytes", getNumberValue(plist, "Size")),
-          createProperty("hbom:busProtocol", getStringValue(plist, "BusProtocol")),
-          createProperty("hbom:smartStatus", getStringValue(plist, "SMARTStatus")),
-          createProperty("hbom:mediaType", getStringValue(plist, "MediaType")),
-          createProperty("hbom:isInternal", getBooleanValue(plist, "Internal")),
+          createProperty("cdx:hbom:capacityBytes", getNumberValue(plist, "Size")),
+          createProperty("cdx:hbom:busProtocol", getStringValue(plist, "BusProtocol")),
+          createProperty("cdx:hbom:smartStatus", getStringValue(plist, "SMARTStatus")),
+          createProperty("cdx:hbom:mediaType", getStringValue(plist, "MediaType")),
+          createProperty("cdx:hbom:isInternal", getBooleanValue(plist, "Internal")),
         ]),
       }),
     );
@@ -583,38 +1017,38 @@ function collectBluetoothComponents(bluetoothEntries, options = {}) {
             description: getStringValue(controller, "controller_chipset"),
             properties: compact([
               createProperty(
-                "hbom:address",
+                "cdx:hbom:address",
                 redactIdentifier(
                   getStringValue(controller, "controller_address")?.toLowerCase(),
                   options,
                 ),
               ),
               createProperty(
-                "hbom:chipset",
+                "cdx:hbom:chipset",
                 getStringValue(controller, "controller_chipset"),
               ),
               createProperty(
-                "hbom:firmwareVersion",
+                "cdx:hbom:firmwareVersion",
                 getStringValue(controller, "controller_firmwareVersion"),
               ),
               createProperty(
-                "hbom:productId",
+                "cdx:hbom:productId",
                 getStringValue(controller, "controller_productID"),
               ),
               createProperty(
-                "hbom:vendorId",
+                "cdx:hbom:vendorId",
                 getStringValue(controller, "controller_vendorID"),
               ),
               createProperty(
-                "hbom:transport",
+                "cdx:hbom:transport",
                 getStringValue(controller, "controller_transport"),
               ),
               createProperty(
-                "hbom:state",
+                "cdx:hbom:state",
                 getStringValue(controller, "controller_state"),
               ),
               createProperty(
-                "hbom:supportedServices",
+                "cdx:hbom:supportedServices",
                 getStringValue(controller, "controller_supportedServices"),
               ),
             ]),
@@ -649,47 +1083,47 @@ function collectThunderboltComponents(thunderboltEntries, options = {}) {
           name: getStringValue(entry, "vendor_name_key") ?? "Apple",
         },
         properties: compact([
-          createProperty("hbom:deviceName", getStringValue(entry, "device_name_key")),
+          createProperty("cdx:hbom:deviceName", getStringValue(entry, "device_name_key")),
           createProperty(
-            "hbom:domainUuid",
+            "cdx:hbom:domainUuid",
             redactIdentifier(getStringValue(entry, "domain_uuid_key"), options),
           ),
           createProperty(
-            "hbom:switchUid",
+            "cdx:hbom:switchUid",
             redactIdentifier(getStringValue(entry, "switch_uid_key"), options),
           ),
-          createProperty("hbom:routeString", getStringValue(entry, "route_string_key")),
-          createProperty("hbom:receptacleCount", receptacleProperties.length),
+          createProperty("cdx:hbom:routeString", getStringValue(entry, "route_string_key")),
+          createProperty("cdx:hbom:receptacleCount", receptacleProperties.length),
           createProperty(
-            "hbom:receptacleIds",
+            "cdx:hbom:receptacleIds",
             receptacleProperties
               .map((receptacle) => getStringValue(receptacle, "receptacle_id_key"))
               .filter(Boolean)
               .join(", "),
           ),
           createProperty(
-            "hbom:linkStatus",
+            "cdx:hbom:linkStatus",
             receptacleProperties
               .map((receptacle) => getStringValue(receptacle, "link_status_key"))
               .filter(Boolean)
               .join(", "),
           ),
           createProperty(
-            "hbom:speed",
+            "cdx:hbom:speed",
             receptacleProperties
               .map((receptacle) => getStringValue(receptacle, "current_speed_key"))
               .filter(Boolean)
               .join(", "),
           ),
           createProperty(
-            "hbom:receptacleStatus",
+            "cdx:hbom:receptacleStatus",
             receptacleProperties
               .map((receptacle) => getStringValue(receptacle, "receptacle_status_key"))
               .filter(Boolean)
               .join(", "),
           ),
           createProperty(
-            "hbom:microFirmwareVersion",
+            "cdx:hbom:microFirmwareVersion",
             receptacleProperties
               .map((receptacle) => getStringValue(receptacle, "micro_version_key"))
               .filter(Boolean)
@@ -725,14 +1159,14 @@ function collectBatteryComponents(powerEntries, pmsetBattery, options = {}) {
       ? createHardwareComponent("power", {
           name: "Internal Battery",
           properties: compact([
-            createProperty("hbom:powerSource", pmsetBattery?.powerSource),
+            createProperty("cdx:hbom:powerSource", pmsetBattery?.powerSource),
             createProperty(
-              "hbom:chargePercent",
+              "cdx:hbom:chargePercent",
               pmsetBattery?.chargePercent ??
                 getNumberValue(chargeInfo, "sppower_battery_state_of_charge"),
             ),
             createProperty(
-              "hbom:isAcAttached",
+              "cdx:hbom:isAcAttached",
               pmsetBattery?.isAcAttached ??
                 getBooleanFromStringValue(
                   chargerInfo,
@@ -740,55 +1174,55 @@ function collectBatteryComponents(powerEntries, pmsetBattery, options = {}) {
                 ),
             ),
             createProperty(
-              "hbom:isCharging",
+              "cdx:hbom:isCharging",
               pmsetBattery?.isCharging ??
                 getBooleanFromStringValue(chargeInfo, "sppower_battery_is_charging"),
             ),
             createProperty(
-              "hbom:batteryId",
+              "cdx:hbom:batteryId",
               redactIdentifier(pmsetBattery?.batteryId, options),
             ),
             createProperty(
-              "hbom:cycleCount",
+              "cdx:hbom:cycleCount",
               getNumberValue(healthInfo, "sppower_battery_cycle_count"),
             ),
             createProperty(
-              "hbom:health",
+              "cdx:hbom:health",
               getStringValue(healthInfo, "sppower_battery_health"),
             ),
             createProperty(
-              "hbom:maximumCapacity",
+              "cdx:hbom:maximumCapacity",
               getStringValue(
                 healthInfo,
                 "sppower_battery_health_maximum_capacity",
               ),
             ),
             createProperty(
-              "hbom:fullyCharged",
+              "cdx:hbom:fullyCharged",
               getBooleanFromStringValue(chargeInfo, "sppower_battery_fully_charged"),
             ),
             createProperty(
-              "hbom:atWarningLevel",
+              "cdx:hbom:atWarningLevel",
               getBooleanFromStringValue(chargeInfo, "sppower_battery_at_warn_level"),
             ),
             createProperty(
-              "hbom:deviceName",
+              "cdx:hbom:deviceName",
               getStringValue(modelInfo, "sppower_battery_device_name"),
             ),
             createProperty(
-              "hbom:firmwareVersion",
+              "cdx:hbom:firmwareVersion",
               getStringValue(modelInfo, "sppower_battery_firmware_version"),
             ),
             createProperty(
-              "hbom:hardwareRevision",
+              "cdx:hbom:hardwareRevision",
               getStringValue(modelInfo, "sppower_battery_hardware_revision"),
             ),
             createProperty(
-              "hbom:cellRevision",
+              "cdx:hbom:cellRevision",
               getStringValue(modelInfo, "sppower_battery_cell_revision"),
             ),
             createProperty(
-              "hbom:batterySerialNumber",
+              "cdx:hbom:batterySerialNumber",
               redactIdentifier(
                 getStringValue(modelInfo, "sppower_battery_serial_number"),
                 options,
@@ -802,26 +1236,26 @@ function collectBatteryComponents(powerEntries, pmsetBattery, options = {}) {
           name: "AC Charger",
           properties: compact([
             createProperty(
-              "hbom:connected",
+              "cdx:hbom:connected",
               getBooleanFromStringValue(
                 chargerInfo,
                 "sppower_battery_charger_connected",
               ),
             ),
             createProperty(
-              "hbom:isCharging",
+              "cdx:hbom:isCharging",
               getBooleanFromStringValue(chargerInfo, "sppower_battery_is_charging"),
             ),
             createProperty(
-              "hbom:chargerId",
+              "cdx:hbom:chargerId",
               getStringValue(chargerInfo, "sppower_ac_charger_ID"),
             ),
             createProperty(
-              "hbom:family",
+              "cdx:hbom:family",
               getStringValue(chargerInfo, "sppower_ac_charger_family"),
             ),
             createProperty(
-              "hbom:watts",
+              "cdx:hbom:watts",
               getStringValue(chargerInfo, "sppower_ac_charger_watts"),
             ),
           ]),
@@ -843,50 +1277,50 @@ function createBluetoothDeviceComponent(device, options = {}) {
     description: device.state,
     properties: compact([
       createProperty(
-        "hbom:address",
+        "cdx:hbom:address",
         redactIdentifier(
           getStringValue(device.properties, "device_address")?.toLowerCase(),
           options,
         ),
       ),
-      createProperty("hbom:connectionState", device.state),
+      createProperty("cdx:hbom:connectionState", device.state),
       createProperty(
-        "hbom:vendorId",
+        "cdx:hbom:vendorId",
         getStringValue(device.properties, "device_vendorID"),
       ),
       createProperty(
-        "hbom:productId",
+        "cdx:hbom:productId",
         getStringValue(device.properties, "device_productID"),
       ),
       createProperty(
-        "hbom:firmwareVersion",
+        "cdx:hbom:firmwareVersion",
         getStringValue(device.properties, "device_firmwareVersion"),
       ),
       createProperty(
-        "hbom:minorType",
+        "cdx:hbom:minorType",
         getStringValue(device.properties, "device_minorType"),
       ),
       createProperty(
-        "hbom:services",
+        "cdx:hbom:services",
         getStringValue(device.properties, "device_services"),
       ),
-      createProperty("hbom:rssi", getStringValue(device.properties, "device_rssi")),
+      createProperty("cdx:hbom:rssi", getStringValue(device.properties, "device_rssi")),
       createProperty(
-        "hbom:serialNumber",
+        "cdx:hbom:serialNumber",
         redactIdentifier(
           getStringValue(device.properties, "device_serialNumber"),
           options,
         ),
       ),
       createProperty(
-        "hbom:serialNumberLeft",
+        "cdx:hbom:serialNumberLeft",
         redactIdentifier(
           getStringValue(device.properties, "device_serialNumberLeft"),
           options,
         ),
       ),
       createProperty(
-        "hbom:serialNumberRight",
+        "cdx:hbom:serialNumberRight",
         redactIdentifier(
           getStringValue(device.properties, "device_serialNumberRight"),
           options,
@@ -921,6 +1355,101 @@ function parseNamedDeviceList(list, state) {
 }
 
 /**
+ * Recursively collect USB child components from `SPUSBDataType`.
+ *
+ * @param {unknown[]} items Nested USB items.
+ * @param {string | undefined} controllerName Parent controller name.
+ * @param {{ includeSensitiveIdentifiers?: boolean }} [options={}] Redaction options.
+ * @returns {Array<object>} USB device components.
+ */
+function collectUsbChildComponents(items, controllerName, options = {}) {
+  return items.flatMap((item) => {
+    const children = Array.isArray(item?._items) ? item._items : [];
+    const name = getStringValue(item, "_name");
+    const component = shouldCreateDarwinUsbDevice(item)
+      ? createHardwareComponent("usb-device", {
+          name: name ?? "USB Device",
+          manufacturer: getStringValue(item, "manufacturer")
+            ? { name: getStringValue(item, "manufacturer") }
+            : undefined,
+          version: getStringValue(item, "version"),
+          properties: compact([
+            createProperty("cdx:hbom:usbController", controllerName),
+            createProperty("cdx:hbom:vendorId", getStringValue(item, "vendor_id")),
+            createProperty("cdx:hbom:productId", getStringValue(item, "product_id")),
+            createProperty("cdx:hbom:locationId", getStringValue(item, "location_id")),
+            createProperty("cdx:hbom:speed", getStringValue(item, "speed")),
+            createProperty("cdx:hbom:bsdName", getStringValue(item, "bsd_name")),
+            createProperty(
+              "cdx:hbom:deviceSerial",
+              redactIdentifier(getStringValue(item, "serial_num"), options),
+            ),
+            createProperty(
+              "cdx:hbom:currentAvailable",
+              getStringValue(item, "current_available"),
+            ),
+            createProperty(
+              "cdx:hbom:currentRequired",
+              getStringValue(item, "current_required"),
+            ),
+            createProperty(
+              "cdx:hbom:extraOperatingCurrentUsed",
+              getStringValue(item, "extra_operating_current_used"),
+            ),
+          ]),
+        })
+      : undefined;
+
+    return compact([component, ...collectUsbChildComponents(children, controllerName, options)]);
+  });
+}
+
+/**
+ * Determine whether a profiler USB item looks like a real device.
+ *
+ * @param {unknown} item USB candidate item.
+ * @returns {boolean} True when the item has meaningful USB identity fields.
+ */
+function shouldCreateDarwinUsbDevice(item) {
+  return Boolean(
+    getStringValue(item, "_name") &&
+      (
+        getStringValue(item, "vendor_id") ||
+        getStringValue(item, "product_id") ||
+        getStringValue(item, "serial_num") ||
+        getStringValue(item, "location_id") ||
+        getStringValue(item, "manufacturer") ||
+        getStringValue(item, "bsd_name")
+      ),
+  );
+}
+
+/**
+ * Extract vendor and product identifiers from the AirPort card-type string.
+ *
+ * @param {string | undefined} value Raw card type string.
+ * @returns {{ vendorId?: string, productId?: string }} Parsed ids.
+ */
+function parseAirportCardIds(value) {
+  const match = value?.match(/\((0x[0-9a-f]+),\s*(0x[0-9a-f]+)\)/iu);
+
+  return {
+    vendorId: match?.[1]?.toLowerCase(),
+    productId: match?.[2]?.toLowerCase(),
+  };
+}
+
+/**
+ * Normalize CoreAudio transport values into friendlier labels.
+ *
+ * @param {string | undefined} value Raw CoreAudio transport value.
+ * @returns {string | undefined} Friendly transport label.
+ */
+function normalizeCoreAudioTransport(value) {
+  return value?.replace(/^coreaudio_device_type_/u, "")?.replaceAll("_", " ");
+}
+
+/**
  * Return the BSD storage identifiers listed by `system_profiler`.
  *
  * @param {unknown[]} storageGroups Storage groups.
@@ -945,6 +1474,20 @@ function createDiskutilCommand(deviceIdentifier) {
   return {
     ...getRequiredCommand("storage-plist"),
     args: ["info", "-plist", deviceIdentifier],
+  };
+}
+
+/**
+ * Create a dynamic ifconfig command for a specific BSD interface.
+ *
+ * @param {string} deviceName BSD interface name.
+ * @returns {object} Command descriptor.
+ */
+function createIfconfigCommand(deviceName) {
+  return {
+    ...getRequiredCommand("interface-details"),
+    id: `interface-details:${deviceName}`,
+    args: [deviceName],
   };
 }
 
@@ -1138,7 +1681,7 @@ function parseEmbeddedString(value) {
  */
 function collectCommandProperties(commands) {
   return commands.map((entry) => ({
-    name: "hbom:evidence:command",
+    name: "cdx:hbom:evidence:command",
     value: `${entry.id}|${entry.category}|${entry.command}${entry.args.length ? ` ${entry.args.join(" ")}` : ""}`,
   }));
 }

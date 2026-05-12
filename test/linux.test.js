@@ -4,9 +4,13 @@ import test from "node:test";
 
 import {
   buildLinuxHbom,
+  parseAsoundCards,
+  parseAsoundPcm,
   parseCpuInfo,
   parseDmidecodeText,
+  parseEdidBuffer,
   parseEthtoolDriverInfo,
+  parseHwmonAttributes,
   parseHostnamectlJson,
   parseIpLinkJson,
   parseLshwJson,
@@ -219,6 +223,86 @@ BIOS Information
   assert.equal(parsed.bios.Version, "1.10.2");
 });
 
+test("parseAsoundCards parses ALSA card inventory", () => {
+  const parsed = parseAsoundCards(` 0 [Generic        ]: HDA-Intel - HD-Audio Generic
+                      HD-Audio Generic at 0xdc5c8000 irq 115
+ 2 [acp63          ]: acp63 - acp63
+                      AZW-SER8-Defaultstring
+`);
+
+  assert.equal(parsed.length, 2);
+  assert.equal(parsed[0].number, 0);
+  assert.equal(parsed[0].id, "Generic");
+  assert.equal(parsed[0].interfaceType, "HDA-Intel");
+  assert.equal(parsed[1].longName, "AZW-SER8-Defaultstring");
+});
+
+test("parseAsoundPcm parses ALSA PCM devices", () => {
+  const parsed = parseAsoundPcm(`00-03: HDMI 0 : HDMI 0 : playback 1
+01-00: ALC897 Analog : ALC897 Analog : playback 1 : capture 1
+`);
+
+  assert.deepEqual(parsed, [
+    {
+      cardNumber: 0,
+      deviceNumber: 3,
+      id: "HDMI 0",
+      name: "HDMI 0",
+      playbackCount: 1,
+      captureCount: undefined,
+    },
+    {
+      cardNumber: 1,
+      deviceNumber: 0,
+      id: "ALC897 Analog",
+      name: "ALC897 Analog",
+      playbackCount: 1,
+      captureCount: 1,
+    },
+  ]);
+});
+
+test("parseEdidBuffer extracts basic monitor identity and preferred timing", () => {
+  const edid = createSampleEdidBuffer();
+  const parsed = parseEdidBuffer(edid);
+
+  assert.deepEqual(parsed, {
+    manufacturerId: "DEL",
+    productId: "a06b",
+    serialNumber: "SN123456",
+    name: "DELL U2720Q",
+    weekOfManufacture: 12,
+    yearOfManufacture: 2024,
+    version: "1.4",
+    widthCm: 60,
+    heightCm: 34,
+    preferredResolution: "3840x2160",
+  });
+});
+
+test("parseHwmonAttributes normalizes hwmon temperature and fan sensors", () => {
+  const parsed = parseHwmonAttributes({
+    name: "nvme",
+    temp1_input: "38850",
+    temp1_label: "Composite",
+    temp2_input: "45850",
+    temp2_label: "Sensor 1",
+    fan1_input: "1200",
+    fan1_label: "cpu fan",
+    pwm1: "90",
+  });
+
+  assert.deepEqual(parsed, {
+    name: "nvme",
+    temperatureSensors: [
+      { label: "Composite", valueCelsius: 38.85, valueRpm: undefined },
+      { label: "Sensor 1", valueCelsius: 45.85, valueRpm: undefined },
+    ],
+    fanSensors: [{ label: "cpu fan", valueCelsius: undefined, valueRpm: 1200 }],
+    pwmValues: [90],
+  });
+});
+
 test("buildLinuxHbom creates a CycloneDX 1.7 BOM for linux amd64 fixtures", () => {
   const bom = buildLinuxHbom({
     architecture: "amd64",
@@ -380,7 +464,7 @@ test("buildLinuxHbom creates a CycloneDX 1.7 BOM for linux amd64 fixtures", () =
   assert.equal(bom.metadata.component.name, "XPS 16 9640");
   assert.equal(bom.metadata.component.manufacturer.name, "Dell Inc.");
   assert.equal(
-    bom.metadata.component.properties.find((property) => property.name === "hbom:serialNumber")?.value,
+    bom.metadata.component.properties.find((property) => property.name === "cdx:hbom:serialNumber")?.value,
     "redacted:3XYZ",
   );
   assert.ok(hasHardwareClass(bom.components, "processor"));
@@ -397,15 +481,15 @@ test("buildLinuxHbom creates a CycloneDX 1.7 BOM for linux amd64 fixtures", () =
     bom.components.some((component) => component.type === "firmware"),
   );
   assert.equal(
-    bom.properties.find((property) => property.name === "hbom:targetPlatform")?.value,
+    bom.properties.find((property) => property.name === "cdx:hbom:targetPlatform")?.value,
     "linux",
   );
   assert.equal(
-    bom.properties.find((property) => property.name === "hbom:evidence:fileCount")?.value,
+    bom.properties.find((property) => property.name === "cdx:hbom:evidence:fileCount")?.value,
     "2",
   );
   assert.equal(
-    bom.components.find((component) => getPropertyValue(component, "hbom:hardwareClass") === "board")?.name,
+    bom.components.find((component) => getPropertyValue(component, "cdx:hbom:hardwareClass") === "board")?.name,
     "0T14K5",
   );
   assert.equal(
@@ -440,7 +524,7 @@ test("buildLinuxHbom creates a CycloneDX 1.7 BOM for linux arm64 fixtures", () =
   assert.equal(bom.metadata.component.name, "Ampere Dev Platform");
   assert.ok(hasHardwareClass(bom.components, "processor"));
   assert.equal(
-    bom.components.find((component) => getPropertyValue(component, "hbom:hardwareClass") === "processor")?.version,
+    bom.components.find((component) => getPropertyValue(component, "cdx:hbom:hardwareClass") === "processor")?.version,
     "arm64",
   );
 });
@@ -527,7 +611,7 @@ test("real captured arm64 fixtures can build a Linux BOM with board and PCI data
   assert.ok(hasHardwareClass(bom.components, "pci-device"));
   assert.ok(hasHardwareClass(bom.components, "usb-device"));
   assert.equal(
-    bom.components.find((component) => getPropertyValue(component, "hbom:hardwareClass") === "board")?.name,
+    bom.components.find((component) => getPropertyValue(component, "cdx:hbom:hardwareClass") === "board")?.name,
     "Raspberry Pi 5 Model B Rev 1.1",
   );
 });
@@ -638,26 +722,26 @@ test("linux build uses native arm64 device-tree, MMC/SDIO, PCI/USB sysfs, and DR
   });
 
   assert.equal(
-    getPropertyValue(bom.metadata.component, "hbom:deviceTreeRevision"),
+    getPropertyValue(bom.metadata.component, "cdx:hbom:deviceTreeRevision"),
     "0xd04171",
   );
   assert.equal(
-    bom.components.find((component) => getPropertyValue(component, "hbom:hardwareClass") === "board")?.version,
+    bom.components.find((component) => getPropertyValue(component, "cdx:hbom:hardwareClass") === "board")?.version,
     "0xd04171",
   );
   assert.ok(hasHardwareClass(bom.components, "sdio-device"));
   assert.equal(
-    bom.components.find((component) => getPropertyValue(component, "hbom:hardwareClass") === "sdio-device")?.name,
+    bom.components.find((component) => getPropertyValue(component, "cdx:hbom:hardwareClass") === "sdio-device")?.name,
     "SDIO 02D0:4345",
   );
   assert.ok(hasHardwareClass(bom.components, "pci-device"));
   assert.equal(
-    bom.components.find((component) => getPropertyValue(component, "hbom:hardwareClass") === "pci-device")?.version,
+    bom.components.find((component) => getPropertyValue(component, "cdx:hbom:hardwareClass") === "pci-device")?.version,
     "0000:01:00.0",
   );
   assert.ok(hasHardwareClass(bom.components, "usb-device"));
   assert.equal(
-    bom.components.find((component) => getPropertyValue(component, "hbom:hardwareClass") === "usb-device")?.manufacturer?.name,
+    bom.components.find((component) => getPropertyValue(component, "cdx:hbom:hardwareClass") === "usb-device")?.manufacturer?.name,
     "Linux 6.8.0-1053-raspi dwc2_hsotg",
   );
   assert.equal(getHardwareClassCount(bom.components, "display-adapter"), 2);
@@ -665,10 +749,180 @@ test("linux build uses native arm64 device-tree, MMC/SDIO, PCI/USB sysfs, and DR
   assert.equal(
     bom.components.find(
       (component) =>
-        getPropertyValue(component, "hbom:hardwareClass") === "display-adapter" &&
+        getPropertyValue(component, "cdx:hbom:hardwareClass") === "display-adapter" &&
         component.version === "card1",
-    )?.properties.find((property) => property.name === "hbom:connectorCount")?.value,
+    )?.properties.find((property) => property.name === "cdx:hbom:connectorCount")?.value,
     "2",
+  );
+});
+
+test("linux build emits native audio, video, and EDID-backed display components", () => {
+  const bom = buildLinuxHbom({
+    architecture: "amd64",
+    sources: {
+      osRelease: {
+        NAME: "Ubuntu",
+      },
+      cpuInfo: [
+        {
+          processor: "0",
+          vendor_id: "AuthenticAMD",
+          "model name": "AMD Ryzen 7 8845HS w/ Radeon 780M Graphics",
+        },
+      ],
+      memInfo: {
+        MemTotal: { value: 32768000, unit: "kB" },
+      },
+      dmiInfo: {
+        sys_vendor: "AZW",
+        product_name: "SER8",
+      },
+      audioCards: [
+        {
+          number: 0,
+          id: "Generic",
+          kernelId: "Generic",
+          interfaceType: "HDA-Intel",
+          name: "HD-Audio Generic",
+          longName: "HD-Audio Generic at 0xdc5c8000 irq 115",
+          driver: "snd_hda_intel",
+        },
+      ],
+      audioPcm: [
+        {
+          cardNumber: 0,
+          deviceNumber: 3,
+          id: "HDMI 0",
+          name: "HDMI 0",
+          playbackCount: 1,
+        },
+        {
+          cardNumber: 0,
+          deviceNumber: 0,
+          id: "ALC897 Analog",
+          name: "ALC897 Analog",
+          playbackCount: 1,
+          captureCount: 1,
+        },
+      ],
+      videoDevices: [
+        {
+          kernelName: "video0",
+          name: "Integrated Camera",
+          index: 0,
+          driver: "uvcvideo",
+          modalias: "usb:v1BCFp2C99d0100dcEFdsc02dp01ic0Eisc01ip00in00",
+        },
+        {
+          kernelName: "video19",
+          name: "rpivid",
+          index: 0,
+          driver: "rpivid",
+          modalias: "of:NcodecT(null)Craspberrypi,rpivid-vid-decoder",
+        },
+      ],
+      drmDevices: [
+        {
+          name: "card0",
+          kind: "card",
+          driver: "amdgpu",
+          pciSlot: "0000:65:00.0",
+          vendorId: "1002",
+          productId: "1900",
+        },
+        {
+          name: "card0-HDMI-A-1",
+          kind: "connector",
+          status: "connected",
+          enabled: "enabled",
+          modes: ["3840x2160"],
+          edid: parseEdidBuffer(createSampleEdidBuffer()),
+        },
+      ],
+    },
+  });
+
+  assert.ok(hasHardwareClass(bom.components, "audio-controller"));
+  assert.equal(getHardwareClassCount(bom.components, "audio-device"), 2);
+  assert.ok(hasHardwareClass(bom.components, "camera"));
+  assert.ok(hasHardwareClass(bom.components, "video-processor"));
+  assert.ok(hasHardwareClass(bom.components, "display"));
+  assert.equal(
+    bom.components.find((component) => getPropertyValue(component, "cdx:hbom:hardwareClass") === "display")?.name,
+    "DELL U2720Q",
+  );
+  assert.equal(
+    bom.components.find((component) => getPropertyValue(component, "cdx:hbom:hardwareClass") === "audio-controller")?.properties.find((property) => property.name === "cdx:hbom:driver")?.value,
+    "snd_hda_intel",
+  );
+});
+
+test("linux build emits hwmon, thermal, TPM, and NVMe controller components", () => {
+  const bom = buildLinuxHbom({
+    architecture: "amd64",
+    sources: {
+      osRelease: { NAME: "Ubuntu" },
+      cpuInfo: [{ processor: "0", vendor_id: "AuthenticAMD", "model name": "AMD Ryzen 7 8845HS" }],
+      memInfo: { MemTotal: { value: 32768000, unit: "kB" } },
+      dmiInfo: { sys_vendor: "AZW", product_name: "SER8" },
+      hwmonDevices: [
+        parseHwmonAttributes({
+          name: "nvme",
+          temp1_input: "38850",
+          temp1_label: "Composite",
+          temp2_input: "45850",
+          temp2_label: "Sensor 1",
+        }),
+        parseHwmonAttributes({
+          name: "pwmfan",
+          fan1_input: "1400",
+          fan1_label: "cpu fan",
+          pwm1: "120",
+        }),
+      ],
+      thermalZones: [
+        { name: "thermal_zone0", type: "cpu-thermal", tempMilliC: 48500, mode: "enabled" },
+      ],
+      tpmDevices: [
+        {
+          name: "tpm0",
+          versionMajor: 2,
+          versionMinor: 0,
+          description: "TPM 2.0 Device",
+          driver: "tpm_crb",
+          modalias: "acpi:MSFT0101:",
+        },
+      ],
+      nvmeControllers: [
+        {
+          name: "nvme0",
+          model: "CT1000P3PSSD8",
+          serial: "24404B653734",
+          firmwareRevision: "P9CR413",
+          transport: "pcie",
+          state: "live",
+          address: "0000:04:00.0",
+          vendorId: "1344",
+          driver: "nvme",
+          namespaceCount: 1,
+          namespaces: ["nvme0n1"],
+        },
+      ],
+    },
+  });
+
+  assert.ok(hasHardwareClass(bom.components, "sensor"));
+  assert.ok(hasHardwareClass(bom.components, "fan"));
+  assert.ok(hasHardwareClass(bom.components, "thermal-zone"));
+  assert.ok(hasHardwareClass(bom.components, "tpm"));
+  assert.ok(hasHardwareClass(bom.components, "storage-controller"));
+  assert.equal(
+    bom.components.find((component) => getPropertyValue(component, "cdx:hbom:hardwareClass") === "tpm")?.version,
+    "2.0",
+  );
+  assert.equal(
+    bom.components.find((component) => getPropertyValue(component, "cdx:hbom:hardwareClass") === "storage-controller")?.properties.find((property) => property.name === "cdx:hbom:namespaceCount")?.value,
+    "1",
   );
 });
 
@@ -754,11 +1008,11 @@ test("linux build can emit native sysfs PCI, USB, and DRM components without com
   assert.equal(getHardwareClassCount(bom.components, "display-adapter"), 1);
   assert.equal(getHardwareClassCount(bom.components, "display-connector"), 1);
   assert.equal(
-    bom.components.find((component) => getPropertyValue(component, "hbom:hardwareClass") === "display-adapter")?.name,
+    bom.components.find((component) => getPropertyValue(component, "cdx:hbom:hardwareClass") === "display-adapter")?.name,
     "amdgpu",
   );
   assert.equal(
-    bom.components.find((component) => getPropertyValue(component, "hbom:hardwareClass") === "display-connector")?.name,
+    bom.components.find((component) => getPropertyValue(component, "cdx:hbom:hardwareClass") === "display-connector")?.name,
     "card0-HDMI-A-1",
   );
 });
@@ -837,7 +1091,7 @@ test("linux build normalizes DMI placeholders, chassis codes, and filters virtua
 
   assert.equal(bom.metadata.component.version, "amd64");
   assert.equal(
-    bom.metadata.component.properties.find((property) => property.name === "hbom:chassisType")?.value,
+    bom.metadata.component.properties.find((property) => property.name === "cdx:hbom:chassisType")?.value,
     "mini-pc",
   );
   assert.equal(hasHardwareClass(bom.components, "storage"), true);
@@ -873,14 +1127,45 @@ function parseEthtoolFixture(stdout) {
 
 function hasHardwareClass(components, hardwareClass) {
   return components.some(
-    (component) => getPropertyValue(component, "hbom:hardwareClass") === hardwareClass,
+    (component) => getPropertyValue(component, "cdx:hbom:hardwareClass") === hardwareClass,
   );
 }
 
 function getHardwareClassCount(components, hardwareClass) {
   return components.filter(
-    (component) => getPropertyValue(component, "hbom:hardwareClass") === hardwareClass,
+    (component) => getPropertyValue(component, "cdx:hbom:hardwareClass") === hardwareClass,
   ).length;
+}
+
+function createSampleEdidBuffer() {
+  const edid = Buffer.alloc(128);
+
+  Buffer.from("00ffffffffffff00", "hex").copy(edid, 0);
+  edid[8] = 0x10;
+  edid[9] = 0xac;
+  edid.writeUInt16LE(0xa06b, 10);
+  edid.writeUInt32LE(12345678, 12);
+  edid[16] = 12;
+  edid[17] = 34;
+  edid[18] = 1;
+  edid[19] = 4;
+  edid[21] = 60;
+  edid[22] = 34;
+  edid.writeUInt16LE(0x1d1a, 54);
+  edid[56] = 0x00;
+  edid[58] = 0xf0;
+  edid[59] = 0x70;
+  edid[61] = 0x80;
+
+  writeEdidTextDescriptor(edid, 72, 0xfc, "DELL U2720Q");
+  writeEdidTextDescriptor(edid, 90, 0xff, "SN123456");
+
+  return edid;
+}
+
+function writeEdidTextDescriptor(edid, offset, descriptorType, value) {
+  edid[offset + 3] = descriptorType;
+  Buffer.from(`${value}\n`, "ascii").copy(edid, offset + 5);
 }
 
 function getPropertyValue(component, name) {

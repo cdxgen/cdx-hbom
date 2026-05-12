@@ -1,3 +1,5 @@
+// @ts-self-types="./index.d.ts"
+
 import process from "node:process";
 
 export {
@@ -124,9 +126,15 @@ export async function collectHardware(options = {}) {
  *     profiler?: Record<string, unknown>,
  *     sysctl?: Record<string, string>,
  *     networksetup?: Array<Record<string, string>>,
+ *     ifconfig?: Record<string, { flags?: string[], mtu?: number, macAddress?: string, ipv4Count: number, ipv6Count: number, media?: string, status?: string }>,
  *     pmsetBattery?: Record<string, unknown> | null,
  *     diskutilPlists?: Record<string, unknown>[],
  *     ioregPlatform?: Record<string, unknown>[] | Record<string, unknown> | null,
+ *     usb?: unknown[],
+ *     airport?: unknown[],
+ *     audio?: unknown[],
+ *     camera?: unknown[],
+ *     apfsTopology?: Record<string, unknown>,
  *     osRelease?: Record<string, string>,
  *     cpuInfo?: Array<Record<string, string>>,
  *     memInfo?: Record<string, { value: number, unit?: string }>,
@@ -141,6 +149,13 @@ export async function collectHardware(options = {}) {
  *     networkInterfaces?: Array<Record<string, unknown>>,
  *     blockDevices?: Array<Record<string, unknown>>,
  *     powerSupplies?: Array<Record<string, unknown>>,
+ *     hwmonDevices?: Array<Record<string, unknown>>,
+ *     thermalZones?: Array<Record<string, unknown>>,
+ *     tpmDevices?: Array<Record<string, unknown>>,
+ *     nvmeControllers?: Array<Record<string, unknown>>,
+ *     audioCards?: Array<Record<string, unknown>>,
+ *     audioPcm?: Array<Record<string, unknown>>,
+ *     videoDevices?: Array<Record<string, unknown>>,
  *     mmcDevices?: Array<Record<string, unknown>>,
  *     lscpu?: Record<string, string>,
  *     lsblk?: Array<Record<string, unknown>>,

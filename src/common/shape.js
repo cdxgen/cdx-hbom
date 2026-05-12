@@ -81,7 +81,7 @@ export function createComponent(component) {
  *
  * CycloneDX 1.7 does not define dedicated component `type` values for many
  * hardware categories, so `cdx-hbom` emits them as `type: "device"` and records
- * the finer-grained role via the `hbom:hardwareClass` custom property.
+ * the finer-grained role via the `cdx:hbom:hardwareClass` custom property.
  *
  * @param {string} hardwareClass Hardware role/classification.
  * @param {HbomComponent} component Component definition.
@@ -92,7 +92,7 @@ export function createHardwareComponent(hardwareClass, component) {
     ...component,
     type: "device",
     properties: compact([
-      createProperty("hbom:hardwareClass", hardwareClass),
+      createProperty("cdx:hbom:hardwareClass", hardwareClass),
       ...(component.properties ?? []),
     ]),
   });

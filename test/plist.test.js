@@ -61,3 +61,21 @@ test("parsePlistArray parses ioreg-style plist arrays and preserves data payload
     },
   ]);
 });
+
+test("parsePlistDict accepts self-closing empty arrays and dictionaries", () => {
+  const parsed = parsePlistDict(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Containers</key>
+  <array/>
+  <key>Metadata</key>
+  <dict/>
+</dict>
+</plist>`);
+
+  assert.deepEqual(parsed, {
+    Containers: [],
+    Metadata: {},
+  });
+});

@@ -1,0 +1,21 @@
+{
+  "name": "@cdxgen/cdx-hbom",
+  "version": "0.1.0",
+  "license": "MIT",
+  "exports": "./index.js",
+  "include": [
+    "index.d.ts",
+    "index.js",
+    "src/",
+    "README.md"
+  ],
+  "exclude": [
+    ".github/",
+    "bin/",
+    "docs/",
+    "test/",
+    "package-lock.json",
+    "*-hbom*.json",
+    "*.tgz"
+  ]
+}
