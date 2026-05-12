@@ -67,6 +67,10 @@ export function safeMkdirSync(filePath, options = {}) {
  */
 export function safeReadFileSync(filePath, options = {}) {
   try {
+    if (options.encoding === null) {
+      return readFileSync(filePath);
+    }
+
     return readFileSync(filePath, options.encoding ?? "utf8");
   } catch (error) {
     if (options.suppressErrors === false) {

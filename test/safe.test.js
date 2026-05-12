@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
 import process from "node:process";
@@ -9,6 +9,7 @@ import {
   commandsExecuted,
   safeExistsSync,
   safeMkdirSync,
+  safeReadFileSync,
   safeSpawnSync,
 } from "../index.js";
 
@@ -24,6 +25,20 @@ test("safeMkdirSync creates a directory and treats EEXIST as success", () => {
   assert.equal(safeMkdirSync(directory, { recursive: true }), directory);
   assert.equal(safeMkdirSync(directory, { recursive: true }), directory);
   assert.equal(safeExistsSync(directory), true);
+
+  rmSync(root, { force: true, recursive: true });
+});
+
+test("safeReadFileSync returns a Buffer when encoding null is requested", () => {
+  const root = mkdtempSync(join(tmpdir(), "cdx-hbom-safe-"));
+  const filePath = join(root, "binary.bin");
+
+  writeFileSync(filePath, Buffer.from([0x00, 0xe0, 0x41, 0x71]));
+
+  const result = safeReadFileSync(filePath, { encoding: null });
+
+  assert.equal(Buffer.isBuffer(result), true);
+  assert.equal(result?.toString("hex"), "00e04171");
 
   rmSync(root, { force: true, recursive: true });
 });

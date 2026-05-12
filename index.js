@@ -131,12 +131,30 @@ export async function collectHardware(options = {}) {
  *     cpuInfo?: Array<Record<string, string>>,
  *     memInfo?: Record<string, { value: number, unit?: string }>,
  *     dmiInfo?: Record<string, string>,
+ *     deviceTree?: {
+ *       model?: string,
+ *       compatible?: string[],
+ *       serialNumber?: string,
+ *       linuxRevision?: string,
+ *       linuxSerial?: string
+ *     },
  *     networkInterfaces?: Array<Record<string, unknown>>,
  *     blockDevices?: Array<Record<string, unknown>>,
  *     powerSupplies?: Array<Record<string, unknown>>,
+ *     mmcDevices?: Array<Record<string, unknown>>,
  *     lscpu?: Record<string, string>,
  *     lsblk?: Array<Record<string, unknown>>,
- *     ipLink?: Array<Record<string, unknown>>
+ *     ipLink?: Array<Record<string, unknown>>,
+ *     hostnamectl?: Record<string, string>,
+ *     pciDevices?: Array<Record<string, string>>,
+ *     pciSysfsDevices?: Array<Record<string, unknown>>,
+ *     usbDevices?: Array<Record<string, string>>,
+ *     usbSysfsDevices?: Array<Record<string, unknown>>,
+ *     dmidecode?: { system: Record<string, string>, baseboard: Record<string, string>, bios: Record<string, string> },
+ *     lsmem?: Array<Record<string, unknown>>,
+ *     lshw?: Array<Record<string, unknown>>,
+ *     ethtool?: Record<string, Record<string, string>>,
+ *     drmDevices?: Array<Record<string, unknown>>
  *   },
  *   includeSensitiveIdentifiers?: boolean,
  *   collectedAt?: string

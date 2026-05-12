@@ -506,6 +506,11 @@ test("real captured arm64 fixtures can build a Linux BOM with board and PCI data
       memInfo: {
         MemTotal: { value: 8189064, unit: "kB" },
       },
+      deviceTree: {
+        model: "Raspberry Pi 5 Model B Rev 1.1",
+        compatible: ["raspberrypi,5-model-b", "brcm,bcm2712"],
+        serialNumber: "redacted-device-tree-serial",
+      },
       hostnamectl: parseHostnamectlJson(readFixture("linux/arm64/hostnamectl.json")),
       lscpu: parseLscpuJson(readFixture("linux/arm64/lscpu.json")),
       pciDevices: parseLspciVmmnn(readFixture("linux/arm64/lspci.vmmnn")),
@@ -523,7 +528,330 @@ test("real captured arm64 fixtures can build a Linux BOM with board and PCI data
   assert.ok(hasHardwareClass(bom.components, "usb-device"));
   assert.equal(
     bom.components.find((component) => getPropertyValue(component, "hbom:hardwareClass") === "board")?.name,
-    "Motherboard",
+    "Raspberry Pi 5 Model B Rev 1.1",
+  );
+});
+
+test("linux build uses native arm64 device-tree, MMC/SDIO, PCI/USB sysfs, and DRM display sources", () => {
+  const bom = buildLinuxHbom({
+    architecture: "arm64",
+    sources: {
+      osRelease: {
+        NAME: "Ubuntu",
+      },
+      cpuInfo: [
+        {
+          processor: "0",
+          Processor: "ARMv8 Processor rev 1 (v8l)",
+        },
+      ],
+      memInfo: {
+        MemTotal: { value: 8189064, unit: "kB" },
+      },
+      deviceTree: {
+        model: "Raspberry Pi 5 Model B Rev 1.1",
+        compatible: ["raspberrypi,5-model-b", "brcm,bcm2712"],
+        serialNumber: "151b7a6417d67893",
+        linuxRevision: "0xd04171",
+        linuxSerial: "0x151b7a6417d67893",
+      },
+      mmcDevices: [
+        {
+          name: "mmc1:0001",
+          type: "SDIO",
+          uevent: {
+            MMC_TYPE: "SDIO",
+            SDIO_ID: "02D0:4345",
+            SDIO_REVISION: "0.0",
+          },
+        },
+      ],
+      pciSysfsDevices: [
+        {
+          slot: "0000:01:00.0",
+          classCode: "0108",
+          vendorId: "1dee",
+          productId: "5216",
+          subsystemVendorId: "1dee",
+          subsystemDeviceId: "5216",
+          driver: "nvme",
+          modalias: "pci:v00001DEEd00005216sv00001DEEsd00005216bc01sc08i02",
+        },
+      ],
+      usbSysfsDevices: [
+        {
+          kernelName: "usb5",
+          bus: "005",
+          device: "001",
+          manufacturer: "Linux 6.8.0-1053-raspi dwc2_hsotg",
+          description: "DWC OTG Controller",
+          version: "2.00",
+          serial: "1000480000.usb",
+          vendorId: "1d6b",
+          productId: "0002",
+          deviceClass: "09",
+          deviceSubclass: "00",
+          deviceProtocol: "01",
+          devpath: "0",
+          speedMbps: 480,
+          removable: "unknown",
+        },
+      ],
+      drmDevices: [
+        {
+          name: "card0",
+          kind: "card",
+          driver: "v3d",
+          ofName: "v3d",
+          ofCompatible: ["brcm,2712-v3d"],
+        },
+        {
+          name: "card1",
+          kind: "card",
+          driver: "vc4-drm",
+          ofName: "gpu",
+          ofCompatible: ["brcm,bcm2712d0-vc6"],
+        },
+        {
+          name: "card1-HDMI-A-1",
+          kind: "connector",
+          status: "disconnected",
+          enabled: "disabled",
+          modes: [],
+        },
+        {
+          name: "card1-HDMI-A-2",
+          kind: "connector",
+          status: "disconnected",
+          enabled: "disabled",
+          modes: [],
+        },
+        {
+          name: "card1-Writeback-1",
+          kind: "connector",
+          status: "unknown",
+          enabled: "disabled",
+          modes: [],
+        },
+      ],
+    },
+  });
+
+  assert.equal(
+    getPropertyValue(bom.metadata.component, "hbom:deviceTreeRevision"),
+    "0xd04171",
+  );
+  assert.equal(
+    bom.components.find((component) => getPropertyValue(component, "hbom:hardwareClass") === "board")?.version,
+    "0xd04171",
+  );
+  assert.ok(hasHardwareClass(bom.components, "sdio-device"));
+  assert.equal(
+    bom.components.find((component) => getPropertyValue(component, "hbom:hardwareClass") === "sdio-device")?.name,
+    "SDIO 02D0:4345",
+  );
+  assert.ok(hasHardwareClass(bom.components, "pci-device"));
+  assert.equal(
+    bom.components.find((component) => getPropertyValue(component, "hbom:hardwareClass") === "pci-device")?.version,
+    "0000:01:00.0",
+  );
+  assert.ok(hasHardwareClass(bom.components, "usb-device"));
+  assert.equal(
+    bom.components.find((component) => getPropertyValue(component, "hbom:hardwareClass") === "usb-device")?.manufacturer?.name,
+    "Linux 6.8.0-1053-raspi dwc2_hsotg",
+  );
+  assert.equal(getHardwareClassCount(bom.components, "display-adapter"), 2);
+  assert.equal(getHardwareClassCount(bom.components, "display-connector"), 2);
+  assert.equal(
+    bom.components.find(
+      (component) =>
+        getPropertyValue(component, "hbom:hardwareClass") === "display-adapter" &&
+        component.version === "card1",
+    )?.properties.find((property) => property.name === "hbom:connectorCount")?.value,
+    "2",
+  );
+});
+
+test("linux build can emit native sysfs PCI, USB, and DRM components without command enrichment", () => {
+  const bom = buildLinuxHbom({
+    architecture: "amd64",
+    sources: {
+      osRelease: {
+        NAME: "Ubuntu",
+      },
+      cpuInfo: [
+        {
+          processor: "0",
+          vendor_id: "AuthenticAMD",
+          "model name": "AMD Ryzen 7 8845HS w/ Radeon 780M Graphics",
+        },
+      ],
+      memInfo: {
+        MemTotal: { value: 32768000, unit: "kB" },
+      },
+      dmiInfo: {
+        sys_vendor: "AZW",
+        product_name: "SER8",
+      },
+      pciSysfsDevices: [
+        {
+          slot: "0000:65:00.0",
+          classCode: "0300",
+          vendorId: "1002",
+          productId: "1900",
+          subsystemVendorId: "1f66",
+          subsystemDeviceId: "0031",
+          driver: "amdgpu",
+          modalias: "pci:v00001002d00001900sv00001F66sd00000031bc03sc00i00",
+        },
+      ],
+      usbSysfsDevices: [
+        {
+          kernelName: "1-5",
+          bus: "001",
+          device: "005",
+          vendorId: "8087",
+          productId: "0029",
+          deviceClass: "e0",
+          deviceSubclass: "01",
+          deviceProtocol: "01",
+          version: "2.01",
+          speedMbps: 12,
+          removable: "fixed",
+        },
+      ],
+      drmDevices: [
+        {
+          name: "card0",
+          kind: "card",
+          driver: "amdgpu",
+          pciSlot: "0000:65:00.0",
+          vendorId: "1002",
+          productId: "1900",
+          subsystemVendorId: "1f66",
+          subsystemDeviceId: "0031",
+        },
+        {
+          name: "card0-HDMI-A-1",
+          kind: "connector",
+          status: "disconnected",
+          enabled: "disabled",
+          modes: [],
+        },
+        {
+          name: "card0-Writeback-1",
+          kind: "connector",
+          status: "unknown",
+          enabled: "disabled",
+          modes: [],
+        },
+      ],
+    },
+  });
+
+  assert.equal(getHardwareClassCount(bom.components, "pci-device"), 1);
+  assert.equal(getHardwareClassCount(bom.components, "usb-device"), 1);
+  assert.equal(getHardwareClassCount(bom.components, "display-adapter"), 1);
+  assert.equal(getHardwareClassCount(bom.components, "display-connector"), 1);
+  assert.equal(
+    bom.components.find((component) => getPropertyValue(component, "hbom:hardwareClass") === "display-adapter")?.name,
+    "amdgpu",
+  );
+  assert.equal(
+    bom.components.find((component) => getPropertyValue(component, "hbom:hardwareClass") === "display-connector")?.name,
+    "card0-HDMI-A-1",
+  );
+});
+
+test("linux build normalizes DMI placeholders, chassis codes, and filters virtual devices", () => {
+  const bom = buildLinuxHbom({
+    architecture: "amd64",
+    sources: {
+      osRelease: {
+        NAME: "Ubuntu",
+      },
+      cpuInfo: [
+        {
+          processor: "0",
+          vendor_id: "AuthenticAMD",
+          "model name": "AMD Ryzen 7 8845HS w/ Radeon 780M Graphics",
+          "cpu cores": "8",
+          "physical id": "0",
+        },
+      ],
+      memInfo: {
+        MemTotal: { value: 32768000, unit: "kB" },
+      },
+      dmiInfo: {
+        sys_vendor: "AZW",
+        product_name: "SER8",
+        product_version: "Default string",
+        board_vendor: "AZW",
+        board_name: "SER8",
+        chassis_type: "35",
+        bios_vendor: "American Megatrends International, LLC.",
+        bios_version: "HPT.TEST",
+      },
+      blockDevices: [
+        {
+          name: "dm-0",
+          model: "dm-0",
+          size: 1234,
+        },
+        {
+          name: "nvme0n1",
+          model: "CT1000P3PSSD8",
+          size: 1000,
+          transport: "nvme",
+          removable: false,
+          rotational: false,
+        },
+      ],
+      networkInterfaces: [
+        {
+          name: "docker0",
+          ifname: "docker0",
+          address: "redacted:mac",
+          linkType: "ether",
+        },
+        {
+          name: "enp1s0",
+          ifname: "enp1s0",
+          address: "redacted:mac",
+          linkType: "ether",
+        },
+      ],
+      ethtool: {
+        docker0: {
+          driver: "bridge",
+          "bus-info": "N/A",
+        },
+        enp1s0: {
+          driver: "r8169",
+          "bus-info": "0000:01:00.0",
+          "firmware-version": "rtl8125b-2_0.0.2 07/13/20",
+        },
+      },
+    },
+  });
+
+  assert.equal(bom.metadata.component.version, "amd64");
+  assert.equal(
+    bom.metadata.component.properties.find((property) => property.name === "hbom:chassisType")?.value,
+    "mini-pc",
+  );
+  assert.equal(hasHardwareClass(bom.components, "storage"), true);
+  assert.equal(
+    bom.components.some((component) => component.name === "dm-0"),
+    false,
+  );
+  assert.equal(
+    bom.components.some((component) => component.version === "docker0"),
+    false,
+  );
+  assert.equal(
+    bom.components.some((component) => component.version === "enp1s0"),
+    true,
   );
 });
 
@@ -547,6 +875,12 @@ function hasHardwareClass(components, hardwareClass) {
   return components.some(
     (component) => getPropertyValue(component, "hbom:hardwareClass") === hardwareClass,
   );
+}
+
+function getHardwareClassCount(components, hardwareClass) {
+  return components.filter(
+    (component) => getPropertyValue(component, "hbom:hardwareClass") === hardwareClass,
+  ).length;
 }
 
 function getPropertyValue(component, name) {
