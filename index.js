@@ -1,0 +1,161 @@
+import process from "node:process";
+
+export {
+  parsePlist,
+  parsePlistArray,
+  parsePlistDict,
+} from "./src/common/plist.js";
+export {
+  commandsExecuted,
+  safeExistsSync,
+  safeMkdirSync,
+  safeReadFileSync,
+  safeReaddirSync,
+  safeSpawnSync,
+} from "./src/common/safe.js";
+export {
+  createHbomDocument,
+  HBOM_BOM_FORMAT,
+  HBOM_SCHEMA_URL,
+  HBOM_SPEC_VERSION,
+} from "./src/common/schema.js";
+
+import {
+  buildDarwinArm64Hbom,
+  collectDarwinArm64Hardware,
+  getDarwinArm64CommandPlan,
+} from "./src/darwin/arm64/index.js";
+import {
+  buildLinuxAmd64Hbom,
+  collectLinuxAmd64Hardware,
+  getLinuxAmd64CommandPlan,
+} from "./src/linux/amd64/index.js";
+import {
+  buildLinuxArm64Hbom,
+  collectLinuxArm64Hardware,
+  getLinuxArm64CommandPlan,
+} from "./src/linux/arm64/index.js";
+
+/**
+ * Supported hardware discovery targets.
+ *
+ * @type {ReadonlyArray<{ platform: string, architecture: string }>}
+ */
+export const SUPPORTED_TARGETS = Object.freeze([
+  Object.freeze({
+    platform: "darwin",
+    architecture: "arm64",
+  }),
+  Object.freeze({
+    platform: "linux",
+    architecture: "amd64",
+  }),
+  Object.freeze({
+    platform: "linux",
+    architecture: "arm64",
+  }),
+]);
+
+/**
+ * Return the command plan for a target.
+ *
+ * @param {{ platform?: string, architecture?: string }} [options={}] Target selector.
+ * @returns {ReadonlyArray<object>} Command descriptors.
+ */
+export function getCommandPlan(options = {}) {
+  const platform = options.platform ?? process.platform;
+  const architecture = options.architecture ?? process.arch;
+
+  if (platform === "darwin" && architecture === "arm64") {
+    return getDarwinArm64CommandPlan();
+  }
+  if (platform === "linux" && architecture === "amd64") {
+    return getLinuxAmd64CommandPlan();
+  }
+  if (platform === "linux" && architecture === "arm64") {
+    return getLinuxArm64CommandPlan();
+  }
+
+  throw new Error(`Unsupported HBOM target: ${platform}/${architecture}`);
+}
+
+/**
+ * Collect hardware inventory for the requested target.
+ *
+ * On Linux, `includePrivilegedEnrichment: true` enables SMBIOS enrichment via
+ * `dmidecode`. Upstream callers should expect that this usually requires root
+ * privileges or passwordless sudo on the target host.
+ *
+ * @param {{
+ *   platform?: string,
+ *   architecture?: string,
+ *   includeSensitiveIdentifiers?: boolean,
+ *   includeCommandEnrichment?: boolean,
+ *   includePlistEnrichment?: boolean,
+ *   timeoutMs?: number,
+ *   allowPartial?: boolean
+ * }} [options={}] Collector options.
+ * @returns {Promise<object>} HBOM-like inventory object.
+ */
+export async function collectHardware(options = {}) {
+  const platform = options.platform ?? process.platform;
+  const architecture = options.architecture ?? process.arch;
+
+  if (platform === "darwin" && architecture === "arm64") {
+    return collectDarwinArm64Hardware(options);
+  }
+  if (platform === "linux" && architecture === "amd64") {
+    return collectLinuxAmd64Hardware(options);
+  }
+  if (platform === "linux" && architecture === "arm64") {
+    return collectLinuxArm64Hardware(options);
+  }
+
+  throw new Error(`Unsupported HBOM target: ${platform}/${architecture}`);
+}
+
+/**
+ * Build an HBOM-like object from pre-collected sources.
+ *
+ * @param {{
+ *   platform?: string,
+ *   architecture?: string,
+ *   sources: {
+ *     profiler?: Record<string, unknown>,
+ *     sysctl?: Record<string, string>,
+ *     networksetup?: Array<Record<string, string>>,
+ *     pmsetBattery?: Record<string, unknown> | null,
+ *     diskutilPlists?: Record<string, unknown>[],
+ *     ioregPlatform?: Record<string, unknown>[] | Record<string, unknown> | null,
+ *     osRelease?: Record<string, string>,
+ *     cpuInfo?: Array<Record<string, string>>,
+ *     memInfo?: Record<string, { value: number, unit?: string }>,
+ *     dmiInfo?: Record<string, string>,
+ *     networkInterfaces?: Array<Record<string, unknown>>,
+ *     blockDevices?: Array<Record<string, unknown>>,
+ *     powerSupplies?: Array<Record<string, unknown>>,
+ *     lscpu?: Record<string, string>,
+ *     lsblk?: Array<Record<string, unknown>>,
+ *     ipLink?: Array<Record<string, unknown>>
+ *   },
+ *   includeSensitiveIdentifiers?: boolean,
+ *   collectedAt?: string
+ * }} options Build inputs.
+ * @returns {object} HBOM-like inventory object.
+ */
+export function buildHardwareFromSources(options) {
+  const platform = options?.platform ?? process.platform;
+  const architecture = options?.architecture ?? process.arch;
+
+  if (platform === "darwin" && architecture === "arm64") {
+    return buildDarwinArm64Hbom(options);
+  }
+  if (platform === "linux" && architecture === "amd64") {
+    return buildLinuxAmd64Hbom(options);
+  }
+  if (platform === "linux" && architecture === "arm64") {
+    return buildLinuxArm64Hbom(options);
+  }
+
+  throw new Error(`Unsupported HBOM target: ${platform}/${architecture}`);
+}

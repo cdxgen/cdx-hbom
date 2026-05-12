@@ -1,0 +1,48 @@
+### docker0
+driver: bridge
+version: 2.3
+firmware-version: N/A
+expansion-rom-version: 
+bus-info: N/A
+supports-statistics: no
+supports-test: no
+supports-eeprom-access: no
+supports-register-dump: no
+supports-priv-flags: no
+
+### eth0
+driver: macb
+version: 6.8.0-1053-raspi
+firmware-version: 
+expansion-rom-version: 
+bus-info: 1f00100000.ethernet
+supports-statistics: yes
+supports-test: no
+supports-eeprom-access: no
+supports-register-dump: yes
+supports-priv-flags: no
+
+### tailscale0
+driver: tun
+version: 1.6
+firmware-version: 
+expansion-rom-version: 
+bus-info: tun
+supports-statistics: no
+supports-test: no
+supports-eeprom-access: no
+supports-register-dump: no
+supports-priv-flags: no
+
+### wlan0
+driver: brcmfmac
+version: 7.45.234
+firmware-version: 01-996384e2
+expansion-rom-version: 
+bus-info: mmc1:0001:1
+supports-statistics: no
+supports-test: no
+supports-eeprom-access: no
+supports-register-dump: no
+supports-priv-flags: no
+

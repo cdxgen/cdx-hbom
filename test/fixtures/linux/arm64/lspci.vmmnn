@@ -1,0 +1,29 @@
+Slot:	0000:00:00.0
+Class:	PCI bridge [0604]
+Vendor:	Broadcom Inc. and subsidiaries [14e4]
+Device:	BCM2712 PCIe Bridge [2712]
+Rev:	30
+ProgIf:	00
+
+Slot:	0000:01:00.0
+Class:	Non-Volatile memory controller [0108]
+Vendor:	Biwin Storage Technology Co., Ltd. [1dee]
+Device:	KingSpec NX series NVMe SSD (DRAM-less) [5216]
+SVendor:	Biwin Storage Technology Co., Ltd. [1dee]
+SDevice:	KingSpec NX series NVMe SSD (DRAM-less) [5216]
+Rev:	01
+ProgIf:	02
+
+Slot:	0001:00:00.0
+Class:	PCI bridge [0604]
+Vendor:	Broadcom Inc. and subsidiaries [14e4]
+Device:	BCM2712 PCIe Bridge [2712]
+Rev:	30
+ProgIf:	00
+
+Slot:	0001:01:00.0
+Class:	Ethernet controller [0200]
+Vendor:	Raspberry Pi Ltd [1de4]
+Device:	RP1 PCIe 2.0 South Bridge [0001]
+ProgIf:	00
+

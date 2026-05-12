@@ -1,0 +1,89 @@
+# dmidecode 3.5
+Getting SMBIOS data from sysfs.
+SMBIOS 3.5.0 present.
+
+Handle 0x0000, DMI type 0, 26 bytes
+BIOS Information
+	Vendor: American Megatrends International, LLC.
+	Version: NucBox K8 Plus 1.01
+	Release Date: 02/19/2025
+	Address: 0xF0000
+	Runtime Size: 64 kB
+	ROM Size: 32 MB
+	Characteristics:
+		PCI is supported
+		BIOS is upgradeable
+		BIOS shadowing is allowed
+		Boot from CD is supported
+		Selectable boot is supported
+		BIOS ROM is socketed
+		EDD is supported
+		ACPI is supported
+		BIOS boot specification is supported
+		Targeted content distribution is supported
+		UEFI is supported
+	BIOS Revision: 5.29
+
+Handle 0x0001, DMI type 1, 27 bytes
+System Information
+	Manufacturer: GMKtec
+	Product Name: NucBox K8 Plus
+	Version: Default string
+	Serial Number: redacted-serial
+	UUID: redacted-uuid
+	Wake-up Type: Power Switch
+	SKU Number: K8 Plus-001
+	Family: MINI
+
+Handle 0x0002, DMI type 2, 15 bytes
+Base Board Information
+	Manufacturer: GMKtec
+	Product Name: NucBox K8 Plus
+	Version: Default string
+	Serial Number: redacted-serial
+	Asset Tag: redacted-asset
+	Features:
+		Board is a hosting board
+		Board is replaceable
+	Location In Chassis: Default string
+	Chassis Handle: 0x0003
+	Type: Motherboard
+	Contained Object Handles: 0
+
+Handle 0x0004, DMI type 10, 6 bytes
+On Board Device Information
+	Type: Video
+	Status: Enabled
+	Description:    To Be Filled By O.E.M.
+
+Handle 0x0006, DMI type 12, 5 bytes
+System Configuration Options
+	Option 1: Default string
+
+Handle 0x0007, DMI type 32, 20 bytes
+System Boot Information
+	Status: No errors detected
+
+Handle 0x0029, DMI type 41, 11 bytes
+Onboard Device
+	Reference Designation: Realtek
+	Type: Ethernet
+	Status: Enabled
+	Type Instance: 1
+	Bus Address: 0000:02:00.0
+
+Handle 0x002A, DMI type 41, 11 bytes
+Onboard Device
+	Reference Designation: Realtek ALC256
+	Type: Sound
+	Status: Enabled
+	Type Instance: 1
+	Bus Address: 0000:c6:00.6
+
+Handle 0x002B, DMI type 13, 22 bytes
+BIOS Language Information
+	Language Description Format: Long
+	Installable Languages: 1
+		en|US|iso8859-1
+	Currently Installed Language: en|US|iso8859-1
+

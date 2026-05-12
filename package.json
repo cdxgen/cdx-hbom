@@ -1,0 +1,51 @@
+{
+  "name": "@cdxgen/cdx-hbom",
+  "version": "0.1.0",
+  "description": "Dependency-free hardware bill of materials discovery library for Node.js",
+  "homepage": "http://github.com/cdxgen/cdx-hbom",
+  "bugs": {
+    "url": "https://github.com/cdxgen/cdx-hbom/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/cdxgen/cdx-hbom.git"
+  },
+  "type": "module",
+  "main": "./index.js",
+  "bin": {
+    "cdx-hbom": "./bin/cdx-hbom.js"
+  },
+  "exports": {
+    ".": "./index.js",
+    "./schema": "./src/common/schema.js",
+    "./darwin/arm64": "./src/darwin/arm64/index.js",
+    "./linux/amd64": "./src/linux/amd64/index.js",
+    "./linux/arm64": "./src/linux/arm64/index.js"
+  },
+  "files": [
+    "bin/",
+    "index.js",
+    "src/",
+    "docs/",
+    "README.md"
+  ],
+  "keywords": [
+    "hbom",
+    "hardware",
+    "bom",
+    "cyclonedx",
+    "darwin",
+    "linux",
+    "arm64",
+    "amd64"
+  ],
+  "author": "Prabhu Subramanian <prabhu@appthreat.com>",
+  "license": "MIT",
+  "scripts": {
+    "dump": "node ./bin/cdx-hbom.js --pretty",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
