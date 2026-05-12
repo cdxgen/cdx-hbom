@@ -26,14 +26,24 @@ test("getCommandPlan rejects unsupported targets", () => {
     platform: "linux",
     architecture: "amd64",
   });
+  const linuxX64Plan = getCommandPlan({
+    platform: "linux",
+    architecture: "x64",
+  });
   const linuxArm64Plan = getCommandPlan({
     platform: "linux",
     architecture: "arm64",
   });
+  const linuxAarch64Plan = getCommandPlan({
+    platform: "linux",
+    architecture: "aarch64",
+  });
 
   assert.ok(linuxAmd64Plan.some((spec) => spec.id === "lscpu-json"));
+  assert.ok(linuxX64Plan.some((spec) => spec.id === "lscpu-json"));
   assert.ok(linuxAmd64Plan.some((spec) => spec.id === "lsblk-json"));
   assert.ok(linuxArm64Plan.some((spec) => spec.id === "ip-link-json"));
+  assert.ok(linuxAarch64Plan.some((spec) => spec.id === "ip-link-json"));
 
   assert.throws(
     () =>

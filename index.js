@@ -63,8 +63,8 @@ export const SUPPORTED_TARGETS = Object.freeze([
  * @returns {ReadonlyArray<object>} Command descriptors.
  */
 export function getCommandPlan(options = {}) {
-  const platform = options.platform ?? process.platform;
-  const architecture = options.architecture ?? process.arch;
+  const platform = normalizePlatform(options.platform ?? process.platform);
+  const architecture = normalizeArchitecture(options.architecture ?? process.arch);
 
   if (platform === "darwin" && architecture === "arm64") {
     return getDarwinArm64CommandPlan();
@@ -98,8 +98,8 @@ export function getCommandPlan(options = {}) {
  * @returns {Promise<object>} HBOM-like inventory object.
  */
 export async function collectHardware(options = {}) {
-  const platform = options.platform ?? process.platform;
-  const architecture = options.architecture ?? process.arch;
+  const platform = normalizePlatform(options.platform ?? process.platform);
+  const architecture = normalizeArchitecture(options.architecture ?? process.arch);
 
   if (platform === "darwin" && architecture === "arm64") {
     return collectDarwinArm64Hardware(options);
@@ -144,8 +144,8 @@ export async function collectHardware(options = {}) {
  * @returns {object} HBOM-like inventory object.
  */
 export function buildHardwareFromSources(options) {
-  const platform = options?.platform ?? process.platform;
-  const architecture = options?.architecture ?? process.arch;
+  const platform = normalizePlatform(options?.platform ?? process.platform);
+  const architecture = normalizeArchitecture(options?.architecture ?? process.arch);
 
   if (platform === "darwin" && architecture === "arm64") {
     return buildDarwinArm64Hbom(options);
@@ -158,4 +158,39 @@ export function buildHardwareFromSources(options) {
   }
 
   throw new Error(`Unsupported HBOM target: ${platform}/${architecture}`);
+}
+
+/**
+ * Normalize a platform string for target routing.
+ *
+ * @param {string | undefined} platform Platform value.
+ * @returns {string} Normalized platform.
+ */
+function normalizePlatform(platform) {
+  return String(platform ?? "").toLowerCase();
+}
+
+/**
+ * Normalize architecture aliases used by Node.js, uname, and user input.
+ *
+ * Examples:
+ *
+ * - `x64` -> `amd64`
+ * - `x86_64` -> `amd64`
+ * - `aarch64` -> `arm64`
+ *
+ * @param {string | undefined} architecture Architecture value.
+ * @returns {string} Normalized architecture.
+ */
+function normalizeArchitecture(architecture) {
+  const normalized = String(architecture ?? "").toLowerCase();
+
+  if (["x64", "x86_64", "x86-64"].includes(normalized)) {
+    return "amd64";
+  }
+  if (["aarch64", "armv8", "arm64e"].includes(normalized)) {
+    return "arm64";
+  }
+
+  return normalized;
 }
