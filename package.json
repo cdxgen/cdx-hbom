@@ -12,13 +12,8 @@
   },
   "type": "module",
   "main": "./index.js",
-  "types": "./index.d.ts",
-  "bin": {
-    "cdx-hbom": "./bin/cdx-hbom.js"
-  },
   "exports": {
     ".": {
-      "types": "./index.d.ts",
       "default": "./index.js"
     },
     "./schema": "./src/common/schema.js",
@@ -28,7 +23,6 @@
   },
   "files": [
     "bin/",
-    "index.d.ts",
     "index.js",
     "src/",
     "README.md"

@@ -4,7 +4,6 @@
   "license": "MIT",
   "exports": "./index.js",
   "include": [
-    "index.d.ts",
     "index.js",
     "src/",
     "README.md"

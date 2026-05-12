@@ -1,5 +1,3 @@
-// @ts-self-types="./index.d.ts"
-
 import process from "node:process";
 
 export {
