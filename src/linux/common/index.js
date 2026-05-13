@@ -2605,7 +2605,7 @@ function inferBlockTransport(deviceName, basePath) {
 
 function isPhysicalDisplayConnector(device) {
   const name = getStringValue(device.name) ?? "";
-  if (!name || !name.includes("-")) {
+  if (!name?.includes("-")) {
     return false;
   }
   if (/writeback/u.test(name)) {
