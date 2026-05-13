@@ -1,4 +1,3 @@
-import { readlinkSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
 
@@ -7,6 +6,7 @@ import {
   safeExistsSync,
   safeReaddirSync,
   safeReadFileSync,
+  safeReadlinkSync,
 } from "../../common/safe.js";
 import { createHbomDocument } from "../../common/schema.js";
 import {
@@ -16,6 +16,7 @@ import {
   createProperty,
   redactIdentifier,
 } from "../../common/shape.js";
+import { attachCollectorTrace } from "../../common/trace.js";
 import { LINUX_COMMON_COMMANDS } from "./commands.js";
 
 /**
@@ -844,46 +845,49 @@ export function buildLinuxHbom(options) {
     ...createDisplayComponents(drmDevices, options),
   ]);
 
-  return createHbomDocument({
-    metadata: {
-      timestamp,
-      lifecycles: [{ phase: "operations" }],
-      component: deviceComponent,
-      tools: {
-        components: [
-          {
-            type: "application",
-            name: "cdx-hbom",
-          },
-        ],
+  return attachCollectorTrace(
+    createHbomDocument({
+      metadata: {
+        timestamp,
+        lifecycles: [{ phase: "operations" }],
+        component: deviceComponent,
+        tools: {
+          components: [
+            {
+              type: "application",
+              name: "cdx-hbom",
+            },
+          ],
+        },
+        properties: [],
       },
-      properties: [],
-    },
-    components,
-    properties: compact([
-      createProperty("cdx:hbom:targetPlatform", "linux"),
-      createProperty("cdx:hbom:targetArchitecture", architecture),
-      createProperty("cdx:hbom:identifierPolicy", identifierPolicy),
-      createProperty("cdx:hbom:collectorProfile", `linux-${architecture}-v1`),
-      createProperty("cdx:hbom:osName", osRelease.NAME),
-      createProperty(
-        "cdx:hbom:osVersion",
-        osRelease.VERSION_ID ?? osRelease.VERSION,
-      ),
-      createProperty(
-        "cdx:hbom:evidence:fileCount",
-        options.observedFiles?.length ?? 0,
-      ),
-      ...(options.observedFiles ?? []).map((filePath) =>
-        createProperty("cdx:hbom:evidence:file", filePath),
-      ),
-      createProperty(
-        "cdx:hbom:evidence:commandCount",
-        options.executedCommands?.length ?? 0,
-      ),
-      ...collectCommandProperties(options.executedCommands ?? []),
-    ]),
-  });
+      components,
+      properties: compact([
+        createProperty("cdx:hbom:targetPlatform", "linux"),
+        createProperty("cdx:hbom:targetArchitecture", architecture),
+        createProperty("cdx:hbom:identifierPolicy", identifierPolicy),
+        createProperty("cdx:hbom:collectorProfile", `linux-${architecture}-v1`),
+        createProperty("cdx:hbom:osName", osRelease.NAME),
+        createProperty(
+          "cdx:hbom:osVersion",
+          osRelease.VERSION_ID ?? osRelease.VERSION,
+        ),
+        createProperty(
+          "cdx:hbom:evidence:fileCount",
+          options.observedFiles?.length ?? 0,
+        ),
+        ...(options.observedFiles ?? []).map((filePath) =>
+          createProperty("cdx:hbom:evidence:file", filePath),
+        ),
+        createProperty(
+          "cdx:hbom:evidence:commandCount",
+          options.executedCommands?.length ?? 0,
+        ),
+        ...collectCommandProperties(options.executedCommands ?? []),
+      ]),
+    }),
+    options.trace,
+  );
 }
 
 /**
@@ -2503,12 +2507,7 @@ function readObservedBinaryTextFile(filePath, observedFiles) {
 
   if (Buffer.isBuffer(value)) {
     observedFiles.push(filePath);
-    return (
-      value
-        .toString("utf8")
-        .replace(/\u0000/gu, "")
-        .trim() || undefined
-    );
+    return value.toString("utf8").replaceAll("\u0000", "").trim() || undefined;
   }
 
   return undefined;
@@ -2582,7 +2581,7 @@ function readObservedTextFileList(filePath, observedFiles) {
 function readObservedLinkBaseName(linkPath) {
   try {
     const target = safeExistsSync(linkPath)
-      ? readlinkSync(linkPath)
+      ? safeReadlinkSync(linkPath)
       : undefined;
     return target?.split("/").filter(Boolean).at(-1);
   } catch {
@@ -2848,7 +2847,7 @@ function decodeEdidTextDescriptor(block, descriptorType) {
     block
       .subarray(5, 18)
       .toString("ascii")
-      .replace(/\u0000/gu, "")
+      .replaceAll("\u0000", "")
       .replace(/\n/gu, "")
       .trim() || undefined
   );

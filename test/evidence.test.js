@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import { createCollectorTrace, getCollectorTrace } from "../index.js";
 import { buildLinuxHbom } from "../src/linux/common/index.js";
 
 test("buildLinuxHbom preserves explicit executed command evidence on the BOM root", () => {
@@ -63,4 +64,39 @@ test("buildLinuxHbom preserves explicit executed command evidence on the BOM roo
       "ip-link-json|network|/usr/sbin/ip -j link",
     ],
   );
+});
+
+test("buildLinuxHbom attaches an explicit collector trace without changing JSON output", () => {
+  const trace = createCollectorTrace();
+  trace.activities.push({
+    kind: "file-read",
+    path: "/proc/cpuinfo",
+    status: "completed",
+    target: "/proc/cpuinfo",
+    timestamp: "2026-05-13T00:00:00.000Z",
+  });
+
+  const bom = buildLinuxHbom({
+    architecture: "amd64",
+    sources: {
+      cpuInfo: [{ "model name": "Intel(R) Core(TM) Ultra 7 165H" }],
+      hostnamectl: {
+        HardwareModel: "XPS 16 9640",
+        HardwareVendor: "Dell Inc.",
+      },
+      memInfo: {
+        MemTotal: {
+          unit: "kB",
+          value: 32768000,
+        },
+      },
+      osRelease: {
+        NAME: "Ubuntu",
+      },
+    },
+    trace,
+  });
+
+  assert.strictEqual(getCollectorTrace(bom), trace);
+  assert.equal(Object.keys(bom).includes("trace"), false);
 });

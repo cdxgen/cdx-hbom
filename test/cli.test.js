@@ -14,6 +14,7 @@ test("mini CLI prints help text", () => {
 
   assert.equal(result.status, 0);
   assert.match(result.stdout, /Usage:/u);
+  assert.match(result.stdout, /--dry-run/u);
   assert.match(result.stdout, /--privileged/u);
 });
 

@@ -10,6 +10,7 @@ import {
   createProperty,
   redactIdentifier,
 } from "../../common/shape.js";
+import { attachCollectorTrace } from "../../common/trace.js";
 import { readSystemProfiler } from "../common/system-profiler.js";
 import {
   DARWIN_ARM64_COMMANDS,
@@ -392,47 +393,52 @@ export function buildDarwinArm64Hbom(options = {}) {
     ...collectBatteryComponents(powerEntries, pmsetBattery, options),
   ]);
 
-  return createHbomDocument({
-    metadata: {
-      timestamp,
-      lifecycles: [{ phase: "operations" }],
-      component: deviceComponent,
-      tools: {
-        components: [
-          {
-            type: "application",
-            name: "cdx-hbom",
-          },
-        ],
+  return attachCollectorTrace(
+    createHbomDocument({
+      metadata: {
+        timestamp,
+        lifecycles: [{ phase: "operations" }],
+        component: deviceComponent,
+        tools: {
+          components: [
+            {
+              type: "application",
+              name: "cdx-hbom",
+            },
+          ],
+        },
+        properties: [],
       },
-      properties: [],
-    },
-    components,
-    properties: compact([
-      createProperty("cdx:hbom:targetPlatform", "darwin"),
-      createProperty("cdx:hbom:targetArchitecture", "arm64"),
-      createProperty("cdx:hbom:identifierPolicy", identifierPolicy),
-      createProperty("cdx:hbom:collectorProfile", "darwin-arm64-v1"),
-      createProperty(
-        "cdx:hbom:evidence:commandCount",
-        (
+      components,
+      properties: compact([
+        createProperty("cdx:hbom:targetPlatform", "darwin"),
+        createProperty("cdx:hbom:targetArchitecture", "arm64"),
+        createProperty("cdx:hbom:identifierPolicy", identifierPolicy),
+        createProperty("cdx:hbom:collectorProfile", "darwin-arm64-v1"),
+        createProperty(
+          "cdx:hbom:evidence:commandCount",
+          (
+            options.executedCommands ??
+            DARWIN_ARM64_COMMANDS.filter(
+              (spec) => spec.phase === "collector-v1",
+            )
+          ).length,
+        ),
+        ...collectCommandProperties(
           options.executedCommands ??
-          DARWIN_ARM64_COMMANDS.filter((spec) => spec.phase === "collector-v1")
-        ).length,
-      ),
-      ...collectCommandProperties(
-        options.executedCommands ??
-          DARWIN_ARM64_COMMANDS.filter(
-            (spec) => spec.phase === "collector-v1",
-          ).map((spec) => ({
-            id: spec.id,
-            category: spec.category,
-            command: spec.command,
-            args: [...spec.args],
-          })),
-      ),
-    ]),
-  });
+            DARWIN_ARM64_COMMANDS.filter(
+              (spec) => spec.phase === "collector-v1",
+            ).map((spec) => ({
+              id: spec.id,
+              category: spec.category,
+              command: spec.command,
+              args: [...spec.args],
+            })),
+        ),
+      ]),
+    }),
+    options.trace,
+  );
 }
 
 /**
@@ -1863,7 +1869,12 @@ function parseEmbeddedString(value) {
     return undefined;
   }
 
-  return value.replace(/\u0000+$/u, "").trim() || undefined;
+  let end = value.length;
+  while (end > 0 && value.charCodeAt(end - 1) === 0) {
+    end -= 1;
+  }
+
+  return value.slice(0, end).trim() || undefined;
 }
 
 /**

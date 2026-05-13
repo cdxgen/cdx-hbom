@@ -16,15 +16,25 @@ import { safeSpawnSync } from "./safe.js";
  * Execute a command and return trimmed stdout.
  *
  * @param {CommandSpec} spec Command descriptor.
- * @param {{ timeoutMs?: number }} [options={}] Execution options.
+ * @param {{ timeoutMs?: number, allowedCommands?: string[], dryRun?: boolean, trace?: { activities: object[] } }} [options={}] Execution options.
  * @returns {Promise<string>} Trimmed stdout.
  */
 export async function runCommand(spec, options = {}) {
   const timeoutMs = options.timeoutMs ?? 15000;
   const result = safeSpawnSync(spec.command, spec.args, {
     allowedCommands: options.allowedCommands,
+    dryRun: options.dryRun,
     encoding: "utf8",
     maxBuffer: 10 * 1024 * 1024,
+    trace: options.trace,
+    traceActivity: {
+      category: spec.category,
+      dryRunReason: `Dry run mode blocks HBOM command '${spec.id}'.`,
+      id: spec.id,
+      parser: spec.parser,
+      phase: spec.phase,
+      purpose: spec.purpose,
+    },
     timeout: timeoutMs,
   });
 

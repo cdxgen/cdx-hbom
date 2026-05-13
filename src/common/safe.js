@@ -1,7 +1,15 @@
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, readdirSync, readFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  readlinkSync,
+} from "node:fs";
 import { basename, resolve } from "node:path";
 import process from "node:process";
+
+import { recordCollectorTrace } from "./trace.js";
 
 /**
  * Commands executed through the safe child-process wrapper.
@@ -41,16 +49,46 @@ export function safeExistsSync(filePath) {
  * @returns {string | undefined} The input path when created or already present.
  */
 export function safeMkdirSync(filePath, options = {}) {
+  if (options.dryRun === true) {
+    recordCollectorTrace(options.trace, {
+      kind: "mkdir",
+      path: filePath,
+      reason: "Dry run mode blocks directory creation.",
+      status: "blocked",
+      target: filePath,
+    });
+    return undefined;
+  }
   try {
     mkdirSync(filePath, options);
+    recordCollectorTrace(options.trace, {
+      kind: "mkdir",
+      path: filePath,
+      status: "completed",
+      target: filePath,
+    });
     return filePath;
   } catch (error) {
     if (error?.code === "EEXIST") {
+      recordCollectorTrace(options.trace, {
+        kind: "mkdir",
+        path: filePath,
+        reason: "Directory already exists.",
+        status: "completed",
+        target: filePath,
+      });
       return filePath;
     }
     if (options.suppressErrors === true) {
       return undefined;
     }
+    recordCollectorTrace(options.trace, {
+      kind: "mkdir",
+      path: filePath,
+      reason: error?.message,
+      status: "failed",
+      target: filePath,
+    });
     throw error;
   }
 }
@@ -67,13 +105,29 @@ export function safeMkdirSync(filePath, options = {}) {
  */
 export function safeReadFileSync(filePath, options = {}) {
   try {
-    if (options.encoding === null) {
-      return readFileSync(filePath);
-    }
-
-    return readFileSync(filePath, options.encoding ?? "utf8");
+    const value =
+      options.encoding === null
+        ? readFileSync(filePath)
+        : readFileSync(filePath, options.encoding ?? "utf8");
+    recordCollectorTrace(options.trace, {
+      bytes: getReadByteSize(value, options.encoding ?? "utf8"),
+      encoding:
+        options.encoding === null ? "buffer" : (options.encoding ?? "utf8"),
+      kind: "file-read",
+      path: filePath,
+      status: "completed",
+      target: filePath,
+    });
+    return value;
   } catch (error) {
     if (options.suppressErrors === false) {
+      recordCollectorTrace(options.trace, {
+        kind: "file-read",
+        path: filePath,
+        reason: error?.message,
+        status: "failed",
+        target: filePath,
+      });
       throw error;
     }
     return undefined;
@@ -92,12 +146,60 @@ export function safeReadFileSync(filePath, options = {}) {
  */
 export function safeReaddirSync(directoryPath, options = {}) {
   try {
-    return readdirSync(directoryPath);
+    const entries = readdirSync(directoryPath);
+    recordCollectorTrace(options.trace, {
+      entryCount: entries.length,
+      kind: "dir-read",
+      path: directoryPath,
+      status: "completed",
+      target: directoryPath,
+    });
+    return entries;
   } catch (error) {
     if (options.suppressErrors === false) {
+      recordCollectorTrace(options.trace, {
+        kind: "dir-read",
+        path: directoryPath,
+        reason: error?.message,
+        status: "failed",
+        target: directoryPath,
+      });
       throw error;
     }
     return [];
+  }
+}
+
+/**
+ * Safely resolve a symlink target.
+ *
+ * @param {string} linkPath Symlink path.
+ * @param {{ suppressErrors?: boolean, trace?: { activities: object[] } }} [options={}] Read options.
+ * @returns {string | undefined} Resolved target when available.
+ */
+export function safeReadlinkSync(linkPath, options = {}) {
+  try {
+    const target = readlinkSync(linkPath);
+    recordCollectorTrace(options.trace, {
+      kind: "symlink-read",
+      path: linkPath,
+      status: "completed",
+      target: linkPath,
+      value: target,
+    });
+    return target;
+  } catch (error) {
+    if (options.suppressErrors === false) {
+      recordCollectorTrace(options.trace, {
+        kind: "symlink-read",
+        path: linkPath,
+        reason: error?.message,
+        status: "failed",
+        target: linkPath,
+      });
+      throw error;
+    }
+    return undefined;
   }
 }
 
@@ -142,12 +244,25 @@ export function safeReaddirSync(directoryPath, options = {}) {
 export function safeSpawnSync(command, args = [], options = {}) {
   const allowedCommands = normalizeAllowedCommands(options.allowedCommands);
   const commandName = basename(command);
+  const traceActivity = {
+    ...options.traceActivity,
+    args: [...args],
+    command,
+    kind: "command",
+    target: formatCommandTarget(command, args),
+  };
 
   if (
     allowedCommands &&
     !allowedCommands.has(command) &&
     !allowedCommands.has(commandName)
   ) {
+    const error = new Error(`Command blocked by allowlist: ${command}`);
+    recordCollectorTrace(options.trace, {
+      ...traceActivity,
+      reason: error.message,
+      status: "blocked",
+    });
     return {
       status: 1,
       stdout: options.encoding === "buffer" ? Buffer.alloc(0) : "",
@@ -155,7 +270,7 @@ export function safeSpawnSync(command, args = [], options = {}) {
         options.encoding === "buffer"
           ? Buffer.from("Command blocked by allowlist")
           : "Command blocked by allowlist",
-      error: new Error(`Command blocked by allowlist: ${command}`),
+      error,
     };
   }
 
@@ -163,6 +278,12 @@ export function safeSpawnSync(command, args = [], options = {}) {
     options.shell === true &&
     isWindowsShellHijackRisk(command, options.cwd)
   ) {
+    const error = new Error("Blocked potential Windows shell hijack");
+    recordCollectorTrace(options.trace, {
+      ...traceActivity,
+      reason: error.message,
+      status: "blocked",
+    });
     return {
       status: 1,
       stdout: options.encoding === "buffer" ? Buffer.alloc(0) : "",
@@ -170,7 +291,27 @@ export function safeSpawnSync(command, args = [], options = {}) {
         options.encoding === "buffer"
           ? Buffer.from("Blocked potential Windows shell hijack")
           : "Blocked potential Windows shell hijack",
-      error: new Error("Blocked potential Windows shell hijack"),
+      error,
+    };
+  }
+
+  if (options.dryRun === true) {
+    const error = new Error(
+      options.traceActivity?.dryRunReason ||
+        "Dry run mode blocks command execution.",
+    );
+    error.code = "CDX_HBOM_DRY_RUN";
+    error.dryRun = true;
+    recordCollectorTrace(options.trace, {
+      ...traceActivity,
+      reason: error.message,
+      status: "blocked",
+    });
+    return {
+      status: 1,
+      stdout: options.encoding === "buffer" ? Buffer.alloc(0) : "",
+      stderr: options.encoding === "buffer" ? Buffer.alloc(0) : "",
+      error,
     };
   }
 
@@ -186,7 +327,18 @@ export function safeSpawnSync(command, args = [], options = {}) {
   };
 
   commandsExecuted.add(command);
-  return spawnSync(command, args, spawnOptions);
+  const result = spawnSync(command, args, spawnOptions);
+  recordCollectorTrace(options.trace, {
+    ...traceActivity,
+    exitCode: result.status ?? undefined,
+    reason:
+      result.error?.message ||
+      (result.status === 0
+        ? undefined
+        : `Command exited with status ${result.status ?? "unknown"}.`),
+    status: result.error || result.status !== 0 ? "failed" : "completed",
+  });
+  return result;
 }
 
 /**
@@ -243,5 +395,19 @@ function isWindowsShellHijackRisk(command, cwd) {
 
   return candidates.some((candidate) =>
     safeExistsSync(resolve(cwdPath, candidate)),
+  );
+}
+
+function formatCommandTarget(command, args) {
+  return `${command}${args.length ? ` ${args.join(" ")}` : ""}`;
+}
+
+function getReadByteSize(value, encoding) {
+  if (Buffer.isBuffer(value)) {
+    return value.length;
+  }
+  return Buffer.byteLength(
+    String(value ?? ""),
+    encoding === null ? "utf8" : encoding,
   );
 }

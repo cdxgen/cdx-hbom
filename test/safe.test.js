@@ -7,6 +7,7 @@ import test from "node:test";
 
 import {
   commandsExecuted,
+  createCollectorTrace,
   safeExistsSync,
   safeMkdirSync,
   safeReadFileSync,
@@ -46,6 +47,32 @@ test("safeReadFileSync returns a Buffer when encoding null is requested", () => 
   rmSync(root, { force: true, recursive: true });
 });
 
+test("safeReadFileSync records completed file-read activities when tracing is enabled", () => {
+  const root = mkdtempSync(join(tmpdir(), "cdx-hbom-safe-"));
+  const filePath = join(root, "trace.txt");
+  const trace = createCollectorTrace();
+
+  writeFileSync(filePath, "hardware trace\n");
+
+  const result = safeReadFileSync(filePath, {
+    encoding: "utf8",
+    trace,
+  });
+
+  assert.equal(result, "hardware trace\n");
+  assert.deepEqual(trace.activities[0], {
+    bytes: 15,
+    encoding: "utf8",
+    kind: "file-read",
+    path: filePath,
+    status: "completed",
+    target: filePath,
+    timestamp: trace.activities[0].timestamp,
+  });
+
+  rmSync(root, { force: true, recursive: true });
+});
+
 test("safeSpawnSync executes allowed commands and tracks them", () => {
   commandsExecuted.clear();
   const result = safeSpawnSync(process.execPath, ["-e", "console.log('ok')"], {
@@ -68,4 +95,25 @@ test("safeSpawnSync blocks commands outside the allowlist", () => {
 
   assert.equal(result.status, 1);
   assert.match(String(result.error?.message), /allowlist/u);
+});
+
+test("safeSpawnSync blocks commands during dry-run and records the attempted command", () => {
+  const trace = createCollectorTrace();
+  const result = safeSpawnSync(process.execPath, ["--version"], {
+    dryRun: true,
+    trace,
+    traceActivity: {
+      category: "cpu-memory",
+      id: "node-version",
+    },
+  });
+
+  assert.equal(result.status, 1);
+  assert.equal(result.error?.dryRun, true);
+  assert.equal(result.error?.code, "CDX_HBOM_DRY_RUN");
+  assert.equal(trace.activities.length, 1);
+  assert.equal(trace.activities[0].kind, "command");
+  assert.equal(trace.activities[0].status, "blocked");
+  assert.equal(trace.activities[0].id, "node-version");
+  assert.match(trace.activities[0].target, /node/u);
 });
