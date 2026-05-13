@@ -158,22 +158,54 @@ function createCommandFailure(spec, result, options) {
     privilegeMode === "none"
       ? undefined
       : "Retry with --privileged to allow a non-interactive sudo attempt for permission-sensitive Linux commands.";
+  error.suppressedDiagnostic = shouldSuppressCommandDiagnostic(
+    spec,
+    errorType,
+    issueSummary,
+  );
 
-  recordCollectorTrace(options.trace, {
-    args: [...spec.args],
-    category: spec.category,
-    command: spec.command,
-    exitCode: result.status ?? undefined,
-    hint: buildHintMessage(spec, errorType),
-    id: spec.id,
-    issue: errorType,
-    kind: "command-diagnostic",
-    reason: issueSummary,
-    status: "failed",
-    target: `${spec.command}${spec.args.length ? ` ${spec.args.join(" ")}` : ""}`,
-  });
+  if (!error.suppressedDiagnostic) {
+    recordCollectorTrace(options.trace, {
+      args: [...spec.args],
+      category: spec.category,
+      command: spec.command,
+      exitCode: result.status ?? undefined,
+      hint: buildHintMessage(spec, errorType),
+      id: spec.id,
+      issue: errorType,
+      kind: "command-diagnostic",
+      reason: issueSummary,
+      status: "failed",
+      target: `${spec.command}${spec.args.length ? ` ${spec.args.join(" ")}` : ""}`,
+    });
+  }
 
   return error;
+}
+
+function shouldSuppressCommandDiagnostic(spec, errorType, issueSummary) {
+  const id = String(spec?.id ?? "");
+  const message = String(issueSummary ?? "").toLowerCase();
+
+  if (
+    id.startsWith("ethtool-driver-info:") &&
+    ["command-error", "partial-support"].includes(errorType ?? "") &&
+    /(operation not supported|cannot get driver information|no data available)/u.test(
+      message,
+    )
+  ) {
+    return true;
+  }
+
+  if (
+    id === "lsmem-json" &&
+    ["command-error", "partial-support"].includes(errorType ?? "") &&
+    /cannot open \/sys\/devices\/system\/memory/u.test(message)
+  ) {
+    return true;
+  }
+
+  return false;
 }
 
 function classifyCommandIssue({ error, stderr, stdout, status }) {

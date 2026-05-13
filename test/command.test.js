@@ -107,3 +107,35 @@ test("runCommand suppresses noisy generic stderr when stdout remains usable", as
     false,
   );
 });
+
+test("runCommand suppresses low-value diagnostics for unsupported ethtool interfaces", async () => {
+  const trace = createCollectorTrace();
+
+  await assert.rejects(
+    () =>
+      runCommand(
+        {
+          id: "ethtool-driver-info:eth999",
+          category: "network",
+          command: process.execPath,
+          args: [
+            "-e",
+            'process.stderr.write("Cannot get driver information: Operation not supported\\n"); process.exit(1);',
+          ],
+          parser: "text",
+          purpose: "Test low-value diagnostic suppression.",
+          phase: "collector-v1",
+        },
+        { trace },
+      ),
+    (error) => {
+      assert.equal(error.suppressedDiagnostic, true);
+      return true;
+    },
+  );
+
+  assert.equal(
+    trace.activities.some((entry) => entry.kind === "command-diagnostic"),
+    false,
+  );
+});

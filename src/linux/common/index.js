@@ -1843,6 +1843,9 @@ export async function collectLinuxHardware(options) {
   const observedFiles = [];
   const sources = collectLinuxFileSources(observedFiles);
   const recordCommandError = (error) => {
+    if (!shouldRetainLinuxCommandDiagnostic(error)) {
+      return;
+    }
     const diagnostic = toCommandDiagnostic(error);
     if (diagnostic) {
       commandDiagnostics.push(diagnostic);
@@ -4629,7 +4632,11 @@ function toEvidenceCommand(spec) {
 }
 
 function toCommandDiagnostic(error) {
-  if (!error || typeof error !== "object") {
+  if (
+    !error ||
+    typeof error !== "object" ||
+    error.suppressedDiagnostic === true
+  ) {
     return undefined;
   }
 
@@ -4645,6 +4652,32 @@ function toCommandDiagnostic(error) {
     installHint: getStringValue(error.installHint),
     privilegeHint: getStringValue(error.privilegeHint),
   });
+}
+
+function shouldRetainLinuxCommandDiagnostic(error) {
+  const commandId = getStringValue(error?.commandId) ?? "";
+  const issue = getStringValue(error?.issue) ?? "";
+  const message = String(error?.message ?? error?.stderr ?? "").toLowerCase();
+
+  if (
+    commandId.startsWith("ethtool-driver-info:") &&
+    ["command-error", "partial-support"].includes(issue) &&
+    /(operation not supported|cannot get driver information|no data available)/u.test(
+      message,
+    )
+  ) {
+    return false;
+  }
+
+  if (
+    commandId === "lsmem-json" &&
+    ["command-error", "partial-support"].includes(issue) &&
+    /cannot open \/sys\/devices\/system\/memory/u.test(message)
+  ) {
+    return false;
+  }
+
+  return true;
 }
 
 function getRequiredLinuxCommand(id) {

@@ -38,7 +38,7 @@ Common options:
 - `--arch <value>` override architecture detection
 - `--sensitive` include raw identifiers instead of redacted defaults
 - `--no-command-enrichment` disable optional command-based enrichment on Linux
-- `--privileged` enable privileged Linux SMBIOS enrichment via `dmidecode`
+- `--privileged` enable privileged Linux enrichment and non-interactive `sudo -n` retries for documented permission-sensitive commands
 - `--plist-enrichment` enable additional Darwin plist-based enrichment
 - `--strict` fail instead of returning partial results when enrichment fails
 - `--timeout <ms>` set per-command timeout
@@ -85,6 +85,51 @@ const rebuilt = buildHardwareFromSources({
 });
 ```
 
+### Reading command diagnostics from the library
+
+`cdx-hbom` keeps JSON output on the BOM itself and records optional command issues in the attached collector trace and BOM evidence properties.
+
+```js
+import {
+  collectHardware,
+  createCollectorTrace,
+  getCollectorTrace,
+} from "@cdxgen/cdx-hbom";
+
+const trace = createCollectorTrace();
+
+const bom = await collectHardware({
+  platform: "linux",
+  architecture: "amd64",
+  includeCommandEnrichment: true,
+  includePrivilegedEnrichment: true,
+  allowPartial: true,
+  trace,
+});
+
+const collectedTrace = getCollectorTrace(bom) ?? trace;
+const commandDiagnostics = collectedTrace.activities.filter(
+  (entry) =>
+    entry.kind === "command-diagnostic" || entry.kind === "command-warning",
+);
+
+for (const entry of commandDiagnostics) {
+  if (entry.issue === "missing-command") {
+    console.error(
+      `Install hint for ${entry.command}: ${entry.hint ?? "see package docs"}`,
+    );
+  }
+
+  if (entry.issue === "permission-denied") {
+    console.error(
+      `Privilege hint for ${entry.command}: ${entry.hint ?? "retry with --privileged"}`,
+    );
+  }
+}
+```
+
+You can also read serialized command diagnostics from the BOM root by inspecting `cdx:hbom:evidence:commandDiagnostic*` properties.
+
 ## Native enrichment currently covered
 
 ### Dry-run and trace support
@@ -99,7 +144,8 @@ const rebuilt = buildHardwareFromSources({
 - `/proc` and `/sys` baseline discovery
 - CPU, memory, storage, PCI, USB, DRM display, audio, MMC/SDIO, and network inventory
 - `hwmon`, thermal zones, TPM, and NVMe controller enrichment
-- optional command enrichment via `lscpu`, `lsblk`, `ip`, `lsmem`, `hostnamectl`, `lspci`, `lsusb`, and `ethtool`
+- optional command enrichment via `lscpu`, `lsblk`, `ip`, `lsmem`, `hostnamectl`, `lspci`, `lsusb`, `ethtool`, `cpupower`, `drm_info`, `upower`, `fwupdmgr`, `boltctl`, `mmcli`, and `edid-decode`
+- command diagnostics for missing utilities, partial support, and permission-sensitive enrichments
 
 ### Darwin arm64
 
