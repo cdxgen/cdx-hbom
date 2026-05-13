@@ -22,6 +22,7 @@ import {
   isValidLinuxEdidPath,
   isValidLinuxInterfaceName,
   isValidLinuxModemPath,
+  shouldDecodeDrmEdid,
 } from "../src/linux/common/index.js";
 
 test("runCommand retries with sudo only for commands that explicitly opt in and records the retry", async () => {
@@ -195,6 +196,45 @@ test("Linux runtime validators accept common legitimate values", () => {
       edidPath: "/sys/class/drm/card0-HDMI-A-1/edid",
     }).args,
     ["/sys/class/drm/card0-HDMI-A-1/edid"],
+  );
+});
+
+test("shouldDecodeDrmEdid skips disconnected or empty DRM connectors", () => {
+  assert.equal(
+    shouldDecodeDrmEdid({
+      kind: "connector",
+      name: "card0-HDMI-A-1",
+      edidPath: "/sys/class/drm/card0-HDMI-A-1/edid",
+      edidByteLength: 0,
+      status: "disconnected",
+      enabled: "disabled",
+    }),
+    false,
+  );
+
+  assert.equal(
+    shouldDecodeDrmEdid({
+      kind: "connector",
+      name: "card0-Writeback-1",
+      edidPath: "/sys/class/drm/card0-Writeback-1/edid",
+      status: "unknown",
+      enabled: "disabled",
+    }),
+    false,
+  );
+});
+
+test("shouldDecodeDrmEdid keeps connected connectors with usable EDID data", () => {
+  assert.equal(
+    shouldDecodeDrmEdid({
+      kind: "connector",
+      name: "card0-HDMI-A-1",
+      edidPath: "/sys/class/drm/card0-HDMI-A-1/edid",
+      edidByteLength: 256,
+      status: "connected",
+      enabled: "enabled",
+    }),
+    true,
   );
 });
 

@@ -2077,7 +2077,8 @@ export async function collectLinuxHardware(options) {
       )
     ) {
       for (const device of sources.drmDevices ?? []) {
-        if (device.kind !== "connector" || !getStringValue(device.edidPath)) {
+        if (!shouldDecodeDrmEdid(device)) {
+          maybeRecordSkippedEdidDecode(device, options.trace);
           continue;
         }
 
@@ -2464,6 +2465,9 @@ function readDrmDevices(observedFiles) {
       sysfsPath: basePath,
       edidPath: safeExistsSync(join(basePath, "edid"))
         ? join(basePath, "edid")
+        : undefined,
+      edidByteLength: Buffer.isBuffer(edidBuffer)
+        ? edidBuffer.length
         : undefined,
       kind: /^card\d+$/u.test(name)
         ? "card"
@@ -4527,6 +4531,36 @@ export function isValidLinuxEdidPath(value) {
   );
 }
 
+export function shouldDecodeDrmEdid(device) {
+  if (
+    getStringValue(device?.kind) !== "connector" ||
+    !isValidLinuxEdidPath(device?.edidPath)
+  ) {
+    return false;
+  }
+
+  const edidByteLength = getNumberValue(device?.edidByteLength);
+  if (edidByteLength !== undefined) {
+    return edidByteLength > 0;
+  }
+
+  if (device?.edid && typeof device.edid === "object") {
+    return true;
+  }
+
+  const status = getStringValue(device?.status)?.toLowerCase();
+  if (status && status !== "connected") {
+    return false;
+  }
+
+  const enabled = getStringValue(device?.enabled)?.toLowerCase();
+  if (enabled === "disabled") {
+    return false;
+  }
+
+  return true;
+}
+
 export function createEthtoolCommand(interfaceName, options = {}) {
   const baseSpec = getRequiredLinuxCommand("ethtool-driver-info");
   const normalized = getStringValue(interfaceName);
@@ -4657,6 +4691,45 @@ function summarizeRejectedArgumentValue(value) {
   }
 
   return normalized.length > 64 ? `${normalized.slice(0, 61)}...` : normalized;
+}
+
+function maybeRecordSkippedEdidDecode(device, trace) {
+  const edidPath = getStringValue(device?.edidPath);
+  if (getStringValue(device?.kind) !== "connector" || !edidPath) {
+    return;
+  }
+
+  const spec = getRequiredLinuxCommand("edid-decode");
+  recordCollectorTrace(trace, {
+    args: [edidPath],
+    category: spec.category,
+    command: spec.command,
+    id: `edid-decode:${getStringValue(device?.name) ?? "display"}`,
+    issue: "empty-edid",
+    kind: "command-skipped",
+    reason: summarizeSkippedEdidReason(device),
+    status: "skipped",
+    target: `${spec.command} ${edidPath}`,
+  });
+}
+
+function summarizeSkippedEdidReason(device) {
+  const edidByteLength = getNumberValue(device?.edidByteLength);
+  if (edidByteLength === 0) {
+    return "Skipped edid-decode because the sysfs EDID file is empty.";
+  }
+
+  const status = getStringValue(device?.status)?.toLowerCase();
+  if (status && status !== "connected") {
+    return `Skipped edid-decode because the DRM connector status is '${status}'.`;
+  }
+
+  const enabled = getStringValue(device?.enabled)?.toLowerCase();
+  if (enabled === "disabled") {
+    return "Skipped edid-decode because the DRM connector is disabled.";
+  }
+
+  return "Skipped edid-decode because the DRM connector does not expose usable EDID data.";
 }
 
 async function probeOptionalLinuxCommand(id, options, onError = undefined) {
