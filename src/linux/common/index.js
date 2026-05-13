@@ -2,12 +2,13 @@ import { Buffer } from "node:buffer";
 import { join } from "node:path";
 import process from "node:process";
 
-import { runCommand } from "../../common/command.js";
+import { getInstallHint, runCommand } from "../../common/command.js";
 import {
   safeExistsSync,
   safeReaddirSync,
   safeReadFileSync,
   safeReadlinkSync,
+  safeSpawnSync,
 } from "../../common/safe.js";
 import { createHbomDocument } from "../../common/schema.js";
 import {
@@ -2060,23 +2061,31 @@ export async function collectLinuxHardware(options) {
       recordCommandError,
     );
     sources.edidDecoded = [];
-    for (const device of sources.drmDevices ?? []) {
-      if (device.kind !== "connector" || !getStringValue(device.edidPath)) {
-        continue;
-      }
-
-      await attemptCollection(
-        async () => {
-          const spec = createEdidDecodeCommand(device);
-          sources.edidDecoded.push({
-            name: getStringValue(device.name),
-            ...parseEdidDecodeText(await runCommand(spec, options)),
-          });
-          executedCommands.push(toEvidenceCommand(spec));
-        },
-        allowPartial,
+    if (
+      await probeOptionalLinuxCommand(
+        "edid-decode",
+        options,
         recordCommandError,
-      );
+      )
+    ) {
+      for (const device of sources.drmDevices ?? []) {
+        if (device.kind !== "connector" || !getStringValue(device.edidPath)) {
+          continue;
+        }
+
+        await attemptCollection(
+          async () => {
+            const spec = createEdidDecodeCommand(device);
+            sources.edidDecoded.push({
+              name: getStringValue(device.name),
+              ...parseEdidDecodeText(await runCommand(spec, options)),
+            });
+            executedCommands.push(toEvidenceCommand(spec));
+          },
+          allowPartial,
+          recordCommandError,
+        );
+      }
     }
     sources.ethtool = {};
     const interfaceNames = [
@@ -4501,6 +4510,49 @@ function createEdidDecodeCommand(device) {
         getRequiredLinuxCommand("edid-decode").args[0],
     ],
   };
+}
+
+async function probeOptionalLinuxCommand(id, options, onError = undefined) {
+  const spec = getRequiredLinuxCommand(id);
+  const result = safeSpawnSync(spec.command, ["--help"], {
+    allowedCommands: options.allowedCommands,
+    dryRun: options.dryRun,
+    encoding: "utf8",
+    maxBuffer: 256 * 1024,
+    timeout: Math.min(options.timeoutMs ?? 15000, 5000),
+    trace: options.trace,
+    traceActivity: {
+      category: spec.category,
+      dryRunReason: `Dry run mode blocks HBOM command probe '${spec.id}'.`,
+      id: `probe:${spec.id}`,
+      parser: "probe",
+      phase: spec.phase,
+      purpose: `Probe availability for optional Linux command '${spec.command}'.`,
+    },
+  });
+
+  if (result.error?.code === "ENOENT") {
+    onError?.({
+      commandId: spec.id,
+      category: spec.category,
+      command: spec.command,
+      args: ["--help"],
+      issue: "missing-command",
+      code: "CDX_HBOM_COMMAND_NOT_FOUND",
+      message: `${spec.id} failed with missing-command: spawnSync ${spec.command} ENOENT`,
+      installHint: getInstallHint(spec.command),
+    });
+    return false;
+  }
+
+  if (
+    result.error ||
+    String(result.stderr ?? "").includes("Command blocked by allowlist")
+  ) {
+    return false;
+  }
+
+  return true;
 }
 
 function createLshwCommunicationComponents(lshwNodes) {

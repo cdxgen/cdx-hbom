@@ -82,3 +82,28 @@ test("runCommand records partial permission warnings when stdout remains usable"
     true,
   );
 });
+
+test("runCommand suppresses noisy generic stderr when stdout remains usable", async () => {
+  const trace = createCollectorTrace();
+  const stdout = await runCommand(
+    {
+      id: "generic-stderr-probe",
+      category: "platform",
+      command: process.execPath,
+      args: [
+        "-e",
+        'process.stderr.write("output may be incomplete\\n"); process.stdout.write("ok\\n");',
+      ],
+      parser: "text",
+      purpose: "Test stderr warning suppression.",
+      phase: "collector-v1",
+    },
+    { trace },
+  );
+
+  assert.equal(stdout, "ok");
+  assert.equal(
+    trace.activities.some((entry) => entry.kind === "command-warning"),
+    false,
+  );
+});

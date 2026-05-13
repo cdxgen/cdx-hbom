@@ -100,7 +100,7 @@ function shouldRetryWithSudo(spec, options, result, attemptedWithSudo) {
 
 function recordCommandWarning(spec, options, stdout, stderr) {
   const errorType = classifyCommandIssue({ stderr, stdout });
-  if (!errorType) {
+  if (!shouldRecordCommandWarning(errorType)) {
     return;
   }
 
@@ -116,6 +116,12 @@ function recordCommandWarning(spec, options, stdout, stderr) {
     status: "warning",
     target: `${spec.command}${spec.args.length ? ` ${spec.args.join(" ")}` : ""}`,
   });
+}
+
+function shouldRecordCommandWarning(errorType) {
+  return ["missing-command", "permission-denied", "partial-support"].includes(
+    errorType,
+  );
 }
 
 function createCommandFailure(spec, result, options) {
@@ -243,7 +249,7 @@ function mapCommandFailureCode(errorType) {
   }
 }
 
-function getInstallHint(command) {
+export function getInstallHint(command) {
   const hints = {
     boltctl:
       "Command not found: install the Linux package providing boltctl (for example `bolt` on Debian/Ubuntu, Fedora/RHEL, and Arch).",
