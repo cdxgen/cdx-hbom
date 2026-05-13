@@ -50,6 +50,31 @@ test("getCommandPlan rejects unsupported targets", () => {
   assert.ok(linuxAmd64Plan.some((spec) => spec.id === "lsblk-json"));
   assert.ok(linuxArm64Plan.some((spec) => spec.id === "ip-link-json"));
   assert.ok(linuxAarch64Plan.some((spec) => spec.id === "ip-link-json"));
+  assert.ok(linuxAmd64Plan.some((spec) => spec.id === "lsusb-verbose"));
+  assert.ok(
+    linuxAmd64Plan.some((spec) => spec.id === "cpupower-frequency-info"),
+  );
+  assert.ok(linuxArm64Plan.some((spec) => spec.id === "cpupower-idle-info"));
+  assert.ok(linuxAmd64Plan.some((spec) => spec.id === "drm-info-json"));
+  assert.ok(linuxAmd64Plan.some((spec) => spec.id === "upower-dump"));
+  assert.ok(linuxArm64Plan.some((spec) => spec.id === "fwupdmgr-devices-json"));
+  assert.ok(linuxArm64Plan.some((spec) => spec.id === "boltctl-list-all"));
+  assert.ok(linuxArm64Plan.some((spec) => spec.id === "mmcli-list-json"));
+  assert.ok(linuxAmd64Plan.some((spec) => spec.id === "ethtool-driver-info"));
+  assert.ok(linuxArm64Plan.some((spec) => spec.id === "mmcli-modem-json"));
+  assert.deepEqual(
+    linuxAmd64Plan.find((spec) => spec.id === "ethtool-driver-info")?.args,
+    ["-i", "<interface>"],
+  );
+  assert.deepEqual(
+    linuxArm64Plan.find((spec) => spec.id === "mmcli-modem-json")?.args,
+    ["-m", "<modem-path>", "-J"],
+  );
+  assert.ok(linuxAmd64Plan.some((spec) => spec.id === "edid-decode"));
+  assert.deepEqual(
+    linuxAmd64Plan.find((spec) => spec.id === "edid-decode")?.args,
+    ["<edid-path>"],
+  );
 
   assert.throws(
     () =>

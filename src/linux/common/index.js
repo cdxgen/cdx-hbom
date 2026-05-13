@@ -1,12 +1,14 @@
+import { Buffer } from "node:buffer";
 import { join } from "node:path";
 import process from "node:process";
 
-import { runCommand } from "../../common/command.js";
+import { getInstallHint, runCommand } from "../../common/command.js";
 import {
   safeExistsSync,
   safeReaddirSync,
   safeReadFileSync,
   safeReadlinkSync,
+  safeSpawnSync,
 } from "../../common/safe.js";
 import { createHbomDocument } from "../../common/schema.js";
 import {
@@ -242,6 +244,654 @@ export function parseLsusbText(stdout) {
         },
       ];
     });
+}
+
+/**
+ * Parse `lsusb -v` output into per-device descriptor summaries.
+ *
+ * @param {string} stdout Command stdout.
+ * @returns {Array<Record<string, unknown>>} Parsed USB descriptor records.
+ */
+export function parseLsusbVerboseText(stdout) {
+  const records = [];
+  let currentRecord;
+
+  for (const rawLine of stdout.split(/\r?\n/u)) {
+    const line = rawLine.trimEnd();
+    const headerMatch = line.match(
+      /^Bus\s+(\d+)\s+Device\s+(\d+):\s+ID\s+([0-9a-f]{4}):([0-9a-f]{4})\s*(.*)$/iu,
+    );
+
+    if (headerMatch) {
+      if (currentRecord) {
+        records.push(finalizeLsusbVerboseRecord(currentRecord));
+      }
+      currentRecord = {
+        bus: headerMatch[1],
+        device: headerMatch[2],
+        vendorId: headerMatch[3].toLowerCase(),
+        productId: headerMatch[4].toLowerCase(),
+        description: headerMatch[5].trim() || undefined,
+        interfaceClassNames: [],
+      };
+      continue;
+    }
+
+    if (!currentRecord) {
+      continue;
+    }
+
+    const trimmed = line.trim();
+    if (!trimmed) {
+      continue;
+    }
+
+    let match = trimmed.match(/^bcdUSB\s+([0-9.]+)$/u);
+    if (match) {
+      currentRecord.version = match[1];
+      continue;
+    }
+
+    match = trimmed.match(/^bNumConfigurations\s+(\d+)$/u);
+    if (match) {
+      currentRecord.configurationCount = Number.parseInt(match[1], 10);
+      continue;
+    }
+
+    match = trimmed.match(/^bNumInterfaces\s+(\d+)$/u);
+    if (match) {
+      currentRecord.interfaceCount = Number.parseInt(match[1], 10);
+      continue;
+    }
+
+    match = trimmed.match(/^MaxPower\s+(\d+)mA$/u);
+    if (match) {
+      currentRecord.maxPowerMilliAmps = Number.parseInt(match[1], 10);
+      continue;
+    }
+
+    match = trimmed.match(/^iManufacturer\s+\d+\s+(.+)$/u);
+    if (match) {
+      currentRecord.manufacturer = normalizeUsbDescriptorLabel(match[1]);
+      continue;
+    }
+
+    match = trimmed.match(/^iProduct\s+\d+\s+(.+)$/u);
+    if (match) {
+      currentRecord.productName = normalizeUsbDescriptorLabel(match[1]);
+      continue;
+    }
+
+    match = trimmed.match(/^iSerial\s+\d+\s+(.+)$/u);
+    if (match) {
+      currentRecord.serial = normalizeUsbDescriptorLabel(match[1]);
+      continue;
+    }
+
+    match = trimmed.match(/^bDeviceClass\s+\d+\s*(.*)$/u);
+    if (match) {
+      currentRecord.deviceClassName = normalizeUsbDescriptorLabel(match[1]);
+      continue;
+    }
+
+    match = trimmed.match(/^bDeviceSubClass\s+\d+\s*(.*)$/u);
+    if (match) {
+      currentRecord.deviceSubclassName = normalizeUsbDescriptorLabel(match[1]);
+      continue;
+    }
+
+    match = trimmed.match(/^bDeviceProtocol\s+\d+\s*(.*)$/u);
+    if (match) {
+      currentRecord.deviceProtocolName = normalizeUsbDescriptorLabel(match[1]);
+      continue;
+    }
+
+    match = trimmed.match(/^bInterfaceClass\s+\d+\s*(.*)$/u);
+    if (match) {
+      const label = normalizeUsbDescriptorLabel(match[1]);
+      if (label) {
+        currentRecord.interfaceClassNames.push(label);
+      }
+      continue;
+    }
+
+    if (trimmed === "Self Powered") {
+      currentRecord.selfPowered = true;
+      continue;
+    }
+    if (trimmed === "Remote Wakeup") {
+      currentRecord.remoteWakeup = true;
+    }
+  }
+
+  if (currentRecord) {
+    records.push(finalizeLsusbVerboseRecord(currentRecord));
+  }
+
+  return records;
+}
+
+/**
+ * Parse `cpupower frequency-info` output.
+ *
+ * @param {string} stdout Command stdout.
+ * @returns {Record<string, unknown>} Parsed CPU frequency metadata.
+ */
+export function parseCpupowerFrequencyInfo(stdout) {
+  const result = {};
+
+  stdout.split(/\r?\n/u).forEach((rawLine) => {
+    const line = rawLine.trim();
+    if (!line) {
+      return;
+    }
+
+    let match = line.match(/^driver:\s+(.+)$/u);
+    if (match) {
+      result.driver = match[1].trim();
+      return;
+    }
+
+    match = line.match(/^hardware limits:\s+(.+)\s+-\s+(.+)$/u);
+    if (match) {
+      result.hardwareMin = match[1].trim();
+      result.hardwareMax = match[2].trim();
+      return;
+    }
+
+    match = line.match(/^available cpufreq governors:\s+(.+)$/u);
+    if (match) {
+      result.availableGovernors = match[1].trim().split(/\s+/u).filter(Boolean);
+      return;
+    }
+
+    match = line.match(
+      /^current policy:\s+frequency should be within\s+(.+)\s+and\s+(.+)\.$/u,
+    );
+    if (match) {
+      result.policyMin = match[1].trim();
+      result.policyMax = match[2].trim();
+      return;
+    }
+
+    match = line.match(
+      /^The governor\s+"(.+?)"\s+may decide which speed to use$/u,
+    );
+    if (match) {
+      result.governor = match[1].trim();
+      return;
+    }
+
+    match = line.match(/^Supported:\s+(yes|no)$/iu);
+    if (match) {
+      result.boostSupported = match[1].toLowerCase() === "yes";
+      return;
+    }
+
+    match = line.match(/^Active:\s+(yes|no)$/iu);
+    if (match) {
+      result.boostActive = match[1].toLowerCase() === "yes";
+      return;
+    }
+
+    match = line.match(
+      /^AMD PSTATE Highest Performance:\s+(\d+)\.\s+Maximum Frequency:\s+(.+)\.$/u,
+    );
+    if (match) {
+      result.highestPerformance = Number.parseInt(match[1], 10);
+      result.maximumFrequency = match[2].trim();
+      return;
+    }
+
+    match = line.match(
+      /^AMD PSTATE Nominal Performance:\s+(\d+)\.\s+Nominal Frequency:\s+(.+)\.$/u,
+    );
+    if (match) {
+      result.nominalPerformance = Number.parseInt(match[1], 10);
+      result.nominalFrequency = match[2].trim();
+      return;
+    }
+
+    match = line.match(
+      /^AMD PSTATE Lowest Non-linear Performance:\s+(\d+)\.\s+Lowest Non-linear Frequency:\s+(.+)\.$/u,
+    );
+    if (match) {
+      result.lowestNonLinearPerformance = Number.parseInt(match[1], 10);
+      result.lowestNonLinearFrequency = match[2].trim();
+      return;
+    }
+
+    match = line.match(
+      /^AMD PSTATE Lowest Performance:\s+(\d+)\.\s+Lowest Frequency:\s+(.+)\.$/u,
+    );
+    if (match) {
+      result.lowestPerformance = Number.parseInt(match[1], 10);
+      result.lowestFrequency = match[2].trim();
+      return;
+    }
+
+    match = line.match(/^current CPU frequency:\s+(.+)$/u);
+    if (match) {
+      result.currentFrequencies = [
+        ...(Array.isArray(result.currentFrequencies)
+          ? result.currentFrequencies
+          : []),
+        match[1].trim(),
+      ];
+    }
+  });
+
+  return result;
+}
+
+/**
+ * Parse `cpupower idle-info` output.
+ *
+ * @param {string} stdout Command stdout.
+ * @returns {Record<string, unknown>} Parsed CPU idle metadata.
+ */
+export function parseCpupowerIdleInfo(stdout) {
+  const result = {
+    idleStates: [],
+  };
+  let currentState;
+
+  stdout.split(/\r?\n/u).forEach((rawLine) => {
+    const line = rawLine.trim();
+    if (!line) {
+      return;
+    }
+
+    let match = line.match(/^CPUidle driver:\s+(.+)$/u);
+    if (match) {
+      result.driver = match[1].trim();
+      return;
+    }
+
+    match = line.match(/^CPUidle governor:\s+(.+)$/u);
+    if (match) {
+      result.governor = match[1].trim();
+      return;
+    }
+
+    match = line.match(/^Number of idle states:\s+(\d+)$/u);
+    if (match) {
+      result.idleStateCount = Number.parseInt(match[1], 10);
+      return;
+    }
+
+    match = line.match(/^Available idle states:\s+(.+)$/u);
+    if (match) {
+      result.availableIdleStates = match[1]
+        .trim()
+        .split(/\s+/u)
+        .filter(Boolean);
+      return;
+    }
+
+    match = line.match(/^([A-Z0-9]+):$/u);
+    if (match) {
+      currentState = {
+        name: match[1],
+      };
+      result.idleStates.push(currentState);
+      return;
+    }
+
+    if (!currentState) {
+      return;
+    }
+
+    match = line.match(/^Flags\/Description:\s+(.+)$/u);
+    if (match) {
+      currentState.description = match[1].trim();
+      return;
+    }
+
+    match = line.match(/^Latency:\s+(\d+)$/u);
+    if (match) {
+      currentState.latency = Number.parseInt(match[1], 10);
+      return;
+    }
+
+    match = line.match(/^Usage:\s+(\d+)$/u);
+    if (match) {
+      currentState.usage = Number.parseInt(match[1], 10);
+      return;
+    }
+
+    match = line.match(/^Duration:\s+(\d+)$/u);
+    if (match) {
+      currentState.duration = Number.parseInt(match[1], 10);
+    }
+  });
+
+  return result;
+}
+
+/**
+ * Parse `drm_info -j` output.
+ *
+ * @param {string} stdout Command stdout.
+ * @returns {{ cards: Array<Record<string, unknown>>, connectors: Array<Record<string, unknown>> }} Parsed DRM records.
+ */
+export function parseDrmInfoJson(stdout) {
+  const parsed = JSON.parse(stdout);
+  const cards = [];
+  const connectors = [];
+
+  for (const [nodePath, entry] of Object.entries(parsed ?? {})) {
+    const cardName = nodePath.split("/").at(-1);
+    if (!cardName) {
+      continue;
+    }
+
+    const driver = entry?.driver ?? {};
+    const device = entry?.device ?? {};
+    const deviceData = device.device_data ?? {};
+    const busData = device.bus_data ?? {};
+    cards.push({
+      name: cardName,
+      kind: "card",
+      drmNode: nodePath,
+      driver: getScalarStringValue(driver.name),
+      driverDescription: getScalarStringValue(driver.desc),
+      driverVersion: formatDrmVersion(driver.version),
+      kernelRelease: getScalarStringValue(driver.kernel?.release),
+      kernelVersion: getScalarStringValue(driver.kernel?.version),
+      clientCaps: driver.client_caps ?? undefined,
+      caps: driver.caps ?? undefined,
+      availableNodes: getNumberValue(device.available_nodes),
+      drmBusType: formatDrmBusType(device.bus_type),
+      vendorId: normalizeHexNumber(deviceData.vendor),
+      productId: normalizeHexNumber(deviceData.device),
+      subsystemVendorId: normalizeHexNumber(deviceData.subsystem_vendor),
+      subsystemDeviceId: normalizeHexNumber(deviceData.subsystem_device),
+      pciSlot: formatDrmPciAddress(busData),
+      ofCompatible: Array.isArray(deviceData.compatible)
+        ? deviceData.compatible.filter((value) => typeof value === "string")
+        : undefined,
+      ofFullname: getScalarStringValue(busData.fullname),
+      framebuffer: entry?.fb_size ?? undefined,
+    });
+
+    const cardConnectors = Array.isArray(entry?.connectors)
+      ? entry.connectors
+      : [];
+    cardConnectors.forEach((connector, index) => {
+      const typeName = formatDrmConnectorType(connector.type);
+      connectors.push({
+        cardName,
+        kind: "connector",
+        drmConnectorId: getNumberValue(connector.id),
+        connectorType: typeName,
+        connectorTypeCode: getNumberValue(connector.type),
+        status: formatDrmConnectorStatus(connector.status),
+        statusCode: getNumberValue(connector.status),
+        physicalWidthMm: getNumberValue(connector.phy_width),
+        physicalHeightMm: getNumberValue(connector.phy_height),
+        subpixel: getNumberValue(connector.subpixel),
+        encoderId: getNumberValue(connector.encoder_id),
+        encoderIds: Array.isArray(connector.encoders)
+          ? connector.encoders
+              .map((value) => getNumberValue(value))
+              .filter((value) => value !== undefined)
+          : undefined,
+        modes: normalizeDrmModes(connector.modes),
+        dpms: getDrmPropertyValue(connector.properties, "DPMS"),
+        linkStatus: getDrmPropertyValue(connector.properties, "link-status"),
+        nonDesktop: getDrmPropertyValue(connector.properties, "non-desktop"),
+        maxBpc: getDrmPropertyValue(connector.properties, "max bpc"),
+        colorspace: getDrmPropertyValue(connector.properties, "Colorspace"),
+        contentProtection: getDrmPropertyValue(
+          connector.properties,
+          "content protection",
+        ),
+        crtcId: getDrmPropertyValue(connector.properties, "CRTC_ID"),
+        variableRefreshEnabled: getDrmPropertyValue(
+          connector.properties,
+          "VRR_ENABLED",
+        ),
+        name: `${cardName}-${typeName}-${index + 1}`,
+      });
+    });
+  }
+
+  return { cards, connectors };
+}
+
+/**
+ * Parse `boltctl` text output into entry maps.
+ *
+ * @param {string} stdout Command stdout.
+ * @returns {Array<Record<string, unknown>>} Parsed Thunderbolt/USB4 entries.
+ */
+export function parseBoltctlText(stdout) {
+  const entries = [];
+  let currentEntry;
+
+  for (const rawLine of stdout.split(/\r?\n/u)) {
+    const line = rawLine.trimEnd();
+    const headerMatch = line.match(/^\s*[●*]\s+(.+)$/u);
+
+    if (headerMatch) {
+      if (currentEntry) {
+        entries.push(currentEntry);
+      }
+      currentEntry = { name: headerMatch[1].trim() };
+      continue;
+    }
+
+    if (!currentEntry) {
+      continue;
+    }
+
+    const propertyMatch =
+      line.match(/^[│ ]*[├└]─\s*([^:]+):\s*(.*)$/u) ??
+      line.match(/^[│ ]+([^:]+):\s*(.*)$/u);
+    if (!propertyMatch) {
+      continue;
+    }
+
+    const key = normalizeBoltctlKey(propertyMatch[1]);
+    if (!key) {
+      continue;
+    }
+
+    const value = propertyMatch[2].trim();
+    currentEntry[key] = value || undefined;
+  }
+
+  if (currentEntry) {
+    entries.push(currentEntry);
+  }
+
+  return entries;
+}
+
+/**
+ * Parse `mmcli -L -J` output.
+ *
+ * @param {string} stdout Command stdout.
+ * @returns {Array<Record<string, unknown>>} Parsed modem list entries.
+ */
+export function parseMmcliListJson(stdout) {
+  const parsed = JSON.parse(stdout);
+  const modems = Array.isArray(parsed?.["modem-list"])
+    ? parsed["modem-list"]
+    : [];
+
+  return modems
+    .map((entry) =>
+      typeof entry === "string"
+        ? { modemPath: entry }
+        : normalizeObjectKeys(entry),
+    )
+    .filter((entry) => entry && typeof entry === "object");
+}
+
+/**
+ * Parse `mmcli -m <id> -J` output.
+ *
+ * @param {string} stdout Command stdout.
+ * @returns {Record<string, unknown>} Parsed modem details.
+ */
+export function parseMmcliJson(stdout) {
+  return normalizeObjectKeys(JSON.parse(stdout));
+}
+
+/**
+ * Parse `upower --dump` output.
+ *
+ * @param {string} stdout Command stdout.
+ * @returns {{ devices: Array<Record<string, unknown>>, daemon: Record<string, unknown>, displayDevice?: Record<string, unknown> }} Parsed power state.
+ */
+export function parseUpowerDump(stdout) {
+  const devices = [];
+  let daemon = {};
+  let currentSection;
+
+  for (const rawLine of stdout.split(/\r?\n/u)) {
+    const line = rawLine.trimEnd();
+    const deviceMatch = line.match(/^Device:\s+(.+)$/u);
+    if (deviceMatch) {
+      if (currentSection?.kind === "device") {
+        devices.push(currentSection);
+      }
+      currentSection = {
+        kind: "device",
+        path: deviceMatch[1].trim(),
+      };
+      continue;
+    }
+
+    if (/^Daemon:\s*$/u.test(line)) {
+      if (currentSection?.kind === "device") {
+        devices.push(currentSection);
+      }
+      daemon = { kind: "daemon" };
+      currentSection = daemon;
+      continue;
+    }
+
+    if (!currentSection) {
+      continue;
+    }
+
+    const trimmed = line.trim();
+    if (!trimmed) {
+      continue;
+    }
+
+    const propertyMatch = trimmed.match(/^([^:]+):\s*(.*)$/u);
+    if (!propertyMatch) {
+      if (currentSection.kind === "device") {
+        currentSection.deviceType = trimmed.toLowerCase();
+      }
+      continue;
+    }
+
+    const key = normalizeUpowerKey(propertyMatch[1]);
+    currentSection[key] = normalizeUpowerValue(propertyMatch[2]);
+  }
+
+  if (currentSection?.kind === "device") {
+    devices.push(currentSection);
+  }
+
+  return {
+    devices,
+    daemon,
+    displayDevice: devices.find((entry) =>
+      String(entry.path).endsWith("DisplayDevice"),
+    ),
+  };
+}
+
+/**
+ * Parse `fwupdmgr get-devices --json` output.
+ *
+ * @param {string} stdout Command stdout.
+ * @returns {Array<Record<string, unknown>>} Parsed fwupd device records.
+ */
+export function parseFwupdmgrDevicesJson(stdout) {
+  const parsed = JSON.parse(stdout);
+  return Array.isArray(parsed?.Devices)
+    ? parsed.Devices.map((entry) => normalizeObjectKeys(entry))
+    : [];
+}
+
+/**
+ * Parse `edid-decode` text output.
+ *
+ * @param {string} stdout Command stdout.
+ * @returns {Record<string, unknown>} Parsed display capability metadata.
+ */
+export function parseEdidDecodeText(stdout) {
+  const result = {};
+
+  stdout.split(/\r?\n/u).forEach((rawLine) => {
+    const line = rawLine.trim();
+    if (!line) {
+      return;
+    }
+
+    let match = line.match(/^EDID version:\s+(.+)$/u);
+    if (match) {
+      result.version = match[1].trim();
+      return;
+    }
+
+    match = line.match(/^Display Product Name:\s+(.+)$/u);
+    if (match) {
+      result.name = match[1].trim();
+      return;
+    }
+
+    match = line.match(/^Display Product Serial Number:\s+(.+)$/u);
+    if (match) {
+      result.serialNumber = match[1].trim();
+      return;
+    }
+
+    match = line.match(/^Native detailed mode:\s+([^\s]+).+$/u);
+    if (match) {
+      result.preferredResolution = match[1].trim();
+      return;
+    }
+
+    match = line.match(/^Image size:\s+(\d+)\s+cm\s+x\s+(\d+)\s+cm$/u);
+    if (match) {
+      result.widthCm = Number.parseInt(match[1], 10);
+      result.heightCm = Number.parseInt(match[2], 10);
+      return;
+    }
+
+    match = line.match(/^Bits per primary color channel:\s+(\d+)$/u);
+    if (match) {
+      result.bitsPerColorChannel = Number.parseInt(match[1], 10);
+      return;
+    }
+
+    match = line.match(/^Supported color formats:\s+(.+)$/u);
+    if (match) {
+      result.colorFormats = match[1]
+        .split(/,\s*/u)
+        .map((entry) => entry.trim())
+        .filter(Boolean);
+      return;
+    }
+
+    match = line.match(/^Supported EOTF:\s+(.+)$/u);
+    if (match) {
+      result.hdrEotf = match[1]
+        .split(/,\s*/u)
+        .map((entry) => entry.trim())
+        .filter(Boolean);
+    }
+  });
+
+  return result;
 }
 
 /**
@@ -515,17 +1165,28 @@ export function parseHwmonAttributes(input) {
  *     pciDevices?: Array<Record<string, string>>,
  *     pciSysfsDevices?: Array<Record<string, unknown>>,
  *     usbDevices?: Array<Record<string, string>>,
+ *     usbVerboseDevices?: Array<Record<string, unknown>>,
  *     usbSysfsDevices?: Array<Record<string, unknown>>,
  *     dmidecode?: { system: Record<string, string>, baseboard: Record<string, string>, bios: Record<string, string> },
  *     lsmem?: Array<Record<string, unknown>>,
  *     lshw?: Array<Record<string, unknown>>,
  *     ethtool?: Record<string, Record<string, string>>,
- *     drmDevices?: Array<Record<string, unknown>>
+ *     drmDevices?: Array<Record<string, unknown>>,
+ *     drmInfo?: { cards: Array<Record<string, unknown>>, connectors: Array<Record<string, unknown>> },
+ *     cpupowerFrequency?: Record<string, unknown>,
+ *     cpupowerIdle?: Record<string, unknown>,
+ *     boltctlDomains?: Array<Record<string, unknown>>,
+ *     boltctlDevices?: Array<Record<string, unknown>>,
+ *     modems?: Array<Record<string, unknown>>,
+ *     upower?: { devices: Array<Record<string, unknown>>, daemon: Record<string, unknown>, displayDevice?: Record<string, unknown> },
+ *     fwupdDevices?: Array<Record<string, unknown>>,
+ *     edidDecoded?: Array<Record<string, unknown>>
  *   },
  *   includeSensitiveIdentifiers?: boolean,
  *   collectedAt?: string,
  *   executedCommands?: Array<{ id: string, category: string, command: string, args: string[] }>,
- *   observedFiles?: string[]
+ *   observedFiles?: string[],
+ *   commandDiagnostics?: Array<Record<string, unknown>>
  * }} options Build inputs.
  * @returns {object} CycloneDX BOM.
  */
@@ -550,7 +1211,10 @@ export function buildLinuxHbom(options) {
     sources.blockDevices ?? [],
     sources.lsblk ?? [],
   );
-  const powerSupplies = sources.powerSupplies ?? [];
+  const powerSupplies = mergePowerSources(
+    sources.powerSupplies ?? [],
+    sources.upower,
+  );
   const hwmonDevices = sources.hwmonDevices ?? [];
   const thermalZones = sources.thermalZones ?? [];
   const tpmDevices = sources.tpmDevices ?? [];
@@ -568,11 +1232,27 @@ export function buildLinuxHbom(options) {
   const usbDevices = mergeUsbSources(
     sources.usbDevices ?? [],
     sources.usbSysfsDevices ?? [],
+    sources.usbVerboseDevices ?? [],
   );
   const lsmem = sources.lsmem ?? [];
   const lshw = sources.lshw ?? [];
+  const lshwNodes = walkLshwNodes(lshw);
   const ethtool = sources.ethtool ?? {};
-  const drmDevices = sources.drmDevices ?? [];
+  const drmDevices = mergeDrmSources(
+    sources.drmDevices ?? [],
+    sources.drmInfo ?? { cards: [], connectors: [] },
+  );
+  const enrichedDrmDevices = mergeEdidDecodedSources(
+    drmDevices,
+    sources.edidDecoded ?? [],
+  );
+  const cpupowerFrequency = sources.cpupowerFrequency ?? {};
+  const cpupowerIdle = sources.cpupowerIdle ?? {};
+  const boltctlDomains = sources.boltctlDomains ?? [];
+  const boltctlDevices = sources.boltctlDevices ?? [];
+  const modems = sources.modems ?? [];
+  const upower = sources.upower ?? { devices: [], daemon: {} };
+  const fwupdDevices = sources.fwupdDevices ?? [];
   const timestamp = options.collectedAt ?? new Date().toISOString();
   const identifierPolicy = options.includeSensitiveIdentifiers
     ? "raw-identifiers-enabled"
@@ -604,7 +1284,11 @@ export function buildLinuxHbom(options) {
     cpuInfo[0]?.["model name"] ??
     cpuInfo[0]?.Hardware ??
     cpuInfo[0]?.Processor ??
+    normalizeProcessorIdentity(findLshwCpuField(lshw, "product")) ??
+    normalizeProcessorIdentity(findLshwCpuField(lshw, "description")) ??
     "Processor";
+  const cpuNode = findLshwCpuNode(lshwNodes);
+  const cpuFeatures = collectCpuFeatures(lscpu, cpuInfo, cpuNode);
   const memoryBytes =
     memInfo.MemTotal?.unit === "kB"
       ? memInfo.MemTotal.value * 1024
@@ -670,6 +1354,18 @@ export function buildLinuxHbom(options) {
         "cdx:hbom:chassisType",
         normalizeChassisType(hostnamectl.Chassis ?? dmiInfo.chassis_type),
       ),
+      createProperty(
+        "cdx:hbom:powerSource",
+        inferLinuxPowerSource(upower?.daemon?.onBattery),
+      ),
+      createProperty(
+        "cdx:hbom:isAcAttached",
+        inferLinuxAcAttachment(upower?.daemon?.onBattery),
+      ),
+      createProperty(
+        "cdx:hbom:warningLevel",
+        getStringValue(upower?.displayDevice?.warningLevel),
+      ),
       createProperty("cdx:hbom:identifierPolicy", identifierPolicy),
     ]),
   });
@@ -681,6 +1377,7 @@ export function buildLinuxHbom(options) {
         name:
           lscpu["Vendor ID"] ??
           cpuInfo[0]?.vendor_id ??
+          normalizeIdentityString(findLshwCpuField(lshw, "vendor")) ??
           cpuInfo[0]?.["CPU implementer"] ??
           manufacturer,
       },
@@ -700,7 +1397,16 @@ export function buildLinuxHbom(options) {
           lscpu["CPU(s)"] ?? cpuInfo.length,
         ),
         createProperty("cdx:hbom:socketCount", lscpu["Socket(s)"]),
+        createProperty("cdx:hbom:clusterCount", lscpu["Cluster(s)"]),
+        createProperty(
+          "cdx:hbom:coresPerCluster",
+          lscpu["Core(s) per cluster"],
+        ),
         createProperty("cdx:hbom:threadsPerCore", lscpu["Thread(s) per core"]),
+        createProperty("cdx:hbom:onlineCpuSet", lscpu["On-line CPU(s) list"]),
+        createProperty("cdx:hbom:offlineCpuSet", lscpu["Off-line CPU(s) list"]),
+        createProperty("cdx:hbom:numaNodeCount", lscpu["NUMA node(s)"]),
+        createProperty("cdx:hbom:opModes", lscpu["CPU op-mode(s)"]),
         createProperty(
           "cdx:hbom:vendorId",
           lscpu["Vendor ID"] ?? cpuInfo[0]?.vendor_id,
@@ -708,6 +1414,105 @@ export function buildLinuxHbom(options) {
         createProperty("cdx:hbom:cpuFamily", cpuInfo[0]?.["cpu family"]),
         createProperty("cdx:hbom:model", cpuInfo[0]?.model),
         createProperty("cdx:hbom:stepping", cpuInfo[0]?.stepping),
+        createProperty("cdx:hbom:minClockMHz", lscpu["CPU min MHz"]),
+        createProperty("cdx:hbom:maxClockMHz", lscpu["CPU max MHz"]),
+        createProperty("cdx:hbom:scalingPercent", lscpu["CPU(s) scaling MHz"]),
+        createProperty(
+          "cdx:hbom:currentClockHz",
+          getNumberValue(cpuNode?.size),
+        ),
+        createProperty(
+          "cdx:hbom:maxClockHz",
+          getNumberValue(cpuNode?.capacity),
+        ),
+        createProperty(
+          "cdx:hbom:microcodeVersion",
+          getScalarStringValue(cpuNode?.configuration?.microcode),
+        ),
+        createProperty(
+          "cdx:hbom:featureCount",
+          cpuFeatures.length || undefined,
+        ),
+        createProperty(
+          "cdx:hbom:cpuFeatures",
+          cpuFeatures.length ? cpuFeatures.join(", ") : undefined,
+        ),
+        createProperty(
+          "cdx:hbom:frequencyDriver",
+          getScalarStringValue(cpupowerFrequency.driver),
+        ),
+        createProperty(
+          "cdx:hbom:availableGovernors",
+          formatList(cpupowerFrequency.availableGovernors),
+        ),
+        createProperty(
+          "cdx:hbom:governor",
+          getScalarStringValue(cpupowerFrequency.governor),
+        ),
+        createProperty(
+          "cdx:hbom:hardwareMinFrequency",
+          getScalarStringValue(cpupowerFrequency.hardwareMin),
+        ),
+        createProperty(
+          "cdx:hbom:hardwareMaxFrequency",
+          getScalarStringValue(cpupowerFrequency.hardwareMax),
+        ),
+        createProperty(
+          "cdx:hbom:policyMinFrequency",
+          getScalarStringValue(cpupowerFrequency.policyMin),
+        ),
+        createProperty(
+          "cdx:hbom:policyMaxFrequency",
+          getScalarStringValue(cpupowerFrequency.policyMax),
+        ),
+        createProperty(
+          "cdx:hbom:boostSupported",
+          getBooleanValue(cpupowerFrequency.boostSupported),
+        ),
+        createProperty(
+          "cdx:hbom:boostActive",
+          getBooleanValue(cpupowerFrequency.boostActive),
+        ),
+        createProperty(
+          "cdx:hbom:maximumFrequency",
+          getScalarStringValue(cpupowerFrequency.maximumFrequency),
+        ),
+        createProperty(
+          "cdx:hbom:nominalFrequency",
+          getScalarStringValue(cpupowerFrequency.nominalFrequency),
+        ),
+        createProperty(
+          "cdx:hbom:lowestNonLinearFrequency",
+          getScalarStringValue(cpupowerFrequency.lowestNonLinearFrequency),
+        ),
+        createProperty(
+          "cdx:hbom:lowestFrequency",
+          getScalarStringValue(cpupowerFrequency.lowestFrequency),
+        ),
+        createProperty(
+          "cdx:hbom:currentFrequencies",
+          formatList(cpupowerFrequency.currentFrequencies),
+        ),
+        createProperty(
+          "cdx:hbom:idleDriver",
+          getScalarStringValue(cpupowerIdle.driver),
+        ),
+        createProperty(
+          "cdx:hbom:idleGovernor",
+          getScalarStringValue(cpupowerIdle.governor),
+        ),
+        createProperty(
+          "cdx:hbom:idleStateCount",
+          getNumberValue(cpupowerIdle.idleStateCount),
+        ),
+        createProperty(
+          "cdx:hbom:idleStates",
+          formatList(cpupowerIdle.availableIdleStates),
+        ),
+        createProperty(
+          "cdx:hbom:idleStateSummary",
+          formatIdleStateSummary(cpupowerIdle.idleStates),
+        ),
       ]),
     }),
     normalizedMemoryBytes
@@ -735,16 +1540,33 @@ export function buildLinuxHbom(options) {
       lshw,
       options,
     ),
-    ...blockDevices.filter(isPhysicalStorageDevice).map((device) =>
-      createHardwareComponent("storage", {
+    ...blockDevices.filter(isPhysicalStorageDevice).map((device) => {
+      const lshwStorage = findLshwStorageContext(lshwNodes, device);
+      const storageNode = lshwStorage.exactNode ?? lshwStorage.controllerNode;
+      return createHardwareComponent("storage", {
         name:
-          getStringValue(device.model) ??
-          getStringValue(device.name) ??
-          "Block Device",
+          pickHardwareName(
+            getStringValue(device.model),
+            getStringValue(lshwStorage.exactNode?.product),
+            getStringValue(lshwStorage.controllerNode?.product),
+            getStringValue(device.name),
+            getStringValue(storageNode?.description),
+          ) ?? "Block Device",
         version: getStringValue(device.name),
-        manufacturer: getStringValue(device.vendor)
-          ? { name: getStringValue(device.vendor) }
+        manufacturer: pickHardwareName(
+          getStringValue(device.vendor),
+          getStringValue(lshwStorage.exactNode?.vendor),
+          getStringValue(lshwStorage.controllerNode?.vendor),
+        )
+          ? {
+              name: pickHardwareName(
+                getStringValue(device.vendor),
+                getStringValue(lshwStorage.exactNode?.vendor),
+                getStringValue(lshwStorage.controllerNode?.vendor),
+              ),
+            }
           : undefined,
+        description: getStringValue(storageNode?.description),
         properties: compact([
           createProperty("cdx:hbom:capacityBytes", getNumberValue(device.size)),
           createProperty(
@@ -753,7 +1575,12 @@ export function buildLinuxHbom(options) {
           ),
           createProperty(
             "cdx:hbom:deviceSerial",
-            redactIdentifier(getStringValue(device.serial), options),
+            redactIdentifier(
+              getStringValue(device.serial) ??
+                getStringValue(lshwStorage.exactNode?.serial) ??
+                getStringValue(lshwStorage.controllerNode?.serial),
+              options,
+            ),
           ),
           createProperty(
             "cdx:hbom:subsystem",
@@ -775,44 +1602,103 @@ export function buildLinuxHbom(options) {
             "cdx:hbom:blockSize",
             getNumberValue(device.logicalBlockSize),
           ),
+          createProperty(
+            "cdx:hbom:firmwareVersion",
+            getStringValue(lshwStorage.controllerNode?.version) ??
+              getStringValue(lshwStorage.exactNode?.version),
+          ),
+          createProperty(
+            "cdx:hbom:busInfo",
+            getStringValue(lshwStorage.controllerNode?.businfo) ??
+              getStringValue(lshwStorage.exactNode?.businfo),
+          ),
+          createProperty(
+            "cdx:hbom:driver",
+            getScalarStringValue(
+              lshwStorage.controllerNode?.configuration?.driver,
+            ) ??
+              getScalarStringValue(
+                lshwStorage.exactNode?.configuration?.driver,
+              ),
+          ),
+          createProperty(
+            "cdx:hbom:state",
+            getScalarStringValue(
+              lshwStorage.controllerNode?.configuration?.state,
+            ),
+          ),
+          createProperty(
+            "cdx:hbom:nqn",
+            getScalarStringValue(
+              lshwStorage.controllerNode?.configuration?.nqn,
+            ),
+          ),
+          createProperty(
+            "cdx:hbom:wwid",
+            getScalarStringValue(lshwStorage.exactNode?.configuration?.wwid),
+          ),
+          createProperty(
+            "cdx:hbom:capabilities",
+            formatCapabilities(lshwStorage.controllerNode?.capabilities) ??
+              formatCapabilities(lshwStorage.exactNode?.capabilities),
+          ),
         ]),
-      }),
-    ),
+      });
+    }),
     ...networkInterfaces
       .filter((device) => isPhysicalNetworkInterface(device, ethtool))
-      .map((device) =>
-        createHardwareComponent("network-interface", {
-          name: getStringValue(device.name) ?? "Network Interface",
-          version: getStringValue(device.ifname),
+      .map((device) => {
+        const interfaceName =
+          getStringValue(device.ifname) ?? getStringValue(device.name);
+        const ethtoolInfo = ethtool[interfaceName];
+        const lshwNetworkNode = findLshwNetworkNode(
+          lshwNodes,
+          device,
+          ethtoolInfo,
+        );
+        return createHardwareComponent("network-interface", {
+          name:
+            pickHardwareName(
+              getStringValue(lshwNetworkNode?.product),
+              getStringValue(device.name),
+              getStringValue(lshwNetworkNode?.description),
+              interfaceName,
+            ) ?? "Network Interface",
+          version: interfaceName,
+          manufacturer: getStringValue(lshwNetworkNode?.vendor)
+            ? { name: getStringValue(lshwNetworkNode?.vendor) }
+            : undefined,
+          description: getStringValue(lshwNetworkNode?.description),
           properties: compact([
             createProperty(
               "cdx:hbom:driver",
-              ethtool[getStringValue(device.ifname)]?.driver,
+              ethtoolInfo?.driver ??
+                getScalarStringValue(lshwNetworkNode?.configuration?.driver),
             ),
             createProperty(
               "cdx:hbom:macAddress",
               redactIdentifier(
-                getStringValue(device.address)?.toLowerCase(),
+                getStringValue(device.address)?.toLowerCase() ??
+                  getStringValue(lshwNetworkNode?.serial)?.toLowerCase(),
                 options,
               ),
             ),
             createProperty(
               "cdx:hbom:firmwareVersion",
-              normalizeEmptyString(
-                ethtool[getStringValue(device.ifname)]?.["firmware-version"],
-              ),
+              normalizeEmptyString(ethtoolInfo?.["firmware-version"]) ??
+                getScalarStringValue(lshwNetworkNode?.configuration?.firmware),
             ),
             createProperty(
               "cdx:hbom:busInfo",
-              normalizeEmptyString(
-                ethtool[getStringValue(device.ifname)]?.["bus-info"],
-              ),
+              normalizeEmptyString(ethtoolInfo?.["bus-info"]) ??
+                getStringValue(lshwNetworkNode?.businfo),
             ),
             createProperty(
               "cdx:hbom:kernelVersion",
-              normalizeEmptyString(
-                ethtool[getStringValue(device.ifname)]?.version,
-              ),
+              normalizeEmptyString(ethtoolInfo?.version) ??
+                getScalarStringValue(
+                  lshwNetworkNode?.configuration?.driverversion,
+                ),
             ),
             createProperty(
               "cdx:hbom:operState",
@@ -821,28 +1707,61 @@ export function buildLinuxHbom(options) {
             createProperty("cdx:hbom:mtu", getNumberValue(device.mtu)),
             createProperty(
               "cdx:hbom:speedMbps",
-              getNumberValue(device.speedMbps),
+              getNumberValue(device.speedMbps) ??
+                parseNetworkSpeedMbps(
+                  getScalarStringValue(lshwNetworkNode?.configuration?.speed),
+                  getNumberValue(lshwNetworkNode?.size) ??
+                    getNumberValue(lshwNetworkNode?.capacity),
+                ),
             ),
-            createProperty("cdx:hbom:duplex", getStringValue(device.duplex)),
+            createProperty(
+              "cdx:hbom:duplex",
+              getStringValue(device.duplex) ??
+                getScalarStringValue(lshwNetworkNode?.configuration?.duplex),
+            ),
             createProperty("cdx:hbom:ifindex", getNumberValue(device.ifindex)),
             createProperty(
               "cdx:hbom:linkType",
               getStringValue(device.linkType),
             ),
+            createProperty(
+              "cdx:hbom:deviceRevision",
+              getStringValue(lshwNetworkNode?.version),
+            ),
+            createProperty(
+              "cdx:hbom:port",
+              getScalarStringValue(lshwNetworkNode?.configuration?.port),
+            ),
+            createProperty(
+              "cdx:hbom:linkDetected",
+              normalizeYesNo(lshwNetworkNode?.configuration?.link),
+            ),
+            createProperty(
+              "cdx:hbom:autoNegotiation",
+              normalizeYesNo(lshwNetworkNode?.configuration?.autonegotiation),
+            ),
+            createProperty(
+              "cdx:hbom:capabilities",
+              formatCapabilities(lshwNetworkNode?.capabilities),
+            ),
           ]),
-        }),
-      ),
+        });
+      }),
     ...powerSupplies.flatMap((supply) => toPowerComponents(supply, options)),
     ...createHwmonComponents(hwmonDevices),
     ...createThermalZoneComponents(thermalZones),
     ...createTpmComponents(tpmDevices),
     ...createLinuxAudioComponents(audioCards, audioPcm),
-    ...createNvmeControllerComponents(nvmeControllers, options),
+    ...createNvmeControllerComponents(nvmeControllers, options, lshwNodes),
     ...mmcDevices.map((device) => createMmcComponent(device, options)),
-    ...pciDevices.map((device) => createPciComponent(device)),
-    ...usbDevices.map((device) => createUsbComponent(device)),
+    ...pciDevices.map((device) => createPciComponent(device, lshwNodes)),
+    ...usbDevices.map((device) => createUsbComponent(device, options)),
     ...createVideoComponents(videoDevices),
-    ...createDisplayComponents(drmDevices, options),
+    ...createDisplayComponents(enrichedDrmDevices, options, lshwNodes),
+    ...createThunderboltComponents(boltctlDomains, boltctlDevices, options),
+    ...createModemComponents(modems, options),
+    ...createFirmwareManagedComponents(fwupdDevices, options),
+    ...createLshwCommunicationComponents(lshwNodes),
   ]);
 
   return attachCollectorTrace(
@@ -884,6 +1803,11 @@ export function buildLinuxHbom(options) {
           options.executedCommands?.length ?? 0,
         ),
         ...collectCommandProperties(options.executedCommands ?? []),
+        createProperty(
+          "cdx:hbom:evidence:commandDiagnosticCount",
+          options.commandDiagnostics?.length ?? 0,
+        ),
+        ...collectCommandDiagnosticProperties(options.commandDiagnostics ?? []),
       ]),
     }),
     options.trace,
@@ -915,74 +1839,257 @@ export async function collectLinuxHardware(options) {
 
   const allowPartial = options.allowPartial ?? true;
   const executedCommands = [];
+  const commandDiagnostics = [];
   const observedFiles = [];
   const sources = collectLinuxFileSources(observedFiles);
+  const recordCommandError = (error) => {
+    if (!shouldRetainLinuxCommandDiagnostic(error)) {
+      return;
+    }
+    const diagnostic = toCommandDiagnostic(error);
+    if (diagnostic) {
+      commandDiagnostics.push(diagnostic);
+    }
+  };
 
   if (options.includeCommandEnrichment !== false) {
-    await attemptCollection(async () => {
-      sources.lscpu = parseLscpuJson(
-        await runCommand(getRequiredLinuxCommand("lscpu-json"), options),
-      );
-      executedCommands.push(
-        toEvidenceCommand(getRequiredLinuxCommand("lscpu-json")),
-      );
-    }, allowPartial);
-    await attemptCollection(async () => {
-      sources.lsblk = parseLsblkJson(
-        await runCommand(getRequiredLinuxCommand("lsblk-json"), options),
-      );
-      executedCommands.push(
-        toEvidenceCommand(getRequiredLinuxCommand("lsblk-json")),
-      );
-    }, allowPartial);
-    await attemptCollection(async () => {
-      sources.ipLink = parseIpLinkJson(
-        await runCommand(getRequiredLinuxCommand("ip-link-json"), options),
-      );
-      executedCommands.push(
-        toEvidenceCommand(getRequiredLinuxCommand("ip-link-json")),
-      );
-    }, allowPartial);
-    await attemptCollection(async () => {
-      sources.lsmem = parseLsmemJson(
-        await runCommand(getRequiredLinuxCommand("lsmem-json"), options),
-      );
-      executedCommands.push(
-        toEvidenceCommand(getRequiredLinuxCommand("lsmem-json")),
-      );
-    }, allowPartial);
-    await attemptCollection(async () => {
-      sources.hostnamectl = parseHostnamectlJson(
-        await runCommand(getRequiredLinuxCommand("hostnamectl-json"), options),
-      );
-      executedCommands.push(
-        toEvidenceCommand(getRequiredLinuxCommand("hostnamectl-json")),
-      );
-    }, allowPartial);
-    await attemptCollection(async () => {
-      sources.lshw = parseLshwJson(
-        await runCommand(getRequiredLinuxCommand("lshw-json"), options),
-      );
-      executedCommands.push(
-        toEvidenceCommand(getRequiredLinuxCommand("lshw-json")),
-      );
-    }, allowPartial);
-    await attemptCollection(async () => {
-      sources.pciDevices = parseLspciVmmnn(
-        await runCommand(getRequiredLinuxCommand("lspci-vmmnn"), options),
-      );
-      executedCommands.push(
-        toEvidenceCommand(getRequiredLinuxCommand("lspci-vmmnn")),
-      );
-    }, allowPartial);
-    await attemptCollection(async () => {
-      sources.usbDevices = parseLsusbText(
-        await runCommand(getRequiredLinuxCommand("lsusb"), options),
-      );
-      executedCommands.push(
-        toEvidenceCommand(getRequiredLinuxCommand("lsusb")),
-      );
-    }, allowPartial);
+    await attemptCollection(
+      async () => {
+        sources.lscpu = parseLscpuJson(
+          await runCommand(getRequiredLinuxCommand("lscpu-json"), options),
+        );
+        executedCommands.push(
+          toEvidenceCommand(getRequiredLinuxCommand("lscpu-json")),
+        );
+      },
+      allowPartial,
+      recordCommandError,
+    );
+    await attemptCollection(
+      async () => {
+        sources.lsblk = parseLsblkJson(
+          await runCommand(getRequiredLinuxCommand("lsblk-json"), options),
+        );
+        executedCommands.push(
+          toEvidenceCommand(getRequiredLinuxCommand("lsblk-json")),
+        );
+      },
+      allowPartial,
+      recordCommandError,
+    );
+    await attemptCollection(
+      async () => {
+        sources.ipLink = parseIpLinkJson(
+          await runCommand(getRequiredLinuxCommand("ip-link-json"), options),
+        );
+        executedCommands.push(
+          toEvidenceCommand(getRequiredLinuxCommand("ip-link-json")),
+        );
+      },
+      allowPartial,
+      recordCommandError,
+    );
+    await attemptCollection(
+      async () => {
+        sources.lsmem = parseLsmemJson(
+          await runCommand(getRequiredLinuxCommand("lsmem-json"), options),
+        );
+        executedCommands.push(
+          toEvidenceCommand(getRequiredLinuxCommand("lsmem-json")),
+        );
+      },
+      allowPartial,
+      recordCommandError,
+    );
+    await attemptCollection(
+      async () => {
+        sources.hostnamectl = parseHostnamectlJson(
+          await runCommand(
+            getRequiredLinuxCommand("hostnamectl-json"),
+            options,
+          ),
+        );
+        executedCommands.push(
+          toEvidenceCommand(getRequiredLinuxCommand("hostnamectl-json")),
+        );
+      },
+      allowPartial,
+      recordCommandError,
+    );
+    await attemptCollection(
+      async () => {
+        sources.lshw = parseLshwJson(
+          await runCommand(getRequiredLinuxCommand("lshw-json"), options),
+        );
+        executedCommands.push(
+          toEvidenceCommand(getRequiredLinuxCommand("lshw-json")),
+        );
+      },
+      allowPartial,
+      recordCommandError,
+    );
+    await attemptCollection(
+      async () => {
+        sources.pciDevices = parseLspciVmmnn(
+          await runCommand(getRequiredLinuxCommand("lspci-vmmnn"), options),
+        );
+        executedCommands.push(
+          toEvidenceCommand(getRequiredLinuxCommand("lspci-vmmnn")),
+        );
+      },
+      allowPartial,
+      recordCommandError,
+    );
+    await attemptCollection(
+      async () => {
+        sources.usbDevices = parseLsusbText(
+          await runCommand(getRequiredLinuxCommand("lsusb"), options),
+        );
+        executedCommands.push(
+          toEvidenceCommand(getRequiredLinuxCommand("lsusb")),
+        );
+      },
+      allowPartial,
+      recordCommandError,
+    );
+    await attemptCollection(
+      async () => {
+        sources.usbVerboseDevices = parseLsusbVerboseText(
+          await runCommand(getRequiredLinuxCommand("lsusb-verbose"), options),
+        );
+        executedCommands.push(
+          toEvidenceCommand(getRequiredLinuxCommand("lsusb-verbose")),
+        );
+      },
+      allowPartial,
+      recordCommandError,
+    );
+    await attemptCollection(
+      async () => {
+        sources.drmInfo = parseDrmInfoJson(
+          await runCommand(getRequiredLinuxCommand("drm-info-json"), options),
+        );
+        executedCommands.push(
+          toEvidenceCommand(getRequiredLinuxCommand("drm-info-json")),
+        );
+      },
+      allowPartial,
+      recordCommandError,
+    );
+    await attemptCollection(
+      async () => {
+        sources.upower = parseUpowerDump(
+          await runCommand(getRequiredLinuxCommand("upower-dump"), options),
+        );
+        executedCommands.push(
+          toEvidenceCommand(getRequiredLinuxCommand("upower-dump")),
+        );
+      },
+      allowPartial,
+      recordCommandError,
+    );
+    await attemptCollection(
+      async () => {
+        sources.fwupdDevices = parseFwupdmgrDevicesJson(
+          await runCommand(
+            getRequiredLinuxCommand("fwupdmgr-devices-json"),
+            options,
+          ),
+        );
+        executedCommands.push(
+          toEvidenceCommand(getRequiredLinuxCommand("fwupdmgr-devices-json")),
+        );
+      },
+      allowPartial,
+      recordCommandError,
+    );
+    await attemptCollection(
+      async () => {
+        sources.boltctlDomains = parseBoltctlText(
+          await runCommand(getRequiredLinuxCommand("boltctl-domains"), options),
+        );
+        executedCommands.push(
+          toEvidenceCommand(getRequiredLinuxCommand("boltctl-domains")),
+        );
+      },
+      allowPartial,
+      recordCommandError,
+    );
+    await attemptCollection(
+      async () => {
+        sources.boltctlDevices = parseBoltctlText(
+          await runCommand(
+            getRequiredLinuxCommand("boltctl-list-all"),
+            options,
+          ),
+        );
+        executedCommands.push(
+          toEvidenceCommand(getRequiredLinuxCommand("boltctl-list-all")),
+        );
+      },
+      allowPartial,
+      recordCommandError,
+    );
+    await attemptCollection(
+      async () => {
+        const modemList = parseMmcliListJson(
+          await runCommand(getRequiredLinuxCommand("mmcli-list-json"), options),
+        );
+        executedCommands.push(
+          toEvidenceCommand(getRequiredLinuxCommand("mmcli-list-json")),
+        );
+        sources.modems = [];
+        for (const entry of modemList) {
+          const modemPath =
+            getStringValue(entry.modemPath) ?? getStringValue(entry.path);
+          if (!modemPath) {
+            continue;
+          }
+
+          await attemptCollection(
+            async () => {
+              const spec = createMmcliModemCommand(modemPath);
+              sources.modems.push({
+                modemPath,
+                ...parseMmcliJson(await runCommand(spec, options)),
+              });
+              executedCommands.push(toEvidenceCommand(spec));
+            },
+            allowPartial,
+            recordCommandError,
+          );
+        }
+      },
+      allowPartial,
+      recordCommandError,
+    );
+    sources.edidDecoded = [];
+    if (
+      await probeOptionalLinuxCommand(
+        "edid-decode",
+        options,
+        recordCommandError,
+      )
+    ) {
+      for (const device of sources.drmDevices ?? []) {
+        if (device.kind !== "connector" || !getStringValue(device.edidPath)) {
+          continue;
+        }
+
+        await attemptCollection(
+          async () => {
+            const spec = createEdidDecodeCommand(device);
+            sources.edidDecoded.push({
+              name: getStringValue(device.name),
+              ...parseEdidDecodeText(await runCommand(spec, options)),
+            });
+            executedCommands.push(toEvidenceCommand(spec));
+          },
+          allowPartial,
+          recordCommandError,
+        );
+      }
+    }
     sources.ethtool = {};
     const interfaceNames = [
       ...new Set(
@@ -997,34 +2104,75 @@ export async function collectLinuxHardware(options) {
       ),
     ];
     for (const interfaceName of interfaceNames) {
-      await attemptCollection(async () => {
-        const spec = createEthtoolCommand(interfaceName);
-        sources.ethtool[interfaceName] = parseEthtoolDriverInfo(
-          await runCommand(spec, options),
-        );
-        executedCommands.push(toEvidenceCommand(spec));
-      }, allowPartial);
+      await attemptCollection(
+        async () => {
+          const spec = createEthtoolCommand(interfaceName);
+          sources.ethtool[interfaceName] = parseEthtoolDriverInfo(
+            await runCommand(spec, options),
+          );
+          executedCommands.push(toEvidenceCommand(spec));
+        },
+        allowPartial,
+        recordCommandError,
+      );
     }
+    await attemptCollection(
+      async () => {
+        sources.cpupowerFrequency = parseCpupowerFrequencyInfo(
+          await runCommand(
+            getRequiredLinuxCommand("cpupower-frequency-info"),
+            options,
+          ),
+        );
+        executedCommands.push(
+          toEvidenceCommand(getRequiredLinuxCommand("cpupower-frequency-info")),
+        );
+      },
+      allowPartial,
+      recordCommandError,
+    );
+    await attemptCollection(
+      async () => {
+        sources.cpupowerIdle = parseCpupowerIdleInfo(
+          await runCommand(
+            getRequiredLinuxCommand("cpupower-idle-info"),
+            options,
+          ),
+        );
+        executedCommands.push(
+          toEvidenceCommand(getRequiredLinuxCommand("cpupower-idle-info")),
+        );
+      },
+      allowPartial,
+      recordCommandError,
+    );
   }
 
   if (options.includePrivilegedEnrichment === true) {
-    await attemptCollection(async () => {
-      sources.dmidecode = parseDmidecodeText(
-        await runCommand(
-          getRequiredLinuxCommand("dmidecode-firmware-board"),
-          options,
-        ),
-      );
-      executedCommands.push(
-        toEvidenceCommand(getRequiredLinuxCommand("dmidecode-firmware-board")),
-      );
-    }, allowPartial);
+    await attemptCollection(
+      async () => {
+        sources.dmidecode = parseDmidecodeText(
+          await runCommand(
+            getRequiredLinuxCommand("dmidecode-firmware-board"),
+            options,
+          ),
+        );
+        executedCommands.push(
+          toEvidenceCommand(
+            getRequiredLinuxCommand("dmidecode-firmware-board"),
+          ),
+        );
+      },
+      allowPartial,
+      recordCommandError,
+    );
   }
 
   return buildLinuxHbom({
     architecture: options.architecture,
     sources,
     includeSensitiveIdentifiers: options.includeSensitiveIdentifiers,
+    commandDiagnostics,
     executedCommands,
     observedFiles,
   });
@@ -1304,6 +2452,10 @@ function readDrmDevices(observedFiles) {
     );
     return {
       name,
+      sysfsPath: basePath,
+      edidPath: safeExistsSync(join(basePath, "edid"))
+        ? join(basePath, "edid")
+        : undefined,
       kind: /^card\d+$/u.test(name)
         ? "card"
         : name.includes("-")
@@ -1455,8 +2607,54 @@ function readPowerSupplies(observedFiles) {
         join(basePath, "technology"),
         observedFiles,
       ),
+      scope: readObservedTextFile(join(basePath, "scope"), observedFiles),
       online: toNumber(
         readObservedTextFile(join(basePath, "online"), observedFiles),
+      ),
+      voltageNow: toNumber(
+        readObservedTextFile(join(basePath, "voltage_now"), observedFiles),
+      ),
+      voltageMinDesign: toNumber(
+        readObservedTextFile(
+          join(basePath, "voltage_min_design"),
+          observedFiles,
+        ),
+      ),
+      voltageMaxDesign: toNumber(
+        readObservedTextFile(
+          join(basePath, "voltage_max_design"),
+          observedFiles,
+        ),
+      ),
+      currentNow: toNumber(
+        readObservedTextFile(join(basePath, "current_now"), observedFiles),
+      ),
+      powerNow: toNumber(
+        readObservedTextFile(join(basePath, "power_now"), observedFiles),
+      ),
+      energyNow: toNumber(
+        readObservedTextFile(join(basePath, "energy_now"), observedFiles),
+      ),
+      energyFull: toNumber(
+        readObservedTextFile(join(basePath, "energy_full"), observedFiles),
+      ),
+      energyFullDesign: toNumber(
+        readObservedTextFile(
+          join(basePath, "energy_full_design"),
+          observedFiles,
+        ),
+      ),
+      chargeNow: toNumber(
+        readObservedTextFile(join(basePath, "charge_now"), observedFiles),
+      ),
+      chargeFull: toNumber(
+        readObservedTextFile(join(basePath, "charge_full"), observedFiles),
+      ),
+      chargeFullDesign: toNumber(
+        readObservedTextFile(
+          join(basePath, "charge_full_design"),
+          observedFiles,
+        ),
       ),
     };
   });
@@ -1680,9 +2878,17 @@ function mergePciSources(commandDevices, sysfsDevices) {
   return [...merged, ...sysfsOnly];
 }
 
-function mergeUsbSources(commandDevices, sysfsDevices) {
+function mergeUsbSources(commandDevices, sysfsDevices, verboseDevices = []) {
   const sysfsIndex = new Map(
     sysfsDevices
+      .map((device) => [
+        `${getStringValue(device.bus)}:${getStringValue(device.device)}`,
+        device,
+      ])
+      .filter(([key]) => !key.includes("undefined")),
+  );
+  const verboseIndex = new Map(
+    verboseDevices
       .map((device) => [
         `${getStringValue(device.bus)}:${getStringValue(device.device)}`,
         device,
@@ -1692,15 +2898,25 @@ function mergeUsbSources(commandDevices, sysfsDevices) {
 
   const merged = commandDevices.map((device) => {
     const sysfs = sysfsIndex.get(`${device.bus}:${device.device}`);
+    const verbose = verboseIndex.get(`${device.bus}:${device.device}`);
     return {
       ...sysfs,
+      ...verbose,
       ...device,
       bus: device.bus ?? getStringValue(sysfs?.bus),
       device: device.device ?? getStringValue(sysfs?.device),
-      description: device.description || getStringValue(sysfs?.description),
-      manufacturer: getStringValue(sysfs?.manufacturer),
-      version: getStringValue(sysfs?.version),
-      serial: getStringValue(sysfs?.serial),
+      description:
+        device.description ||
+        getStringValue(verbose?.productName) ||
+        getStringValue(verbose?.description) ||
+        getStringValue(sysfs?.description),
+      productName: getStringValue(verbose?.productName),
+      manufacturer:
+        getStringValue(sysfs?.manufacturer) ??
+        getStringValue(verbose?.manufacturer),
+      version:
+        getStringValue(sysfs?.version) ?? getStringValue(verbose?.version),
+      serial: getStringValue(sysfs?.serial) ?? getStringValue(verbose?.serial),
       kernelName: getStringValue(sysfs?.kernelName),
       devpath: getStringValue(sysfs?.devpath),
       speedMbps: getNumberValue(sysfs?.speedMbps),
@@ -1708,6 +2924,19 @@ function mergeUsbSources(commandDevices, sysfsDevices) {
       deviceClass: getStringValue(sysfs?.deviceClass),
       deviceSubclass: getStringValue(sysfs?.deviceSubclass),
       deviceProtocol: getStringValue(sysfs?.deviceProtocol),
+      configurationCount: getNumberValue(verbose?.configurationCount),
+      interfaceCount: getNumberValue(verbose?.interfaceCount),
+      maxPowerMilliAmps: getNumberValue(verbose?.maxPowerMilliAmps),
+      selfPowered: getBooleanValue(verbose?.selfPowered),
+      remoteWakeup: getBooleanValue(verbose?.remoteWakeup),
+      deviceClassName: getStringValue(verbose?.deviceClassName),
+      deviceSubclassName: getStringValue(verbose?.deviceSubclassName),
+      deviceProtocolName: getStringValue(verbose?.deviceProtocolName),
+      interfaceClassNames: Array.isArray(verbose?.interfaceClassNames)
+        ? verbose.interfaceClassNames.filter(
+            (entry) => typeof entry === "string",
+          )
+        : undefined,
     };
   });
   const knownKeys = new Set(
@@ -1720,25 +2949,326 @@ function mergeUsbSources(commandDevices, sysfsDevices) {
       const key = `${getStringValue(device.bus)}:${getStringValue(device.device)}`;
       return !key.includes("undefined") && !knownKeys.has(key);
     })
+    .map((device) => {
+      const key = `${getStringValue(device.bus)}:${getStringValue(device.device)}`;
+      const verbose = verboseIndex.get(key);
+      return {
+        bus: getStringValue(device.bus),
+        device: getStringValue(device.device),
+        vendorId: getStringValue(device.vendorId),
+        productId: getStringValue(device.productId),
+        description:
+          getStringValue(device.description) ??
+          getStringValue(verbose?.productName) ??
+          getStringValue(verbose?.description),
+        productName: getStringValue(verbose?.productName),
+        manufacturer:
+          getStringValue(device.manufacturer) ??
+          getStringValue(verbose?.manufacturer),
+        version:
+          getStringValue(device.version) ?? getStringValue(verbose?.version),
+        serial:
+          getStringValue(device.serial) ?? getStringValue(verbose?.serial),
+        kernelName: getStringValue(device.kernelName),
+        devpath: getStringValue(device.devpath),
+        speedMbps: getNumberValue(device.speedMbps),
+        removable: getStringValue(device.removable),
+        deviceClass: getStringValue(device.deviceClass),
+        deviceSubclass: getStringValue(device.deviceSubclass),
+        deviceProtocol: getStringValue(device.deviceProtocol),
+        configurationCount: getNumberValue(verbose?.configurationCount),
+        interfaceCount: getNumberValue(verbose?.interfaceCount),
+        maxPowerMilliAmps: getNumberValue(verbose?.maxPowerMilliAmps),
+        selfPowered: getBooleanValue(verbose?.selfPowered),
+        remoteWakeup: getBooleanValue(verbose?.remoteWakeup),
+        deviceClassName: getStringValue(verbose?.deviceClassName),
+        deviceSubclassName: getStringValue(verbose?.deviceSubclassName),
+        deviceProtocolName: getStringValue(verbose?.deviceProtocolName),
+        interfaceClassNames: Array.isArray(verbose?.interfaceClassNames)
+          ? verbose.interfaceClassNames.filter(
+              (entry) => typeof entry === "string",
+            )
+          : undefined,
+      };
+    });
+  const verboseOnly = verboseDevices
+    .filter((device) => {
+      const key = `${getStringValue(device.bus)}:${getStringValue(device.device)}`;
+      return (
+        !key.includes("undefined") &&
+        !knownKeys.has(key) &&
+        !sysfsIndex.has(key)
+      );
+    })
     .map((device) => ({
       bus: getStringValue(device.bus),
       device: getStringValue(device.device),
       vendorId: getStringValue(device.vendorId),
       productId: getStringValue(device.productId),
-      description: getStringValue(device.description),
+      description:
+        getStringValue(device.productName) ??
+        getStringValue(device.description),
+      productName: getStringValue(device.productName),
       manufacturer: getStringValue(device.manufacturer),
       version: getStringValue(device.version),
       serial: getStringValue(device.serial),
-      kernelName: getStringValue(device.kernelName),
-      devpath: getStringValue(device.devpath),
-      speedMbps: getNumberValue(device.speedMbps),
-      removable: getStringValue(device.removable),
-      deviceClass: getStringValue(device.deviceClass),
-      deviceSubclass: getStringValue(device.deviceSubclass),
-      deviceProtocol: getStringValue(device.deviceProtocol),
+      configurationCount: getNumberValue(device.configurationCount),
+      interfaceCount: getNumberValue(device.interfaceCount),
+      maxPowerMilliAmps: getNumberValue(device.maxPowerMilliAmps),
+      selfPowered: getBooleanValue(device.selfPowered),
+      remoteWakeup: getBooleanValue(device.remoteWakeup),
+      deviceClassName: getStringValue(device.deviceClassName),
+      deviceSubclassName: getStringValue(device.deviceSubclassName),
+      deviceProtocolName: getStringValue(device.deviceProtocolName),
+      interfaceClassNames: Array.isArray(device.interfaceClassNames)
+        ? device.interfaceClassNames.filter(
+            (entry) => typeof entry === "string",
+          )
+        : undefined,
     }));
 
-  return [...merged, ...sysfsOnly];
+  return [...merged, ...sysfsOnly, ...verboseOnly];
+}
+
+function mergeDrmSources(sysfsDevices, drmInfo) {
+  const normalizedInfo = {
+    cards: Array.isArray(drmInfo?.cards) ? drmInfo.cards : [],
+    connectors: Array.isArray(drmInfo?.connectors) ? drmInfo.connectors : [],
+  };
+  const cardInfoByName = new Map(
+    normalizedInfo.cards
+      .map((entry) => [getStringValue(entry.name), entry])
+      .filter(([name]) => Boolean(name)),
+  );
+  const connectorInfoByCard = normalizedInfo.connectors.reduce(
+    (result, entry) => {
+      const cardName = getStringValue(entry.cardName);
+      if (!cardName) {
+        return result;
+      }
+      const list = result.get(cardName) ?? [];
+      list.push(entry);
+      result.set(cardName, list);
+      return result;
+    },
+    new Map(),
+  );
+  const matchedConnectors = new Set();
+
+  const merged = sysfsDevices.map((device) => {
+    if (device.kind === "card") {
+      const drmCard = cardInfoByName.get(getStringValue(device.name));
+      return drmCard ? mergeDrmCard(device, drmCard) : device;
+    }
+
+    if (device.kind === "connector") {
+      const cardName = getDisplayCardName(device.name);
+      const candidates = cardName
+        ? (connectorInfoByCard.get(cardName) ?? []).filter(
+            (entry) => !matchedConnectors.has(entry),
+          )
+        : [];
+      const match = matchDrmConnector(device, candidates);
+      if (match) {
+        matchedConnectors.add(match);
+      }
+      return match ? mergeDrmConnector(device, match) : device;
+    }
+
+    return device;
+  });
+
+  const existingNames = new Set(
+    merged.map((entry) => getStringValue(entry.name)).filter(Boolean),
+  );
+  const drmOnlyCards = normalizedInfo.cards
+    .filter((entry) => {
+      const name = getStringValue(entry.name);
+      return Boolean(name) && !existingNames.has(name);
+    })
+    .map((entry) => ({ ...entry }));
+
+  const connectorCounters = new Map();
+  const drmOnlyConnectors = normalizedInfo.connectors
+    .filter((entry) => !matchedConnectors.has(entry))
+    .map((entry) => {
+      const cardName = getStringValue(entry.cardName) ?? "card0";
+      const connectorType = getStringValue(entry.connectorType) ?? "Connector";
+      const counterKey = `${cardName}:${connectorType}`;
+      const nextIndex = (connectorCounters.get(counterKey) ?? 0) + 1;
+      connectorCounters.set(counterKey, nextIndex);
+      const generatedName = `${cardName}-${connectorType}-${nextIndex}`;
+      return {
+        ...entry,
+        kind: "connector",
+        name: generatedName,
+      };
+    })
+    .filter((entry) => !existingNames.has(getStringValue(entry.name)));
+
+  return [...merged, ...drmOnlyCards, ...drmOnlyConnectors];
+}
+
+function mergePowerSources(powerSupplies, upower) {
+  const displayDevice = upower?.displayDevice;
+  if (
+    !displayDevice ||
+    getStringValue(displayDevice.deviceType) === "unknown"
+  ) {
+    return powerSupplies;
+  }
+
+  const upowerBattery = createUpowerBatterySummary(
+    displayDevice,
+    upower?.daemon,
+  );
+  if (!upowerBattery) {
+    return powerSupplies;
+  }
+
+  const existingBatteryIndex = powerSupplies.findIndex(
+    (entry) => getStringValue(entry.type)?.toLowerCase() === "battery",
+  );
+  if (existingBatteryIndex === -1) {
+    return [...powerSupplies, upowerBattery];
+  }
+
+  return powerSupplies.map((entry, index) =>
+    index === existingBatteryIndex
+      ? mergePowerSupply(entry, upowerBattery)
+      : entry,
+  );
+}
+
+function mergePowerSupply(primary, secondary) {
+  return {
+    ...secondary,
+    ...primary,
+    status: getStringValue(primary.status) ?? getStringValue(secondary.status),
+    capacity:
+      getNumberValue(primary.capacity) ?? getNumberValue(secondary.capacity),
+    warningLevel:
+      getStringValue(primary.warningLevel) ??
+      getStringValue(secondary.warningLevel),
+    powerSource:
+      getStringValue(primary.powerSource) ??
+      getStringValue(secondary.powerSource),
+    isAcAttached:
+      getBooleanValue(primary.isAcAttached) ??
+      getBooleanValue(secondary.isAcAttached),
+  };
+}
+
+function mergeEdidDecodedSources(drmDevices, edidDecoded) {
+  const decodedByName = new Map(
+    edidDecoded
+      .map((entry) => [getStringValue(entry.name), entry])
+      .filter(([name]) => Boolean(name)),
+  );
+
+  return drmDevices.map((device) => {
+    const decoded = decodedByName.get(getStringValue(device.name));
+    if (!decoded) {
+      return device;
+    }
+
+    return {
+      ...decoded,
+      ...device,
+      edidDecoded: decoded,
+      edid: device.edid
+        ? {
+            ...decoded,
+            ...device.edid,
+            version:
+              getStringValue(device.edid?.version) ??
+              getStringValue(decoded.version),
+            serialNumber:
+              getStringValue(device.edid?.serialNumber) ??
+              getStringValue(decoded.serialNumber),
+            preferredResolution:
+              getStringValue(device.edid?.preferredResolution) ??
+              getStringValue(decoded.preferredResolution),
+            widthCm:
+              getNumberValue(device.edid?.widthCm) ??
+              getNumberValue(decoded.widthCm),
+            heightCm:
+              getNumberValue(device.edid?.heightCm) ??
+              getNumberValue(decoded.heightCm),
+          }
+        : undefined,
+    };
+  });
+}
+
+function mergeDrmCard(device, drmCard) {
+  return {
+    ...drmCard,
+    ...device,
+    name: getStringValue(device.name) ?? getStringValue(drmCard.name),
+    kind: "card",
+    driver: getStringValue(device.driver) ?? getStringValue(drmCard.driver),
+    pciSlot: getStringValue(device.pciSlot) ?? getStringValue(drmCard.pciSlot),
+    vendorId:
+      getStringValue(device.vendorId) ?? getStringValue(drmCard.vendorId),
+    productId:
+      getStringValue(device.productId) ?? getStringValue(drmCard.productId),
+    subsystemVendorId:
+      getStringValue(device.subsystemVendorId) ??
+      getStringValue(drmCard.subsystemVendorId),
+    subsystemDeviceId:
+      getStringValue(device.subsystemDeviceId) ??
+      getStringValue(drmCard.subsystemDeviceId),
+    ofName: getStringValue(device.ofName),
+    ofCompatible:
+      Array.isArray(device.ofCompatible) && device.ofCompatible.length
+        ? device.ofCompatible
+        : drmCard.ofCompatible,
+  };
+}
+
+function mergeDrmConnector(device, drmConnector) {
+  return {
+    ...drmConnector,
+    ...device,
+    name: getStringValue(device.name) ?? getStringValue(drmConnector.name),
+    kind: "connector",
+    status:
+      getStringValue(device.status) ?? getStringValue(drmConnector.status),
+    modes:
+      Array.isArray(device.modes) && device.modes.length
+        ? device.modes
+        : drmConnector.modes,
+    edid: device.edid ?? drmConnector.edid,
+  };
+}
+
+function matchDrmConnector(device, candidates) {
+  const deviceName = getStringValue(device.name);
+  const connectorType = inferConnectorTypeFromName(deviceName);
+
+  if (connectorType) {
+    const typeMatches = candidates.filter(
+      (candidate) => getStringValue(candidate.connectorType) === connectorType,
+    );
+    if (typeMatches.length === 1) {
+      return typeMatches[0];
+    }
+    if (typeMatches.length > 1) {
+      const connectorIndex = inferConnectorOrdinalFromName(deviceName);
+      if (connectorIndex !== undefined && typeMatches[connectorIndex - 1]) {
+        return typeMatches[connectorIndex - 1];
+      }
+      return typeMatches[0];
+    }
+  }
+
+  const ordinal = inferConnectorOrdinalFromName(deviceName);
+  if (ordinal !== undefined && candidates[ordinal - 1]) {
+    return candidates[ordinal - 1];
+  }
+
+  return candidates[0];
 }
 
 function createLinuxAudioComponents(audioCards, audioPcm) {
@@ -1808,6 +3338,7 @@ function createLinuxAudioComponents(audioCards, audioPcm) {
 
 function toPowerComponents(supply, options) {
   const type = getStringValue(supply.type)?.toLowerCase();
+  const designCapacityPercent = calculateDesignCapacityPercent(supply);
 
   if (type === "battery") {
     return [
@@ -1828,7 +3359,19 @@ function toPowerComponents(supply, options) {
             "cdx:hbom:isCharging",
             getStringValue(supply.status) === "Charging",
           ),
+          createProperty(
+            "cdx:hbom:isAcAttached",
+            getBooleanValue(supply.isAcAttached),
+          ),
+          createProperty(
+            "cdx:hbom:powerSource",
+            getStringValue(supply.powerSource),
+          ),
           createProperty("cdx:hbom:status", getStringValue(supply.status)),
+          createProperty(
+            "cdx:hbom:warningLevel",
+            getStringValue(supply.warningLevel),
+          ),
           createProperty(
             "cdx:hbom:cycleCount",
             getNumberValue(supply.cycleCount),
@@ -1841,6 +3384,52 @@ function toPowerComponents(supply, options) {
             "cdx:hbom:batterySerialNumber",
             redactIdentifier(getStringValue(supply.serialNumber), options),
           ),
+          createProperty("cdx:hbom:scope", getStringValue(supply.scope)),
+          createProperty(
+            "cdx:hbom:voltageNow",
+            getNumberValue(supply.voltageNow),
+          ),
+          createProperty(
+            "cdx:hbom:voltageMinDesign",
+            getNumberValue(supply.voltageMinDesign),
+          ),
+          createProperty(
+            "cdx:hbom:voltageMaxDesign",
+            getNumberValue(supply.voltageMaxDesign),
+          ),
+          createProperty(
+            "cdx:hbom:currentNow",
+            getNumberValue(supply.currentNow),
+          ),
+          createProperty("cdx:hbom:powerNow", getNumberValue(supply.powerNow)),
+          createProperty(
+            "cdx:hbom:energyNow",
+            getNumberValue(supply.energyNow),
+          ),
+          createProperty(
+            "cdx:hbom:energyFull",
+            getNumberValue(supply.energyFull),
+          ),
+          createProperty(
+            "cdx:hbom:energyFullDesign",
+            getNumberValue(supply.energyFullDesign),
+          ),
+          createProperty(
+            "cdx:hbom:chargeNow",
+            getNumberValue(supply.chargeNow),
+          ),
+          createProperty(
+            "cdx:hbom:chargeFull",
+            getNumberValue(supply.chargeFull),
+          ),
+          createProperty(
+            "cdx:hbom:chargeFullDesign",
+            getNumberValue(supply.chargeFullDesign),
+          ),
+          createProperty(
+            "cdx:hbom:designCapacityPercent",
+            designCapacityPercent,
+          ),
         ]),
       }),
     ];
@@ -1848,13 +3437,54 @@ function toPowerComponents(supply, options) {
 
   return [
     createHardwareComponent("power-adapter", {
-      name: getStringValue(supply.name) ?? "Power Supply",
+      name:
+        getStringValue(supply.modelName) ??
+        getStringValue(supply.name) ??
+        "Power Supply",
+      manufacturer: getStringValue(supply.manufacturer)
+        ? { name: getStringValue(supply.manufacturer) }
+        : undefined,
       properties: compact([
         createProperty("cdx:hbom:powerSupplyType", getStringValue(supply.type)),
         createProperty(
           "cdx:hbom:connected",
           getNumberValue(supply.online) === 1,
         ),
+        createProperty(
+          "cdx:hbom:isAcAttached",
+          getBooleanValue(supply.isAcAttached),
+        ),
+        createProperty(
+          "cdx:hbom:powerSource",
+          getStringValue(supply.powerSource),
+        ),
+        createProperty("cdx:hbom:status", getStringValue(supply.status)),
+        createProperty(
+          "cdx:hbom:warningLevel",
+          getStringValue(supply.warningLevel),
+        ),
+        createProperty("cdx:hbom:scope", getStringValue(supply.scope)),
+        createProperty(
+          "cdx:hbom:technology",
+          getStringValue(supply.technology),
+        ),
+        createProperty(
+          "cdx:hbom:voltageNow",
+          getNumberValue(supply.voltageNow),
+        ),
+        createProperty(
+          "cdx:hbom:voltageMinDesign",
+          getNumberValue(supply.voltageMinDesign),
+        ),
+        createProperty(
+          "cdx:hbom:voltageMaxDesign",
+          getNumberValue(supply.voltageMaxDesign),
+        ),
+        createProperty(
+          "cdx:hbom:currentNow",
+          getNumberValue(supply.currentNow),
+        ),
+        createProperty("cdx:hbom:powerNow", getNumberValue(supply.powerNow)),
       ]),
     }),
   ];
@@ -2078,20 +3708,38 @@ function createTpmComponents(tpmDevices) {
   );
 }
 
-function createNvmeControllerComponents(nvmeControllers, options = {}) {
-  return nvmeControllers.map((controller) =>
-    createHardwareComponent("storage-controller", {
+function createNvmeControllerComponents(
+  nvmeControllers,
+  options = {},
+  lshwNodes = [],
+) {
+  return nvmeControllers.map((controller) => {
+    const lshwNode = findLshwNvmeControllerNode(lshwNodes, controller);
+    const namespaceNode = findLshwNvmeNamespaceNode(lshwNode, controller);
+    return createHardwareComponent("storage-controller", {
       name:
-        getStringValue(controller.model) ??
-        getStringValue(controller.name) ??
-        "NVMe Controller",
-      version: getStringValue(controller.firmwareRevision),
+        pickHardwareName(
+          getStringValue(controller.model),
+          getStringValue(lshwNode?.product),
+          getStringValue(controller.name),
+        ) ?? "NVMe Controller",
+      version:
+        getStringValue(controller.firmwareRevision) ??
+        getStringValue(lshwNode?.version),
+      manufacturer: getStringValue(lshwNode?.vendor)
+        ? { name: getStringValue(lshwNode?.vendor) }
+        : undefined,
+      description: getStringValue(lshwNode?.description),
       properties: compact([
         createProperty(
           "cdx:hbom:transport",
           getStringValue(controller.transport),
         ),
-        createProperty("cdx:hbom:state", getStringValue(controller.state)),
+        createProperty(
+          "cdx:hbom:state",
+          getStringValue(controller.state) ??
+            getScalarStringValue(lshwNode?.configuration?.state),
+        ),
         createProperty(
           "cdx:hbom:pciAddress",
           getStringValue(controller.address),
@@ -2100,7 +3748,11 @@ function createNvmeControllerComponents(nvmeControllers, options = {}) {
           "cdx:hbom:vendorId",
           getStringValue(controller.vendorId),
         ),
-        createProperty("cdx:hbom:driver", getStringValue(controller.driver)),
+        createProperty(
+          "cdx:hbom:driver",
+          getStringValue(controller.driver) ??
+            getScalarStringValue(lshwNode?.configuration?.driver),
+        ),
         createProperty(
           "cdx:hbom:namespaceCount",
           getNumberValue(controller.namespaceCount),
@@ -2113,11 +3765,28 @@ function createNvmeControllerComponents(nvmeControllers, options = {}) {
         ),
         createProperty(
           "cdx:hbom:deviceSerial",
-          redactIdentifier(getStringValue(controller.serial), options),
+          redactIdentifier(
+            getStringValue(controller.serial) ??
+              getStringValue(lshwNode?.serial),
+            options,
+          ),
+        ),
+        createProperty("cdx:hbom:busInfo", getStringValue(lshwNode?.businfo)),
+        createProperty(
+          "cdx:hbom:nqn",
+          getScalarStringValue(lshwNode?.configuration?.nqn),
+        ),
+        createProperty(
+          "cdx:hbom:wwid",
+          getScalarStringValue(namespaceNode?.configuration?.wwid),
+        ),
+        createProperty(
+          "cdx:hbom:capabilities",
+          formatCapabilities(lshwNode?.capabilities),
         ),
       ]),
-    }),
-  );
+    });
+  });
 }
 
 function createMmcComponent(device, options) {
@@ -2174,7 +3843,7 @@ function createMmcComponent(device, options) {
   });
 }
 
-function createPciComponent(device) {
+function createPciComponent(device, lshwNodes = []) {
   const vendorMatch = device.Vendor?.match(
     /^(.*?)(?:\s+\[([0-9a-f]{4})\])?$/iu,
   );
@@ -2182,20 +3851,38 @@ function createPciComponent(device) {
     /^(.*?)(?:\s+\[([0-9a-f]{4})\])?$/iu,
   );
   const classMatch = device.Class?.match(/^(.*?)(?:\s+\[([0-9a-f]{4})\])?$/iu);
+  const lshwNode = findLshwPciNode(lshwNodes, device);
+  const currentName = deviceMatch?.[1]?.trim() || device.Device;
 
   return createHardwareComponent("pci-device", {
     name:
-      deviceMatch?.[1]?.trim() ||
-      device.Device ||
-      device.label ||
-      (device.productId ? `PCI ${device.productId}` : "PCI Device"),
+      pickHardwareName(
+        isGenericHardwareName(currentName) ? undefined : currentName,
+        getStringValue(lshwNode?.product),
+        getStringValue(lshwNode?.description),
+        currentName,
+        device.label,
+        device.productId ? `PCI ${device.productId}` : "PCI Device",
+      ) ?? "PCI Device",
     version: device.Slot,
-    manufacturer: vendorMatch?.[1]?.trim()
-      ? { name: vendorMatch[1].trim() }
-      : device.vendorId
-        ? { name: device.vendorId }
-        : undefined,
-    description: classMatch?.[1]?.trim() || device.Class || device.classCode,
+    manufacturer: pickHardwareName(
+      vendorMatch?.[1]?.trim(),
+      getStringValue(lshwNode?.vendor),
+      device.vendorId,
+    )
+      ? {
+          name: pickHardwareName(
+            vendorMatch?.[1]?.trim(),
+            getStringValue(lshwNode?.vendor),
+            device.vendorId,
+          ),
+        }
+      : undefined,
+    description:
+      classMatch?.[1]?.trim() ||
+      getStringValue(lshwNode?.description) ||
+      device.Class ||
+      device.classCode,
     properties: compact([
       createProperty("cdx:hbom:pciSlot", device.Slot),
       createProperty("cdx:hbom:pciClass", classMatch?.[1]?.trim()),
@@ -2223,16 +3910,32 @@ function createPciComponent(device) {
         normalizeHexString(device.subsystemDeviceId),
       ),
       createProperty("cdx:hbom:revision", device.Rev),
-      createProperty("cdx:hbom:driver", device.Driver),
+      createProperty(
+        "cdx:hbom:driver",
+        device.Driver ?? getScalarStringValue(lshwNode?.configuration?.driver),
+      ),
       createProperty("cdx:hbom:kernelModule", device.Module),
       createProperty("cdx:hbom:modalias", device.modalias),
+      createProperty("cdx:hbom:busInfo", getStringValue(lshwNode?.businfo)),
+      createProperty(
+        "cdx:hbom:deviceRevision",
+        getStringValue(lshwNode?.version),
+      ),
+      createProperty("cdx:hbom:clockHz", getNumberValue(lshwNode?.clock)),
+      createProperty("cdx:hbom:width", getNumberValue(lshwNode?.width)),
+      createProperty("cdx:hbom:isClaimed", getBooleanValue(lshwNode?.claimed)),
+      createProperty(
+        "cdx:hbom:capabilities",
+        formatCapabilities(lshwNode?.capabilities),
+      ),
     ]),
   });
 }
 
-function createUsbComponent(device) {
+function createUsbComponent(device, options = {}) {
   return createHardwareComponent("usb-device", {
     name:
+      device.productName ||
       device.description ||
       (device.vendorId && device.productId
         ? `USB ${device.vendorId}:${device.productId}`
@@ -2241,13 +3944,20 @@ function createUsbComponent(device) {
     manufacturer: device.manufacturer
       ? { name: device.manufacturer }
       : undefined,
+    description:
+      formatList(device.interfaceClassNames) ||
+      device.deviceClassName ||
+      undefined,
     properties: compact([
       createProperty("cdx:hbom:usbBus", device.bus),
       createProperty("cdx:hbom:usbDevice", device.device),
       createProperty("cdx:hbom:vendorId", device.vendorId),
       createProperty("cdx:hbom:productId", device.productId),
       createProperty("cdx:hbom:usbVersion", device.version),
-      createProperty("cdx:hbom:deviceSerial", device.serial),
+      createProperty(
+        "cdx:hbom:deviceSerial",
+        redactIdentifier(getStringValue(device.serial), options),
+      ),
       createProperty("cdx:hbom:usbKernelName", device.kernelName),
       createProperty("cdx:hbom:usbDevpath", device.devpath),
       createProperty("cdx:hbom:speedMbps", device.speedMbps),
@@ -2258,6 +3968,33 @@ function createUsbComponent(device) {
       createProperty("cdx:hbom:usbClass", device.deviceClass),
       createProperty("cdx:hbom:usbSubclass", device.deviceSubclass),
       createProperty("cdx:hbom:usbProtocol", device.deviceProtocol),
+      createProperty("cdx:hbom:usbClassName", device.deviceClassName),
+      createProperty("cdx:hbom:usbSubclassName", device.deviceSubclassName),
+      createProperty("cdx:hbom:usbProtocolName", device.deviceProtocolName),
+      createProperty(
+        "cdx:hbom:usbInterfaceClasses",
+        formatList(device.interfaceClassNames),
+      ),
+      createProperty(
+        "cdx:hbom:usbConfigurationCount",
+        getNumberValue(device.configurationCount),
+      ),
+      createProperty(
+        "cdx:hbom:usbInterfaceCount",
+        getNumberValue(device.interfaceCount),
+      ),
+      createProperty(
+        "cdx:hbom:maxPowerMilliAmps",
+        getNumberValue(device.maxPowerMilliAmps),
+      ),
+      createProperty(
+        "cdx:hbom:selfPowered",
+        getBooleanValue(device.selfPowered),
+      ),
+      createProperty(
+        "cdx:hbom:remoteWakeup",
+        getBooleanValue(device.remoteWakeup),
+      ),
     ]),
   });
 }
@@ -2320,7 +4057,7 @@ function createVideoComponents(videoDevices) {
   );
 }
 
-function createDisplayComponents(drmDevices, options = {}) {
+function createDisplayComponents(drmDevices, options = {}, lshwNodes = []) {
   const cards = drmDevices.filter((device) => device.kind === "card");
   const connectors = drmDevices.filter((device) =>
     isPhysicalDisplayConnector(device),
@@ -2336,13 +4073,29 @@ function createDisplayComponents(drmDevices, options = {}) {
   }, new Map());
 
   return [
-    ...cards.map((device) =>
-      createHardwareComponent("display-adapter", {
-        name: deriveDisplayAdapterName(device),
+    ...cards.map((device) => {
+      const lshwNode = findLshwDisplayNode(lshwNodes, device);
+      return createHardwareComponent("display-adapter", {
+        name: deriveDisplayAdapterName(device, lshwNode),
         version: getStringValue(device.pciSlot) ?? getStringValue(device.name),
-        manufacturer: device.vendorId ? { name: device.vendorId } : undefined,
+        manufacturer: pickHardwareName(
+          getStringValue(lshwNode?.vendor),
+          getStringValue(device.vendorId),
+        )
+          ? {
+              name: pickHardwareName(
+                getStringValue(lshwNode?.vendor),
+                getStringValue(device.vendorId),
+              ),
+            }
+          : undefined,
+        description: getStringValue(lshwNode?.description),
         properties: compact([
-          createProperty("cdx:hbom:driver", getStringValue(device.driver)),
+          createProperty(
+            "cdx:hbom:driver",
+            getStringValue(device.driver) ??
+              getScalarStringValue(lshwNode?.configuration?.driver),
+          ),
           createProperty("cdx:hbom:pciSlot", getStringValue(device.pciSlot)),
           createProperty("cdx:hbom:vendorId", getStringValue(device.vendorId)),
           createProperty(
@@ -2368,9 +4121,66 @@ function createDisplayComponents(drmDevices, options = {}) {
             "cdx:hbom:connectorCount",
             connectorCountByCard.get(device.name),
           ),
+          createProperty("cdx:hbom:busInfo", getStringValue(lshwNode?.businfo)),
+          createProperty("cdx:hbom:drmNode", getStringValue(device.drmNode)),
+          createProperty(
+            "cdx:hbom:drmBusType",
+            getStringValue(device.drmBusType),
+          ),
+          createProperty(
+            "cdx:hbom:driverDescription",
+            getStringValue(device.driverDescription),
+          ),
+          createProperty(
+            "cdx:hbom:driverVersion",
+            getStringValue(device.driverVersion),
+          ),
+          createProperty(
+            "cdx:hbom:kernelRelease",
+            getStringValue(device.kernelRelease),
+          ),
+          createProperty(
+            "cdx:hbom:drmAvailableNodes",
+            getNumberValue(device.availableNodes),
+          ),
+          createProperty(
+            "cdx:hbom:framebufferMinWidth",
+            getNumberValue(device.framebuffer?.min_width),
+          ),
+          createProperty(
+            "cdx:hbom:framebufferMaxWidth",
+            getNumberValue(device.framebuffer?.max_width),
+          ),
+          createProperty(
+            "cdx:hbom:framebufferMinHeight",
+            getNumberValue(device.framebuffer?.min_height),
+          ),
+          createProperty(
+            "cdx:hbom:framebufferMaxHeight",
+            getNumberValue(device.framebuffer?.max_height),
+          ),
+          createProperty(
+            "cdx:hbom:deviceRevision",
+            getStringValue(lshwNode?.version),
+          ),
+          createProperty("cdx:hbom:clockHz", getNumberValue(lshwNode?.clock)),
+          createProperty("cdx:hbom:width", getNumberValue(lshwNode?.width)),
+          createProperty(
+            "cdx:hbom:isClaimed",
+            getBooleanValue(lshwNode?.claimed),
+          ),
+          createProperty(
+            "cdx:hbom:clientCapabilities",
+            formatCapabilities(device.clientCaps),
+          ),
+          createProperty(
+            "cdx:hbom:capabilities",
+            formatCapabilities(device.caps) ??
+              formatCapabilities(lshwNode?.capabilities),
+          ),
         ]),
-      }),
-    ),
+      });
+    }),
     ...connectors.map((device) =>
       createHardwareComponent("display-connector", {
         name: getStringValue(device.name) ?? "Display Connector",
@@ -2387,6 +4197,70 @@ function createDisplayComponents(drmDevices, options = {}) {
           createProperty(
             "cdx:hbom:displayAdapter",
             getDisplayCardName(device.name),
+          ),
+          createProperty(
+            "cdx:hbom:displayConnectorType",
+            getStringValue(device.connectorType),
+          ),
+          createProperty(
+            "cdx:hbom:drmConnectorId",
+            getNumberValue(device.drmConnectorId),
+          ),
+          createProperty(
+            "cdx:hbom:physicalSize",
+            formatDisplayMillimeterSize(
+              getNumberValue(device.physicalWidthMm),
+              getNumberValue(device.physicalHeightMm),
+            ),
+          ),
+          createProperty("cdx:hbom:dpms", getScalarStringValue(device.dpms)),
+          createProperty(
+            "cdx:hbom:linkStatus",
+            getScalarStringValue(device.linkStatus),
+          ),
+          createProperty("cdx:hbom:subpixel", getNumberValue(device.subpixel)),
+          createProperty(
+            "cdx:hbom:encoderId",
+            getNumberValue(device.encoderId),
+          ),
+          createProperty("cdx:hbom:encoderIds", formatList(device.encoderIds)),
+          createProperty(
+            "cdx:hbom:nonDesktop",
+            normalizeBooleanLike(getScalarStringValue(device.nonDesktop)),
+          ),
+          createProperty(
+            "cdx:hbom:maxBitsPerChannel",
+            getNumberValue(device.maxBpc),
+          ),
+          createProperty(
+            "cdx:hbom:colorspace",
+            getScalarStringValue(device.colorspace),
+          ),
+          createProperty(
+            "cdx:hbom:contentProtection",
+            getScalarStringValue(device.contentProtection),
+          ),
+          createProperty(
+            "cdx:hbom:crtcId",
+            getScalarStringValue(device.crtcId),
+          ),
+          createProperty(
+            "cdx:hbom:variableRefreshEnabled",
+            normalizeBooleanLike(
+              getScalarStringValue(device.variableRefreshEnabled),
+            ),
+          ),
+          createProperty(
+            "cdx:hbom:bitsPerColorChannel",
+            getNumberValue(device.edidDecoded?.bitsPerColorChannel),
+          ),
+          createProperty(
+            "cdx:hbom:colorFormats",
+            formatList(device.edidDecoded?.colorFormats),
+          ),
+          createProperty(
+            "cdx:hbom:hdrEotf",
+            formatList(device.edidDecoded?.hdrEotf),
           ),
         ]),
       }),
@@ -2431,6 +4305,18 @@ function createDisplayComponents(drmDevices, options = {}) {
             getStringValue(device.edid?.version),
           ),
           createProperty(
+            "cdx:hbom:bitsPerColorChannel",
+            getNumberValue(device.edidDecoded?.bitsPerColorChannel),
+          ),
+          createProperty(
+            "cdx:hbom:colorFormats",
+            formatList(device.edidDecoded?.colorFormats),
+          ),
+          createProperty(
+            "cdx:hbom:hdrEotf",
+            formatList(device.edidDecoded?.hdrEotf),
+          ),
+          createProperty(
             "cdx:hbom:manufactureWeek",
             getNumberValue(device.edid?.weekOfManufacture),
           ),
@@ -2445,12 +4331,263 @@ function createDisplayComponents(drmDevices, options = {}) {
   ];
 }
 
+function createThunderboltComponents(domains, devices, options = {}) {
+  return [
+    ...domains.map((entry) =>
+      createHardwareComponent("bus", {
+        name:
+          normalizeThunderboltName(getStringValue(entry.name)) ??
+          "Thunderbolt/USB4 Domain",
+        description: "Thunderbolt/USB4 domain",
+        properties: compact([
+          createProperty(
+            "cdx:hbom:domainUuid",
+            redactIdentifier(getStringValue(entry.uuid), options),
+          ),
+          createProperty("cdx:hbom:routeString", getStringValue(entry.route)),
+          createProperty("cdx:hbom:status", getStringValue(entry.status)),
+          createProperty(
+            "cdx:hbom:securityLevel",
+            getStringValue(entry.security),
+          ),
+          createProperty(
+            "cdx:hbom:iommuProtection",
+            normalizeBooleanLike(getStringValue(entry.iommu)),
+          ),
+          createProperty(
+            "cdx:hbom:bootAclCount",
+            getNumberValue(entry.bootacl),
+          ),
+          createProperty(
+            "cdx:hbom:speed",
+            formatThunderboltSpeed(entry.rxSpeed, entry.txSpeed),
+          ),
+        ]),
+      }),
+    ),
+    ...devices.map((entry) =>
+      createHardwareComponent("thunderbolt-device", {
+        name:
+          normalizeThunderboltName(getStringValue(entry.name)) ??
+          getStringValue(entry.device) ??
+          "Thunderbolt Device",
+        manufacturer: getStringValue(entry.vendor)
+          ? { name: getStringValue(entry.vendor) }
+          : undefined,
+        description: getStringValue(entry.type),
+        properties: compact([
+          createProperty("cdx:hbom:deviceName", getStringValue(entry.name)),
+          createProperty(
+            "cdx:hbom:deviceUuid",
+            redactIdentifier(getStringValue(entry.uuid), options),
+          ),
+          createProperty(
+            "cdx:hbom:thunderboltGeneration",
+            getStringValue(entry.generation),
+          ),
+          createProperty("cdx:hbom:status", getStringValue(entry.status)),
+          createProperty("cdx:hbom:stored", getStringValue(entry.stored)),
+          createProperty(
+            "cdx:hbom:authorized",
+            getStringValue(entry.authorized),
+          ),
+          createProperty(
+            "cdx:hbom:connectedAt",
+            getStringValue(entry.connected),
+          ),
+          createProperty("cdx:hbom:policy", getStringValue(entry.policy)),
+          createProperty("cdx:hbom:key", getStringValue(entry.key)),
+        ]),
+      }),
+    ),
+  ];
+}
+
+function createModemComponents(modems, options = {}) {
+  return modems
+    .map((entry) => normalizeMmcliModem(entry))
+    .filter(Boolean)
+    .map((modem) =>
+      createHardwareComponent("modem", {
+        name:
+          getStringValue(modem.model) ??
+          getStringValue(modem.manufacturer) ??
+          "Modem",
+        version: getStringValue(modem.revision),
+        manufacturer: getStringValue(modem.manufacturer)
+          ? { name: getStringValue(modem.manufacturer) }
+          : undefined,
+        description: getStringValue(modem.accessTechnologies),
+        properties: compact([
+          createProperty("cdx:hbom:modemPath", getStringValue(modem.modemPath)),
+          createProperty("cdx:hbom:driver", formatList(modem.drivers)),
+          createProperty("cdx:hbom:plugin", getStringValue(modem.plugin)),
+          createProperty("cdx:hbom:state", getStringValue(modem.state)),
+          createProperty(
+            "cdx:hbom:signalQuality",
+            getNumberValue(modem.signalQuality),
+          ),
+          createProperty(
+            "cdx:hbom:accessTechnologies",
+            getStringValue(modem.accessTechnologies),
+          ),
+          createProperty(
+            "cdx:hbom:operatorName",
+            getStringValue(modem.operatorName),
+          ),
+          createProperty(
+            "cdx:hbom:equipmentIdentifier",
+            redactIdentifier(
+              getStringValue(modem.equipmentIdentifier),
+              options,
+            ),
+          ),
+          createProperty(
+            "cdx:hbom:imei",
+            redactIdentifier(getStringValue(modem.imei), options),
+          ),
+          createProperty(
+            "cdx:hbom:ownNumbers",
+            redactIdentifier(formatList(modem.ownNumbers), options),
+          ),
+          createProperty("cdx:hbom:simSlots", formatList(modem.simSlots)),
+        ]),
+      }),
+    );
+}
+
+function createFirmwareManagedComponents(devices, options = {}) {
+  return devices.map((device) =>
+    createHardwareComponent("firmware-device", {
+      name:
+        getStringValue(device.name) ??
+        getStringValue(device.summary) ??
+        "Firmware-managed Device",
+      version: getStringValue(device.version),
+      manufacturer: getStringValue(device.vendor)
+        ? { name: getStringValue(device.vendor) }
+        : undefined,
+      description: getStringValue(device.summary),
+      properties: compact([
+        createProperty("cdx:hbom:plugin", getStringValue(device.plugin)),
+        createProperty("cdx:hbom:protocol", getStringValue(device.protocol)),
+        createProperty("cdx:hbom:flags", formatList(device.flags)),
+        createProperty("cdx:hbom:guids", formatList(device.guid)),
+        createProperty(
+          "cdx:hbom:instanceIds",
+          redactIdentifier(formatList(device.instanceIds), options),
+        ),
+        createProperty(
+          "cdx:hbom:deviceSerial",
+          redactIdentifier(getStringValue(device.serial), options),
+        ),
+        createProperty("cdx:hbom:vendorId", getStringValue(device.vendorId)),
+        createProperty("cdx:hbom:createdEpoch", getNumberValue(device.created)),
+      ]),
+    }),
+  );
+}
+
 function createEthtoolCommand(interfaceName) {
   return {
     ...getRequiredLinuxCommand("ethtool-driver-info"),
     id: `ethtool-driver-info:${interfaceName}`,
     args: ["-i", interfaceName],
   };
+}
+
+function createMmcliModemCommand(modemPath) {
+  return {
+    ...getRequiredLinuxCommand("mmcli-modem-json"),
+    id: `mmcli-modem-json:${modemPath}`,
+    args: ["-m", modemPath, "-J"],
+  };
+}
+
+function createEdidDecodeCommand(device) {
+  return {
+    ...getRequiredLinuxCommand("edid-decode"),
+    id: `edid-decode:${getStringValue(device.name) ?? "display"}`,
+    args: [getStringValue(device.edidPath) ?? "<edid-path>"],
+  };
+}
+
+async function probeOptionalLinuxCommand(id, options, onError = undefined) {
+  const spec = getRequiredLinuxCommand(id);
+  const result = safeSpawnSync(spec.command, ["--help"], {
+    allowedCommands: options.allowedCommands,
+    dryRun: options.dryRun,
+    encoding: "utf8",
+    maxBuffer: 256 * 1024,
+    timeout: Math.min(options.timeoutMs ?? 15000, 5000),
+    trace: options.trace,
+    traceActivity: {
+      category: spec.category,
+      dryRunReason: `Dry run mode blocks HBOM command probe '${spec.id}'.`,
+      id: `probe:${spec.id}`,
+      parser: "probe",
+      phase: spec.phase,
+      purpose: `Probe availability for optional Linux command '${spec.command}'.`,
+    },
+  });
+
+  if (result.error?.code === "ENOENT") {
+    onError?.({
+      commandId: spec.id,
+      category: spec.category,
+      command: spec.command,
+      args: ["--help"],
+      issue: "missing-command",
+      code: "CDX_HBOM_COMMAND_NOT_FOUND",
+      message: `${spec.id} failed with missing-command: spawnSync ${spec.command} ENOENT`,
+      installHint: getInstallHint(spec.command),
+    });
+    return false;
+  }
+
+  if (
+    result.error ||
+    String(result.stderr ?? "").includes("Command blocked by allowlist")
+  ) {
+    return false;
+  }
+
+  return true;
+}
+
+function createLshwCommunicationComponents(lshwNodes) {
+  return lshwNodes
+    .filter((node) => isBluetoothLshwNode(node))
+    .map((node) =>
+      createHardwareComponent("bluetooth-controller", {
+        name:
+          pickHardwareName(
+            getStringValue(node.product),
+            getStringValue(node.description),
+            ...getLshwLogicalNames(node),
+          ) ?? "Bluetooth Interface",
+        manufacturer: getStringValue(node.vendor)
+          ? { name: getStringValue(node.vendor) }
+          : undefined,
+        version: getStringValue(node.businfo),
+        description: getStringValue(node.description),
+        properties: compact([
+          createProperty("cdx:hbom:busInfo", getStringValue(node.businfo)),
+          createProperty(
+            "cdx:hbom:logicalNames",
+            formatList(getLshwLogicalNames(node)),
+          ),
+          createProperty(
+            "cdx:hbom:wirelessType",
+            getScalarStringValue(node.configuration?.wireless),
+          ),
+          createProperty(
+            "cdx:hbom:capabilities",
+            formatCapabilities(node.capabilities),
+          ),
+        ]),
+      }),
+    );
 }
 
 function collectCommandProperties(commands) {
@@ -2462,10 +4599,20 @@ function collectCommandProperties(commands) {
   );
 }
 
-async function attemptCollection(action, allowPartial) {
+function collectCommandDiagnosticProperties(diagnostics) {
+  return diagnostics.map((entry) =>
+    createProperty(
+      "cdx:hbom:evidence:commandDiagnostic",
+      JSON.stringify(entry),
+    ),
+  );
+}
+
+async function attemptCollection(action, allowPartial, onError = undefined) {
   try {
     await action();
   } catch (error) {
+    onError?.(error);
     if (!allowPartial) {
       throw error;
     }
@@ -2479,6 +4626,55 @@ function toEvidenceCommand(spec) {
     command: spec.command,
     args: [...spec.args],
   };
+}
+
+function toCommandDiagnostic(error) {
+  if (
+    !error ||
+    typeof error !== "object" ||
+    error.suppressedDiagnostic === true
+  ) {
+    return undefined;
+  }
+
+  return compactObject({
+    id: getStringValue(error.commandId),
+    category: getStringValue(error.category),
+    command: getStringValue(error.command),
+    args: Array.isArray(error.args) ? error.args.join(" ") : undefined,
+    issue: getStringValue(error.issue),
+    code: getStringValue(error.code),
+    exitCode: getNumberValue(error.exitCode),
+    message: getStringValue(error.message),
+    installHint: getStringValue(error.installHint),
+    privilegeHint: getStringValue(error.privilegeHint),
+  });
+}
+
+function shouldRetainLinuxCommandDiagnostic(error) {
+  const commandId = getStringValue(error?.commandId) ?? "";
+  const issue = getStringValue(error?.issue) ?? "";
+  const message = String(error?.message ?? error?.stderr ?? "").toLowerCase();
+
+  if (
+    commandId.startsWith("ethtool-driver-info:") &&
+    ["command-error", "partial-support"].includes(issue) &&
+    /(operation not supported|cannot get driver information|no data available)/u.test(
+      message,
+    )
+  ) {
+    return false;
+  }
+
+  if (
+    commandId === "lsmem-json" &&
+    ["command-error", "partial-support"].includes(issue) &&
+    /cannot open \/sys\/devices\/system\/memory/u.test(message)
+  ) {
+    return false;
+  }
+
+  return true;
 }
 
 function getRequiredLinuxCommand(id) {
@@ -2713,6 +4909,18 @@ function findLshwCpuField(roots, field) {
   return typeof value === "string" ? value : undefined;
 }
 
+function findLshwCpuNode(nodes) {
+  return nodes.find(
+    (entry) =>
+      getStringValue(entry.class) === "processor" &&
+      getBooleanValue(entry.disabled) !== true &&
+      Boolean(
+        normalizeProcessorIdentity(getStringValue(entry.product)) ??
+          normalizeProcessorIdentity(getStringValue(entry.description)),
+      ),
+  );
+}
+
 function findLshwMotherboardField(roots, field) {
   const boardNode = walkLshwNodes(roots).find(
     (entry) =>
@@ -2721,6 +4929,112 @@ function findLshwMotherboardField(roots, field) {
   );
   const value = boardNode?.[field];
   return typeof value === "string" ? value : undefined;
+}
+
+function findLshwNetworkNode(nodes, device, ethtoolInfo = undefined) {
+  const interfaceNames = [
+    getStringValue(device.ifname),
+    getStringValue(device.name),
+  ]
+    .filter(Boolean)
+    .map((entry) => entry.toLowerCase());
+  const busInfo = normalizePciAddress(ethtoolInfo?.["bus-info"]);
+
+  return nodes.find((entry) => {
+    if (getStringValue(entry.class) !== "network") {
+      return false;
+    }
+
+    const logicalNames = getLshwLogicalNames(entry).map((name) =>
+      name.toLowerCase(),
+    );
+    if (logicalNames.some((name) => interfaceNames.includes(name))) {
+      return true;
+    }
+
+    return (
+      busInfo !== undefined && normalizePciAddress(entry.businfo) === busInfo
+    );
+  });
+}
+
+function findLshwStorageContext(nodes, device) {
+  const deviceName = getStringValue(device.name);
+  const exactNode = deviceName
+    ? nodes.find((entry) => getLshwLogicalNames(entry).includes(deviceName))
+    : undefined;
+  const controllerName = deriveStorageControllerName(deviceName);
+  const controllerNode = controllerName
+    ? nodes.find((entry) => getLshwLogicalNames(entry).includes(controllerName))
+    : undefined;
+
+  return {
+    exactNode,
+    controllerNode,
+  };
+}
+
+function findLshwNvmeControllerNode(nodes, controller) {
+  const controllerName = getStringValue(controller.name);
+  const address = normalizePciAddress(controller.address);
+
+  return nodes.find((entry) => {
+    if (getStringValue(entry.class) !== "storage") {
+      return false;
+    }
+
+    if (controllerName && getLshwLogicalNames(entry).includes(controllerName)) {
+      return true;
+    }
+
+    return (
+      address !== undefined && normalizePciAddress(entry.businfo) === address
+    );
+  });
+}
+
+function findLshwNvmeNamespaceNode(lshwNode, controller) {
+  const namespaces = Array.isArray(controller?.namespaces)
+    ? controller.namespaces
+    : [];
+  const children = Array.isArray(lshwNode?.children) ? lshwNode.children : [];
+
+  return children.find((entry) =>
+    getLshwLogicalNames(entry).some((logicalName) =>
+      namespaces.includes(logicalName),
+    ),
+  );
+}
+
+function findLshwPciNode(nodes, device) {
+  const slot = normalizePciAddress(device.Slot);
+  if (!slot) {
+    return undefined;
+  }
+
+  return nodes.find((entry) => normalizePciAddress(entry.businfo) === slot);
+}
+
+function findLshwDisplayNode(nodes, device) {
+  const pciSlot = normalizePciAddress(device.pciSlot);
+
+  return nodes.find((entry) => {
+    if (getStringValue(entry.class) !== "display") {
+      return false;
+    }
+
+    if (pciSlot && normalizePciAddress(entry.businfo) === pciSlot) {
+      return true;
+    }
+
+    return (
+      getStringValue(entry.vendor) !== undefined &&
+      normalizeHexString(entry.vendorId) ===
+        normalizeHexString(device.vendorId) &&
+      normalizeHexString(entry.productId) ===
+        normalizeHexString(device.productId)
+    );
+  });
 }
 
 function parseUeventText(stdout) {
@@ -2883,8 +5197,12 @@ function collectOrderedUeventValues(uevent, prefix) {
   return values.length ? values : undefined;
 }
 
-function deriveDisplayAdapterName(device) {
+function deriveDisplayAdapterName(device, lshwNode = undefined) {
   return (
+    pickHardwareName(
+      getStringValue(lshwNode?.product),
+      getStringValue(lshwNode?.description),
+    ) ??
     getStringValue(device.driver) ??
     getStringValue(device.ofName) ??
     (Array.isArray(device.ofCompatible)
@@ -2941,6 +5259,206 @@ function walkLshwNodes(nodes) {
     const children = Array.isArray(node?.children) ? node.children : [];
     return [node, ...walkLshwNodes(children)];
   });
+}
+
+function getLshwLogicalNames(node) {
+  const logicalName = node?.logicalname;
+
+  return compact(
+    (Array.isArray(logicalName) ? logicalName : [logicalName])
+      .filter((entry) => typeof entry === "string")
+      .map((entry) => entry.split("/").filter(Boolean).at(-1)?.trim()),
+  );
+}
+
+function collectCpuFeatures(lscpu, cpuInfo, cpuNode) {
+  const features = new Set();
+
+  [lscpu.Flags, cpuInfo[0]?.flags, cpuInfo[0]?.Features, cpuInfo[0]?.isa]
+    .filter(Boolean)
+    .flatMap((value) => String(value).split(/\s+/u))
+    .map((value) => value.trim())
+    .filter(Boolean)
+    .forEach((value) => {
+      features.add(value);
+    });
+
+  Object.entries(cpuNode?.capabilities ?? {})
+    .filter(([, value]) => Boolean(value))
+    .map(([key]) => key.trim())
+    .filter(Boolean)
+    .forEach((key) => {
+      features.add(key);
+    });
+
+  return [...features].sort((left, right) =>
+    left.localeCompare(right, undefined, { numeric: true }),
+  );
+}
+
+function formatCapabilities(capabilities) {
+  if (!capabilities || typeof capabilities !== "object") {
+    return undefined;
+  }
+
+  const entries = Object.entries(capabilities)
+    .filter(([, value]) => Boolean(value))
+    .map(([key, value]) =>
+      value === true
+        ? key
+        : `${key} (${getScalarStringValue(value) ?? "enabled"})`,
+    )
+    .sort((left, right) =>
+      left.localeCompare(right, undefined, { numeric: true }),
+    );
+
+  return entries.length ? entries.join(", ") : undefined;
+}
+
+function formatList(values) {
+  return Array.isArray(values) && values.length ? values.join(", ") : undefined;
+}
+
+function formatIdleStateSummary(idleStates) {
+  if (!Array.isArray(idleStates) || idleStates.length === 0) {
+    return undefined;
+  }
+
+  const summary = idleStates
+    .map((state) => {
+      const name = getStringValue(state?.name);
+      if (!name) {
+        return undefined;
+      }
+      const latency = getNumberValue(state?.latency);
+      const usage = getNumberValue(state?.usage);
+      return `${name}${latency !== undefined ? ` (${latency} us` : ""}${usage !== undefined ? `${latency !== undefined ? ", " : " ("}usage ${usage}` : ""}${latency !== undefined || usage !== undefined ? ")" : ""}`;
+    })
+    .filter(Boolean);
+
+  return summary.length ? summary.join(", ") : undefined;
+}
+
+function pickHardwareName(...values) {
+  const normalized = values
+    .map((value) => normalizeIdentityString(value))
+    .filter(Boolean);
+  return (
+    normalized.find((value) => !isGenericHardwareName(value)) ?? normalized[0]
+  );
+}
+
+function isGenericHardwareName(value) {
+  const normalized = normalizeIdentityString(value)?.toLowerCase();
+  return (
+    Boolean(
+      normalized &&
+        [
+          "cpu",
+          "processor",
+          "network interface",
+          "ethernet interface",
+          "wireless interface",
+          "block device",
+          "pci device",
+          "display adapter",
+          "computer",
+        ].includes(normalized),
+    ) || /^device(?:\s+\[[0-9a-f]{4}\])?$/iu.test(normalized ?? "")
+  );
+}
+
+function normalizeProcessorIdentity(value) {
+  const normalized = normalizeIdentityString(value);
+  if (!normalized || /^(cpu|processor|l[123]-cache)$/iu.test(normalized)) {
+    return undefined;
+  }
+  return normalized;
+}
+
+function parseNetworkSpeedMbps(speedText, speedBitsPerSecond) {
+  if (speedText) {
+    const match = String(speedText)
+      .trim()
+      .match(/^(\d+(?:\.\d+)?)\s*([GMK]?)(?:bit|b)\/s$/iu);
+    if (match) {
+      const scalar = Number.parseFloat(match[1]);
+      const multiplier = {
+        "": 1,
+        K: 0.001,
+        M: 1,
+        G: 1000,
+      }[match[2].toUpperCase()];
+
+      if (!Number.isNaN(scalar) && multiplier !== undefined) {
+        return Math.round(scalar * multiplier);
+      }
+    }
+  }
+
+  const numericCapacity = getNumberValue(speedBitsPerSecond);
+  return numericCapacity !== undefined
+    ? Math.round(numericCapacity / 1000 / 1000)
+    : undefined;
+}
+
+function normalizeYesNo(value) {
+  const normalized = normalizeEmptyString(
+    getScalarStringValue(value),
+  )?.toLowerCase();
+
+  if (!normalized) {
+    return undefined;
+  }
+  if (["yes", "on", "true", "up"].includes(normalized)) {
+    return true;
+  }
+  if (["no", "off", "false", "down"].includes(normalized)) {
+    return false;
+  }
+
+  return undefined;
+}
+
+function normalizePciAddress(value) {
+  const normalized = normalizeEmptyString(
+    getScalarStringValue(value),
+  )?.toLowerCase();
+  if (!normalized) {
+    return undefined;
+  }
+
+  if (normalized.startsWith("pci@")) {
+    return normalized.slice(4);
+  }
+
+  return /^\w+@/u.test(normalized) ? normalized.split("@").at(-1) : normalized;
+}
+
+function deriveStorageControllerName(deviceName) {
+  const normalized = getStringValue(deviceName);
+  const nvmeMatch = normalized?.match(/^(nvme\d+)n\d+$/u);
+  return nvmeMatch?.[1];
+}
+
+function isBluetoothLshwNode(node) {
+  if (getStringValue(node?.class) !== "communication") {
+    return false;
+  }
+
+  const text = [
+    getStringValue(node.description),
+    getStringValue(node.product),
+    getScalarStringValue(node.configuration?.wireless),
+    formatCapabilities(node.capabilities),
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  return (
+    /bluetooth/u.test(text) ||
+    getBooleanValue(node.capabilities?.bluetooth) === true
+  );
 }
 
 function summarizeLsmemOnlineMemory(ranges) {
@@ -3093,6 +5611,26 @@ function normalizeUsbVersion(value) {
   return normalizeEmptyString(value)?.trim();
 }
 
+function normalizeUsbDescriptorLabel(value) {
+  const normalized = normalizeEmptyString(value)?.trim();
+  if (!normalized || normalized === "[unknown]") {
+    return undefined;
+  }
+
+  return normalized;
+}
+
+function finalizeLsusbVerboseRecord(record) {
+  return {
+    ...record,
+    interfaceClassNames:
+      Array.isArray(record.interfaceClassNames) &&
+      record.interfaceClassNames.length
+        ? [...new Set(record.interfaceClassNames)]
+        : undefined,
+  };
+}
+
 function normalizeUsbSpeed(value) {
   if (!value) {
     return undefined;
@@ -3101,6 +5639,22 @@ function normalizeUsbSpeed(value) {
   const parsed = Number.parseFloat(value);
 
   return Number.isNaN(parsed) ? undefined : Math.round(parsed);
+}
+
+function calculateDesignCapacityPercent(supply) {
+  const energyFull = getNumberValue(supply.energyFull);
+  const energyFullDesign = getNumberValue(supply.energyFullDesign);
+  if (energyFull !== undefined && energyFullDesign) {
+    return Math.round((energyFull / energyFullDesign) * 100);
+  }
+
+  const chargeFull = getNumberValue(supply.chargeFull);
+  const chargeFullDesign = getNumberValue(supply.chargeFullDesign);
+  if (chargeFull !== undefined && chargeFullDesign) {
+    return Math.round((chargeFull / chargeFullDesign) * 100);
+  }
+
+  return undefined;
 }
 
 function derivePhysicalCoreCount(lscpu, cpuInfo) {
@@ -3128,11 +5682,446 @@ function flattenLsblkDevices(devices) {
   });
 }
 
+function formatDrmVersion(version) {
+  if (!version || typeof version !== "object") {
+    return undefined;
+  }
+
+  const major = getNumberValue(version.major);
+  const minor = getNumberValue(version.minor);
+  const patch = getNumberValue(version.patch);
+  if (major === undefined && minor === undefined && patch === undefined) {
+    return undefined;
+  }
+
+  return [major ?? 0, minor ?? 0, patch ?? 0].join(".");
+}
+
+function formatDrmBusType(value) {
+  const busType = getNumberValue(value);
+  switch (busType) {
+    case 0:
+      return "PCI";
+    case 1:
+      return "USB";
+    case 2:
+      return "platform";
+    case 3:
+      return "host1x";
+    default:
+      return busType === undefined ? undefined : String(busType);
+  }
+}
+
+function formatDrmPciAddress(busData) {
+  if (!busData || typeof busData !== "object") {
+    return undefined;
+  }
+
+  const domain = getNumberValue(busData.domain);
+  const bus = getNumberValue(busData.bus);
+  const slot = getNumberValue(busData.slot);
+  const fn = getNumberValue(busData.function);
+  if (
+    domain === undefined ||
+    bus === undefined ||
+    slot === undefined ||
+    fn === undefined
+  ) {
+    return undefined;
+  }
+
+  return `${domain.toString(16).padStart(4, "0")}:${bus
+    .toString(16)
+    .padStart(2, "0")}:${slot.toString(16).padStart(2, "0")}.${fn}`;
+}
+
+function formatDrmConnectorType(value) {
+  const connectorType = getNumberValue(value);
+  switch (connectorType) {
+    case 1:
+      return "VGA";
+    case 2:
+      return "DVI-I";
+    case 3:
+      return "DVI-D";
+    case 4:
+      return "DVI-A";
+    case 5:
+      return "Composite";
+    case 6:
+      return "SVIDEO";
+    case 7:
+      return "LVDS";
+    case 8:
+      return "Component";
+    case 9:
+      return "DIN";
+    case 10:
+      return "DP";
+    case 11:
+      return "HDMI-A";
+    case 12:
+      return "HDMI-B";
+    case 13:
+      return "TV";
+    case 14:
+      return "eDP";
+    case 15:
+      return "Virtual";
+    case 16:
+      return "DSI";
+    case 17:
+      return "DPI";
+    case 18:
+      return "Writeback";
+    case 19:
+      return "SPI";
+    case 20:
+      return "USB";
+    default:
+      return connectorType === undefined
+        ? "Connector"
+        : `Connector-${connectorType}`;
+  }
+}
+
+function formatDrmConnectorStatus(value) {
+  const status = getNumberValue(value);
+  switch (status) {
+    case 1:
+      return "connected";
+    case 2:
+      return "disconnected";
+    case 3:
+      return "unknown";
+    default:
+      return status === undefined ? undefined : String(status);
+  }
+}
+
+function getDrmPropertyValue(properties, propertyName) {
+  if (!properties || typeof properties !== "object") {
+    return undefined;
+  }
+
+  const property = properties[propertyName];
+  if (!property || typeof property !== "object") {
+    return undefined;
+  }
+
+  const value = property.value ?? property.raw_value;
+  if (Array.isArray(property.spec)) {
+    const matchingSpec = property.spec.find(
+      (entry) => getNumberValue(entry?.value) === getNumberValue(value),
+    );
+    const label = getStringValue(matchingSpec?.name);
+    if (label) {
+      return label;
+    }
+  }
+
+  if (typeof value === "boolean" || typeof value === "number") {
+    return value;
+  }
+
+  return getStringValue(value);
+}
+
+function normalizeDrmModes(modes) {
+  if (!Array.isArray(modes) || !modes.length) {
+    return undefined;
+  }
+
+  const formatted = modes
+    .map((mode) => {
+      if (typeof mode === "string") {
+        return mode.trim();
+      }
+      if (!mode || typeof mode !== "object") {
+        return undefined;
+      }
+      const name = getStringValue(mode.name);
+      if (name) {
+        return name;
+      }
+      const width = getNumberValue(mode.hdisplay);
+      const height = getNumberValue(mode.vdisplay);
+      const refresh = getNumberValue(mode.vrefresh);
+      if (width !== undefined && height !== undefined) {
+        return refresh !== undefined
+          ? `${width}x${height}@${refresh}`
+          : `${width}x${height}`;
+      }
+      return undefined;
+    })
+    .filter(Boolean);
+
+  return formatted.length ? [...new Set(formatted)] : undefined;
+}
+
+function inferConnectorTypeFromName(name) {
+  const normalized = getStringValue(name);
+  if (!normalized) {
+    return undefined;
+  }
+
+  const connectorName = normalized.replace(/^card\d+-/u, "");
+  for (const connectorType of [
+    "Writeback",
+    "HDMI-A",
+    "HDMI-B",
+    "DVI-I",
+    "DVI-D",
+    "DVI-A",
+    "Composite",
+    "SVIDEO",
+    "Component",
+    "Virtual",
+    "LVDS",
+    "eDP",
+    "DSI",
+    "DPI",
+    "VGA",
+    "DIN",
+    "DP",
+    "TV",
+    "SPI",
+    "USB",
+  ]) {
+    if (
+      connectorName.startsWith(`${connectorType}-`) ||
+      connectorName === connectorType
+    ) {
+      return connectorType;
+    }
+  }
+
+  return undefined;
+}
+
+function inferConnectorOrdinalFromName(name) {
+  const normalized = getStringValue(name);
+  const match = normalized?.match(/-(\d+)$/u);
+  return match ? Number.parseInt(match[1], 10) : undefined;
+}
+
 function normalizeBooleanLike(value) {
   if (value === undefined) {
     return undefined;
   }
   return value === "1" || value.toLowerCase() === "true";
+}
+
+function normalizeBoltctlKey(value) {
+  return toCamelCaseKey(value);
+}
+
+function normalizeUpowerKey(value) {
+  return toCamelCaseKey(value);
+}
+
+function normalizeUpowerValue(value) {
+  const normalized = String(value ?? "")
+    .trim()
+    .replace(/^'(.*)'$/u, "$1");
+  if (!normalized) {
+    return undefined;
+  }
+  if (/^(yes|no)$/iu.test(normalized)) {
+    return normalized.toLowerCase() === "yes";
+  }
+  if (/^\d+(?:\.\d+)?%$/u.test(normalized)) {
+    return Number.parseFloat(normalized.slice(0, -1));
+  }
+  return normalized;
+}
+
+function createUpowerBatterySummary(displayDevice, daemon = {}) {
+  const capacity = getNumberValue(displayDevice.percentage);
+  const status = normalizeIdentityString(getStringValue(displayDevice.state));
+
+  if (
+    capacity === undefined &&
+    !status &&
+    !getStringValue(displayDevice.model) &&
+    !getStringValue(displayDevice.vendor)
+  ) {
+    return undefined;
+  }
+
+  return compactObject({
+    type: "Battery",
+    name: "DisplayDevice",
+    modelName: getStringValue(displayDevice.model),
+    manufacturer: getStringValue(displayDevice.vendor),
+    serialNumber: getStringValue(displayDevice.serial),
+    status,
+    capacity,
+    warningLevel: getStringValue(displayDevice.warningLevel),
+    isAcAttached: inferLinuxAcAttachment(daemon.onBattery),
+    powerSource: inferLinuxPowerSource(daemon.onBattery),
+    energyNow: parseUpowerMicroUnit(displayDevice.energy, "Wh"),
+    energyFull: parseUpowerMicroUnit(displayDevice.energyFull, "Wh"),
+    energyFullDesign: parseUpowerMicroUnit(
+      displayDevice.energyFullDesign,
+      "Wh",
+    ),
+    powerNow: parseUpowerMicroUnit(displayDevice.energyRate, "W"),
+    voltageNow: parseUpowerMicroUnit(displayDevice.voltage, "V"),
+  });
+}
+
+function inferLinuxPowerSource(onBattery) {
+  const normalized = getBooleanValue(onBattery);
+  if (normalized === undefined) {
+    return undefined;
+  }
+  return normalized ? "Battery" : "AC";
+}
+
+function inferLinuxAcAttachment(onBattery) {
+  const normalized = getBooleanValue(onBattery);
+  return normalized === undefined ? undefined : !normalized;
+}
+
+function normalizeMmcliModem(entry) {
+  const modem = entry?.modem ?? entry;
+  if (!modem || typeof modem !== "object") {
+    return undefined;
+  }
+
+  const generic = modem.generic ?? {};
+  const status = modem.status ?? {};
+  const g3pp = modem["3gpp"] ?? {};
+  const signalQuality = status.signalQuality ?? {};
+
+  return compactObject({
+    modemPath:
+      getStringValue(entry?.modemPath) ??
+      getStringValue(modem.path) ??
+      getStringValue(generic.device),
+    manufacturer: getStringValue(generic.manufacturer),
+    model: getStringValue(generic.model),
+    revision: getStringValue(generic.revision),
+    plugin: getStringValue(generic.plugin),
+    drivers: Array.isArray(generic.drivers) ? generic.drivers : undefined,
+    state: getStringValue(status.state),
+    signalQuality:
+      getNumberValue(signalQuality.value) ??
+      getNumberValue(status.signalQuality),
+    accessTechnologies:
+      getStringValue(status.accessTechnologies) ??
+      getStringValue(generic.currentCapabilities),
+    operatorName: getStringValue(g3pp.operatorName),
+    equipmentIdentifier: getStringValue(generic.equipmentId),
+    imei: getStringValue(g3pp.imei),
+    ownNumbers: Array.isArray(modem.ownNumbers) ? modem.ownNumbers : undefined,
+    simSlots: Array.isArray(modem.simSlots) ? modem.simSlots : undefined,
+  });
+}
+
+function formatDisplayMillimeterSize(widthMm, heightMm) {
+  const normalizedWidth = getNumberValue(widthMm);
+  const normalizedHeight = getNumberValue(heightMm);
+
+  return normalizedWidth !== undefined && normalizedHeight !== undefined
+    ? `${normalizedWidth} x ${normalizedHeight} mm`
+    : undefined;
+}
+
+function normalizeThunderboltName(value) {
+  if (!value) {
+    return undefined;
+  }
+
+  return value
+    .replace("thunderboltusb4_bus_", "Thunderbolt/USB4 Bus ")
+    .replaceAll("_", " ");
+}
+
+function formatThunderboltSpeed(rxSpeed, txSpeed) {
+  const rx = getStringValue(rxSpeed);
+  const tx = getStringValue(txSpeed);
+  if (rx && tx && rx !== tx) {
+    return `RX ${rx}, TX ${tx}`;
+  }
+  return rx ?? tx ?? undefined;
+}
+
+function normalizeObjectKeys(value) {
+  if (Array.isArray(value)) {
+    return value.map((entry) => normalizeObjectKeys(entry));
+  }
+  if (!value || typeof value !== "object") {
+    return value;
+  }
+
+  return Object.entries(value).reduce((result, [key, entryValue]) => {
+    result[toCamelCaseKey(key) ?? key] = normalizeObjectKeys(entryValue);
+    return result;
+  }, {});
+}
+
+function compactObject(value) {
+  return Object.fromEntries(
+    Object.entries(value ?? {}).filter(([, entry]) => entry !== undefined),
+  );
+}
+
+function toCamelCaseKey(value) {
+  const raw = String(value ?? "")
+    .trim()
+    .replace(/[()]/gu, "");
+  if (!raw) {
+    return undefined;
+  }
+  if (/^[A-Z0-9]+$/u.test(raw)) {
+    return raw.toLowerCase();
+  }
+  if (/^[\p{L}\p{N}]+$/u.test(raw) && /[A-Z]/u.test(raw.slice(1))) {
+    return `${raw[0].toLowerCase()}${raw.slice(1)}`;
+  }
+
+  const normalized = raw.replace(/[^\p{L}\p{N}]+/gu, " ").trim();
+
+  if (!normalized) {
+    return undefined;
+  }
+
+  const [first, ...rest] = normalized.split(/\s+/u);
+  return [first.toLowerCase(), ...rest.map(capitalizeWord)].join("");
+}
+
+function capitalizeWord(value) {
+  return value
+    ? `${value[0].toUpperCase()}${value.slice(1).toLowerCase()}`
+    : "";
+}
+
+function parseUpowerMicroUnit(value, unit) {
+  const normalized = getStringValue(value);
+  const match = normalized?.match(
+    new RegExp(
+      `^(\\d+(?:\\.\\d+)?)\\s*${unit.replace(/[-/\\^$*+?.()|[\]{}]/gu, "\\$&")}$`,
+      "iu",
+    ),
+  );
+  if (!match) {
+    return undefined;
+  }
+
+  return Math.round(Number.parseFloat(match[1]) * 1_000_000);
+}
+
+function getScalarStringValue(value) {
+  if (typeof value === "string") {
+    return value.trim();
+  }
+  if (typeof value === "number" || typeof value === "boolean") {
+    return String(value);
+  }
+  return undefined;
 }
 
 function getStringValue(value) {
@@ -3149,6 +6138,13 @@ function getNumberValue(value) {
 
 function getBooleanValue(value) {
   return typeof value === "boolean" ? value : undefined;
+}
+
+function normalizeHexNumber(value) {
+  const parsed = getNumberValue(value);
+  return parsed === undefined
+    ? undefined
+    : parsed.toString(16).padStart(4, "0");
 }
 
 function toNumber(value) {

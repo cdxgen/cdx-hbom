@@ -3,7 +3,7 @@
 import { readFileSync } from "node:fs";
 import process from "node:process";
 
-import { collectHardware } from "../index.js";
+import { collectHardware, getCollectorTrace } from "../index.js";
 
 const packageJson = JSON.parse(
   readFileSync(new URL("../package.json", import.meta.url), "utf8"),
@@ -21,7 +21,7 @@ Options:
   --arch <value>               Override architecture selection
   --sensitive                  Include raw identifiers
   --no-command-enrichment      Disable optional command-based enrichment
-  --privileged                 Enable privileged enrichment (Linux dmidecode)
+  --privileged                 Enable privileged enrichment and sudo -n retries for permission-sensitive Linux commands
   --plist-enrichment           Enable plist enrichment (Darwin)
   --strict                     Fail on partial collection errors
   --timeout <ms>               Command timeout in milliseconds
@@ -57,6 +57,11 @@ async function main(argv) {
     platform: options.platform,
     timeoutMs: options.timeout,
   });
+
+  const diagnostics = collectCliDiagnostics(bom);
+  if (diagnostics.length) {
+    process.stderr.write(`${diagnostics.join("\n")}\n`);
+  }
 
   process.stdout.write(
     `${JSON.stringify(bom, null, options.pretty ? 2 : 0)}\n`,
@@ -167,6 +172,52 @@ function requireValue(argv, index, option) {
   }
 
   return value;
+}
+
+function collectCliDiagnostics(bom) {
+  const trace = getCollectorTrace(bom);
+  const activities = Array.isArray(trace?.activities) ? trace.activities : [];
+  const grouped = activities
+    .filter(
+      (entry) =>
+        entry?.kind === "command-diagnostic" ||
+        entry?.kind === "command-warning",
+    )
+    .reduce((result, entry) => {
+      const key = [
+        entry.command ?? entry.id ?? "command",
+        entry.issue ?? "warning",
+        entry.reason ?? "",
+        entry.hint ?? "",
+      ].join("\u0000");
+      const current = result.get(key) ?? { ...entry, count: 0 };
+      current.count += 1;
+      result.set(key, current);
+      return result;
+    }, new Map());
+
+  return [...grouped.values()].map((entry) => formatCliDiagnostic(entry));
+}
+
+function formatCliDiagnostic(entry) {
+  const id = entry.command
+    ? entry.count > 1
+      ? `${entry.command} (${entry.count} invocations)`
+      : `${entry.command}`
+    : entry.id
+      ? `${entry.id}`
+      : "command";
+  const issue = entry.issue ? `${entry.issue}` : "warning";
+  const reason = entry.reason ? `${entry.reason}` : undefined;
+  const hint = entry.hint ? `${entry.hint}` : undefined;
+  return [
+    `Warning: ${id}`,
+    `[${issue}]`,
+    reason,
+    hint ? `Hint: ${hint}` : undefined,
+  ]
+    .filter(Boolean)
+    .join(" ");
 }
 
 main(process.argv.slice(2)).catch((error) => {

@@ -8,43 +8,48 @@ All currently emitted custom property names use the `cdx:hbom:` prefix. This pag
 
 These properties appear at the BOM top level in `properties`.
 
-| Property                         | Meaning                                             | Example                          |
-| -------------------------------- | --------------------------------------------------- | -------------------------------- |
-| `cdx:hbom:targetPlatform`        | Host operating system family that was inspected     | `darwin`                         |
-| `cdx:hbom:targetArchitecture`    | Host CPU architecture                               | `arm64`                          |
-| `cdx:hbom:identifierPolicy`      | Identifier privacy mode used for the document       | `redacted-by-default`            |
-| `cdx:hbom:collectorProfile`      | Collector profile / target flavor                   | `darwin-arm64-v1`                |
-| `cdx:hbom:osName`                | Operating system name observed during collection    | `Ubuntu`                         |
-| `cdx:hbom:osVersion`             | Operating system version observed during collection | `24.04`                          |
-| `cdx:hbom:evidence:fileCount`    | Number of files read during collection              | `12`                             |
-| `cdx:hbom:evidence:file`         | A file read during collection                       | `/proc/cpuinfo`                  |
-| `cdx:hbom:evidence:commandCount` | Number of commands used during collection           | `6`                              |
-| `cdx:hbom:evidence:command`      | A command used during collection                    | `lscpu-json,cpu-memory,lscpu -J` |
+| Property                                   | Meaning                                                        | Example                                              |
+| ------------------------------------------ | -------------------------------------------------------------- | ---------------------------------------------------- |
+| `cdx:hbom:targetPlatform`                  | Host operating system family that was inspected                | `darwin`                                             |
+| `cdx:hbom:targetArchitecture`              | Host CPU architecture                                          | `arm64`                                              |
+| `cdx:hbom:identifierPolicy`                | Identifier privacy mode used for the document                  | `redacted-by-default`                                |
+| `cdx:hbom:collectorProfile`                | Collector profile / target flavor                              | `darwin-arm64-v1`                                    |
+| `cdx:hbom:osName`                          | Operating system name observed during collection               | `Ubuntu`                                             |
+| `cdx:hbom:osVersion`                       | Operating system version observed during collection            | `24.04`                                              |
+| `cdx:hbom:evidence:fileCount`              | Number of files read during collection                         | `12`                                                 |
+| `cdx:hbom:evidence:file`                   | A file read during collection                                  | `/proc/cpuinfo`                                      |
+| `cdx:hbom:evidence:commandCount`           | Number of commands used during collection                      | `6`                                                  |
+| `cdx:hbom:evidence:command`                | A command used during collection                               | `lscpu-json,cpu-memory,lscpu -J`                     |
+| `cdx:hbom:evidence:commandDiagnosticCount` | Number of optional command diagnostics captured                | `2`                                                  |
+| `cdx:hbom:evidence:commandDiagnostic`      | JSON-serialized skipped-command diagnostic with issue and hint | `{"id":"drm-info-json","issue":"permission-denied"}` |
 
 ## Metadata component properties
 
 These properties commonly appear on `metadata.component`, which describes the host device itself.
 
-| Property                         | Meaning                                               |
-| -------------------------------- | ----------------------------------------------------- |
-| `cdx:hbom:platform`              | Platform family for the host device                   |
-| `cdx:hbom:architecture`          | Host architecture                                     |
-| `cdx:hbom:chip`                  | Primary CPU / SoC marketing name                      |
-| `cdx:hbom:memory`                | Installed memory summary                              |
-| `cdx:hbom:serialNumber`          | Host serial number, redacted by default               |
-| `cdx:hbom:platformUuid`          | Host platform UUID, redacted by default               |
-| `cdx:hbom:modelNumber`           | Vendor model number / SKU-like identifier             |
-| `cdx:hbom:registryEntryName`     | Low-level Darwin registry entry or hardware node name |
-| `cdx:hbom:boardVendor`           | Mainboard / baseboard vendor                          |
-| `cdx:hbom:boardName`             | Mainboard / baseboard product name                    |
-| `cdx:hbom:biosVendor`            | Firmware vendor                                       |
-| `cdx:hbom:biosVersion`           | Firmware version                                      |
-| `cdx:hbom:firmwareDate`          | Firmware release date if reported                     |
-| `cdx:hbom:deviceTreeRevision`    | Linux device-tree revision or board revision string   |
-| `cdx:hbom:deviceTreeLinuxSerial` | Linux device-tree serial, redacted by default         |
-| `cdx:hbom:deviceTreeCompatible`  | Linux device-tree compatible values                   |
-| `cdx:hbom:chassisType`           | Host chassis type or form factor                      |
-| `cdx:hbom:identifierPolicy`      | Identifier privacy mode applied to the host component |
+| Property                         | Meaning                                                     |
+| -------------------------------- | ----------------------------------------------------------- |
+| `cdx:hbom:platform`              | Platform family for the host device                         |
+| `cdx:hbom:architecture`          | Host architecture                                           |
+| `cdx:hbom:chip`                  | Primary CPU / SoC marketing name                            |
+| `cdx:hbom:memory`                | Installed memory summary                                    |
+| `cdx:hbom:serialNumber`          | Host serial number, redacted by default                     |
+| `cdx:hbom:platformUuid`          | Host platform UUID, redacted by default                     |
+| `cdx:hbom:modelNumber`           | Vendor model number / SKU-like identifier                   |
+| `cdx:hbom:registryEntryName`     | Low-level Darwin registry entry or hardware node name       |
+| `cdx:hbom:boardVendor`           | Mainboard / baseboard vendor                                |
+| `cdx:hbom:boardName`             | Mainboard / baseboard product name                          |
+| `cdx:hbom:biosVendor`            | Firmware vendor                                             |
+| `cdx:hbom:biosVersion`           | Firmware version                                            |
+| `cdx:hbom:firmwareDate`          | Firmware release date if reported                           |
+| `cdx:hbom:deviceTreeRevision`    | Linux device-tree revision or board revision string         |
+| `cdx:hbom:deviceTreeLinuxSerial` | Linux device-tree serial, redacted by default               |
+| `cdx:hbom:deviceTreeCompatible`  | Linux device-tree compatible values                         |
+| `cdx:hbom:chassisType`           | Host chassis type or form factor                            |
+| `cdx:hbom:powerSource`           | Current host power source summary such as `AC` or `Battery` |
+| `cdx:hbom:isAcAttached`          | Whether the host currently reports AC power attached        |
+| `cdx:hbom:warningLevel`          | Host or battery warning level when available                |
+| `cdx:hbom:identifierPolicy`      | Identifier privacy mode applied to the host component       |
 
 ## Shared component classification property
 
@@ -88,22 +93,50 @@ These appear across multiple hardware classes.
 
 ## Processor and memory properties
 
-| Property                    | Meaning                                           |
-| --------------------------- | ------------------------------------------------- |
-| `cdx:hbom:coreCount`        | Reported total core count                         |
-| `cdx:hbom:logicalCpuCount`  | Reported logical CPU count                        |
-| `cdx:hbom:physicalCpuCount` | Reported physical CPU count                       |
-| `cdx:hbom:socketCount`      | Reported CPU socket count                         |
-| `cdx:hbom:threadsPerCore`   | Reported threads per core                         |
-| `cdx:hbom:cpuFamily`        | CPU family identifier                             |
-| `cdx:hbom:model`            | CPU model identifier                              |
-| `cdx:hbom:stepping`         | CPU stepping                                      |
-| `cdx:hbom:addressSizes`     | CPU address size capabilities reported by `lscpu` |
-| `cdx:hbom:byteOrder`        | CPU byte order reported by `lscpu`                |
-| `cdx:hbom:size`             | Human-readable memory size                        |
-| `cdx:hbom:sizeBytes`        | Exact size in bytes                               |
-| `cdx:hbom:memoryRangeCount` | Number of memory ranges reported by `lsmem`       |
-| `cdx:hbom:memoryOnlineSize` | Online memory size reported by `lsmem`            |
+| Property                            | Meaning                                            |
+| ----------------------------------- | -------------------------------------------------- |
+| `cdx:hbom:coreCount`                | Reported total core count                          |
+| `cdx:hbom:logicalCpuCount`          | Reported logical CPU count                         |
+| `cdx:hbom:physicalCpuCount`         | Reported physical CPU count                        |
+| `cdx:hbom:socketCount`              | Reported CPU socket count                          |
+| `cdx:hbom:threadsPerCore`           | Reported threads per core                          |
+| `cdx:hbom:cpuFamily`                | CPU family identifier                              |
+| `cdx:hbom:model`                    | CPU model identifier                               |
+| `cdx:hbom:stepping`                 | CPU stepping                                       |
+| `cdx:hbom:clusterCount`             | Reported CPU cluster count                         |
+| `cdx:hbom:coresPerCluster`          | Reported CPU cores per cluster                     |
+| `cdx:hbom:numaNodeCount`            | Reported NUMA node count                           |
+| `cdx:hbom:addressSizes`             | CPU address size capabilities reported by `lscpu`  |
+| `cdx:hbom:byteOrder`                | CPU byte order reported by `lscpu`                 |
+| `cdx:hbom:opModes`                  | CPU operating modes such as `32-bit, 64-bit`       |
+| `cdx:hbom:minClockMHz`              | Minimum reported CPU frequency in MHz              |
+| `cdx:hbom:maxClockMHz`              | Maximum reported CPU frequency in MHz              |
+| `cdx:hbom:onlineCpuSet`             | Online CPU set reported by `lscpu`                 |
+| `cdx:hbom:offlineCpuSet`            | Offline CPU set reported by `lscpu`                |
+| `cdx:hbom:scalingPercent`           | CPU scaling percentage summary                     |
+| `cdx:hbom:frequencyDriver`          | CPU frequency driver reported by `cpupower`        |
+| `cdx:hbom:availableGovernors`       | CPU frequency governors available on the host      |
+| `cdx:hbom:governor`                 | Active CPU frequency governor                      |
+| `cdx:hbom:hardwareMinFrequency`     | Hardware minimum CPU frequency capability          |
+| `cdx:hbom:hardwareMaxFrequency`     | Hardware maximum CPU frequency capability          |
+| `cdx:hbom:policyMinFrequency`       | Current cpufreq policy minimum                     |
+| `cdx:hbom:policyMaxFrequency`       | Current cpufreq policy maximum                     |
+| `cdx:hbom:boostSupported`           | Whether CPU boost/turbo is supported               |
+| `cdx:hbom:boostActive`              | Whether CPU boost/turbo is currently active        |
+| `cdx:hbom:maximumFrequency`         | Maximum frequency reported by AMD P-State data     |
+| `cdx:hbom:nominalFrequency`         | Nominal CPU frequency reported by `cpupower`       |
+| `cdx:hbom:lowestNonLinearFrequency` | Lowest non-linear CPU frequency                    |
+| `cdx:hbom:lowestFrequency`          | Lowest CPU frequency reported by `cpupower`        |
+| `cdx:hbom:currentFrequencies`       | Current per-policy or sampled CPU frequencies      |
+| `cdx:hbom:idleDriver`               | CPU idle driver reported by `cpupower idle-info`   |
+| `cdx:hbom:idleGovernor`             | CPU idle governor reported by `cpupower idle-info` |
+| `cdx:hbom:idleStateCount`           | Number of CPU idle states                          |
+| `cdx:hbom:idleStates`               | Idle-state names reported by `cpupower`            |
+| `cdx:hbom:idleStateSummary`         | Idle-state summary including latency and usage     |
+| `cdx:hbom:size`                     | Human-readable memory size                         |
+| `cdx:hbom:sizeBytes`                | Exact size in bytes                                |
+| `cdx:hbom:memoryRangeCount`         | Number of memory ranges reported by `lsmem`        |
+| `cdx:hbom:memoryOnlineSize`         | Online memory size reported by `lsmem`             |
 
 ## Storage, APFS, and NVMe properties
 
@@ -194,25 +227,51 @@ These appear across multiple hardware classes.
 
 ## Display, graphics, and video properties
 
-| Property                       | Meaning                                                     |
-| ------------------------------ | ----------------------------------------------------------- |
-| `cdx:hbom:resolution`          | Resolution summary                                          |
-| `cdx:hbom:connectionType`      | Display connection type                                     |
-| `cdx:hbom:displaySerialNumber` | Display serial number, redacted by default                  |
-| `cdx:hbom:displayAdapter`      | Parent graphics adapter for a display connector             |
-| `cdx:hbom:displayConnector`    | Display connector or output name                            |
-| `cdx:hbom:edidVersion`         | EDID version                                                |
-| `cdx:hbom:preferredResolution` | Preferred resolution from EDID                              |
-| `cdx:hbom:physicalSize`        | Physical display dimensions                                 |
-| `cdx:hbom:manufactureWeek`     | Display manufacture week                                    |
-| `cdx:hbom:manufactureYear`     | Display manufacture year                                    |
-| `cdx:hbom:connectorCount`      | Number of graphics/display connectors represented           |
-| `cdx:hbom:instanceCount`       | Number of Linux device instances grouped into one component |
-| `cdx:hbom:index`               | Linux video / graphics index                                |
-| `cdx:hbom:kernelDevices`       | Kernel device node names represented by the component       |
-| `cdx:hbom:ofName`              | Open Firmware / device-tree name                            |
-| `cdx:hbom:ofCompatible`        | Open Firmware compatible values                             |
-| `cdx:hbom:modes`               | Supported display or video modes                            |
+| Property                          | Meaning                                                     |
+| --------------------------------- | ----------------------------------------------------------- |
+| `cdx:hbom:resolution`             | Resolution summary                                          |
+| `cdx:hbom:connectionType`         | Display connection type                                     |
+| `cdx:hbom:displaySerialNumber`    | Display serial number, redacted by default                  |
+| `cdx:hbom:displayAdapter`         | Parent graphics adapter for a display connector             |
+| `cdx:hbom:displayConnector`       | Display connector or output name                            |
+| `cdx:hbom:displayConnectorType`   | DRM/KMS connector type such as `HDMI-A` or `DP`             |
+| `cdx:hbom:edidVersion`            | EDID version                                                |
+| `cdx:hbom:preferredResolution`    | Preferred resolution from EDID                              |
+| `cdx:hbom:physicalSize`           | Physical display dimensions                                 |
+| `cdx:hbom:manufactureWeek`        | Display manufacture week                                    |
+| `cdx:hbom:manufactureYear`        | Display manufacture year                                    |
+| `cdx:hbom:connectorCount`         | Number of graphics/display connectors represented           |
+| `cdx:hbom:instanceCount`          | Number of Linux device instances grouped into one component |
+| `cdx:hbom:index`                  | Linux video / graphics index                                |
+| `cdx:hbom:drmConnectorId`         | Numeric DRM/KMS connector identifier                        |
+| `cdx:hbom:dpms`                   | DRM/KMS power-management state for a connector              |
+| `cdx:hbom:kernelDevices`          | Kernel device node names represented by the component       |
+| `cdx:hbom:drmNode`                | DRM device node such as `/dev/dri/card1`                    |
+| `cdx:hbom:drmBusType`             | DRM-reported bus type such as `PCI` or `platform`           |
+| `cdx:hbom:drmAvailableNodes`      | Number of DRM node types exposed by the adapter             |
+| `cdx:hbom:framebufferMinWidth`    | Minimum framebuffer width supported by the adapter          |
+| `cdx:hbom:framebufferMaxWidth`    | Maximum framebuffer width supported by the adapter          |
+| `cdx:hbom:framebufferMinHeight`   | Minimum framebuffer height supported by the adapter         |
+| `cdx:hbom:framebufferMaxHeight`   | Maximum framebuffer height supported by the adapter         |
+| `cdx:hbom:ofName`                 | Open Firmware / device-tree name                            |
+| `cdx:hbom:ofCompatible`           | Open Firmware compatible values                             |
+| `cdx:hbom:modes`                  | Supported display or video modes                            |
+| `cdx:hbom:maxBitsPerChannel`      | Maximum bits-per-channel reported for a connector           |
+| `cdx:hbom:colorspace`             | Active or supported DRM colorspace selection                |
+| `cdx:hbom:contentProtection`      | DRM content-protection state                                |
+| `cdx:hbom:crtcId`                 | Current bound CRTC identifier                               |
+| `cdx:hbom:clientCapabilities`     | DRM client capabilities supported by the driver             |
+| `cdx:hbom:driverDescription`      | Driver-reported graphics description                        |
+| `cdx:hbom:driverVersion`          | Driver-reported graphics version                            |
+| `cdx:hbom:kernelRelease`          | Kernel release reported by the DRM driver                   |
+| `cdx:hbom:variableRefreshEnabled` | Whether VRR is enabled on the connector                     |
+| `cdx:hbom:nonDesktop`             | Whether the DRM connector is marked as non-desktop          |
+| `cdx:hbom:subpixel`               | DRM connector subpixel layout code                          |
+| `cdx:hbom:encoderId`              | Current encoder identifier bound to the connector           |
+| `cdx:hbom:encoderIds`             | Encoder identifiers supported by the connector              |
+| `cdx:hbom:bitsPerColorChannel`    | Bits-per-color-channel from EDID or connector capabilities  |
+| `cdx:hbom:colorFormats`           | Supported pixel/color formats from `edid-decode`            |
+| `cdx:hbom:hdrEotf`                | Supported HDR electro-optical transfer functions            |
 
 ## Bluetooth properties
 
@@ -229,35 +288,77 @@ These appear across multiple hardware classes.
 
 ## Thunderbolt / USB4 properties
 
-| Property                        | Meaning                              |
-| ------------------------------- | ------------------------------------ |
-| `cdx:hbom:deviceName`           | Device or bus name                   |
-| `cdx:hbom:domainUuid`           | Bus domain UUID, redacted by default |
-| `cdx:hbom:switchUid`            | Switch UID, redacted by default      |
-| `cdx:hbom:routeString`          | Route string                         |
-| `cdx:hbom:receptacleCount`      | Number of receptacles represented    |
-| `cdx:hbom:receptacleIds`        | Receptacle identifiers               |
-| `cdx:hbom:linkStatus`           | Link status summary                  |
-| `cdx:hbom:speed`                | Reported bus speed                   |
-| `cdx:hbom:receptacleStatus`     | Receptacle status summary            |
-| `cdx:hbom:microFirmwareVersion` | Micro firmware version summary       |
+| Property                         | Meaning                                      |
+| -------------------------------- | -------------------------------------------- |
+| `cdx:hbom:deviceName`            | Device or bus name                           |
+| `cdx:hbom:domainUuid`            | Bus domain UUID, redacted by default         |
+| `cdx:hbom:deviceUuid`            | Thunderbolt device UUID, redacted by default |
+| `cdx:hbom:switchUid`             | Switch UID, redacted by default              |
+| `cdx:hbom:routeString`           | Route string                                 |
+| `cdx:hbom:receptacleCount`       | Number of receptacles represented            |
+| `cdx:hbom:receptacleIds`         | Receptacle identifiers                       |
+| `cdx:hbom:linkStatus`            | Link status summary                          |
+| `cdx:hbom:speed`                 | Reported bus speed                           |
+| `cdx:hbom:securityLevel`         | Thunderbolt security policy or level         |
+| `cdx:hbom:iommuProtection`       | Whether IOMMU protection is enabled          |
+| `cdx:hbom:bootAclCount`          | Number of boot ACL entries                   |
+| `cdx:hbom:thunderboltGeneration` | Thunderbolt generation label                 |
+| `cdx:hbom:authorized`            | Authorization status or timestamp            |
+| `cdx:hbom:connectedAt`           | Last connected timestamp if available        |
+| `cdx:hbom:policy`                | Thunderbolt authorization policy             |
+| `cdx:hbom:key`                   | Thunderbolt security key state               |
+| `cdx:hbom:receptacleStatus`      | Receptacle status summary                    |
+| `cdx:hbom:microFirmwareVersion`  | Micro firmware version summary               |
 
 ## USB properties
 
-| Property                             | Meaning                          |
-| ------------------------------------ | -------------------------------- |
-| `cdx:hbom:usbController`             | Parent USB controller name       |
-| `cdx:hbom:usbBus`                    | USB bus number                   |
-| `cdx:hbom:usbDevice`                 | USB device number                |
-| `cdx:hbom:usbVersion`                | USB version                      |
-| `cdx:hbom:usbKernelName`             | Linux USB kernel device name     |
-| `cdx:hbom:usbDevpath`                | Linux USB device path            |
-| `cdx:hbom:usbClass`                  | USB class code / class name      |
-| `cdx:hbom:usbSubclass`               | USB subclass                     |
-| `cdx:hbom:usbProtocol`               | USB protocol                     |
-| `cdx:hbom:currentAvailable`          | Available USB bus power/current  |
-| `cdx:hbom:currentRequired`           | Required USB bus power/current   |
-| `cdx:hbom:extraOperatingCurrentUsed` | Additional USB operating current |
+| Property                             | Meaning                                               |
+| ------------------------------------ | ----------------------------------------------------- |
+| `cdx:hbom:usbController`             | Parent USB controller name                            |
+| `cdx:hbom:usbBus`                    | USB bus number                                        |
+| `cdx:hbom:usbDevice`                 | USB device number                                     |
+| `cdx:hbom:usbVersion`                | USB version                                           |
+| `cdx:hbom:usbKernelName`             | Linux USB kernel device name                          |
+| `cdx:hbom:usbDevpath`                | Linux USB device path                                 |
+| `cdx:hbom:usbClass`                  | USB class code / class name                           |
+| `cdx:hbom:usbClassName`              | USB class name from verbose descriptors               |
+| `cdx:hbom:usbSubclass`               | USB subclass                                          |
+| `cdx:hbom:usbSubclassName`           | USB subclass name from verbose descriptors            |
+| `cdx:hbom:usbProtocol`               | USB protocol                                          |
+| `cdx:hbom:usbProtocolName`           | USB protocol name from verbose descriptors            |
+| `cdx:hbom:usbInterfaceClasses`       | USB interface class names from verbose descriptors    |
+| `cdx:hbom:usbConfigurationCount`     | Number of USB configurations reported                 |
+| `cdx:hbom:usbInterfaceCount`         | Number of USB interfaces reported                     |
+| `cdx:hbom:maxPowerMilliAmps`         | USB maximum advertised bus power in mA                |
+| `cdx:hbom:selfPowered`               | Whether the USB device reports self-powered operation |
+| `cdx:hbom:remoteWakeup`              | Whether the USB device reports remote wakeup support  |
+| `cdx:hbom:currentAvailable`          | Available USB bus power/current                       |
+| `cdx:hbom:currentRequired`           | Required USB bus power/current                        |
+| `cdx:hbom:extraOperatingCurrentUsed` | Additional USB operating current                      |
+
+## Cellular / modem properties
+
+| Property                       | Meaning                                                  |
+| ------------------------------ | -------------------------------------------------------- |
+| `cdx:hbom:modemPath`           | D-Bus modem path reported by ModemManager                |
+| `cdx:hbom:plugin`              | Backend/plugin selected for the modem or firmware device |
+| `cdx:hbom:signalQuality`       | Signal quality percentage                                |
+| `cdx:hbom:accessTechnologies`  | Active cellular access technologies                      |
+| `cdx:hbom:operatorName`        | Current network operator name                            |
+| `cdx:hbom:equipmentIdentifier` | Equipment identifier such as IMEI, redacted by default   |
+| `cdx:hbom:imei`                | IMEI when separately reported, redacted by default       |
+| `cdx:hbom:ownNumbers`          | Subscriber phone numbers, redacted by default            |
+| `cdx:hbom:simSlots`            | SIM slot object paths or identifiers                     |
+
+## Firmware-management properties
+
+| Property                | Meaning                                         |
+| ----------------------- | ----------------------------------------------- |
+| `cdx:hbom:protocol`     | Update protocol reported by `fwupdmgr`          |
+| `cdx:hbom:flags`        | fwupd device capability and lifecycle flags     |
+| `cdx:hbom:guids`        | GUIDs associated with an update-managed device  |
+| `cdx:hbom:instanceIds`  | fwupd instance identifiers, redacted by default |
+| `cdx:hbom:createdEpoch` | Creation/registration epoch reported by fwupd   |
 
 ## PCI properties
 
@@ -274,26 +375,40 @@ These appear across multiple hardware classes.
 
 ## Power properties
 
-| Property                       | Meaning                                              |
-| ------------------------------ | ---------------------------------------------------- |
-| `cdx:hbom:powerSource`         | Current power source                                 |
-| `cdx:hbom:chargePercent`       | Battery charge percentage                            |
-| `cdx:hbom:isAcAttached`        | Whether AC power is attached                         |
-| `cdx:hbom:isCharging`          | Whether the battery is charging                      |
-| `cdx:hbom:batteryId`           | Battery runtime identifier, redacted by default      |
-| `cdx:hbom:cycleCount`          | Battery cycle count                                  |
-| `cdx:hbom:health`              | Battery health summary                               |
-| `cdx:hbom:maximumCapacity`     | Maximum capacity percentage                          |
-| `cdx:hbom:fullyCharged`        | Whether the battery is fully charged                 |
-| `cdx:hbom:atWarningLevel`      | Whether the battery is at warning level              |
-| `cdx:hbom:deviceName`          | Battery or charger device name                       |
-| `cdx:hbom:cellRevision`        | Battery cell revision                                |
-| `cdx:hbom:batterySerialNumber` | Battery serial number, redacted by default           |
-| `cdx:hbom:chargerId`           | Charger identifier                                   |
-| `cdx:hbom:family`              | Charger family identifier                            |
-| `cdx:hbom:watts`               | Charger wattage                                      |
-| `cdx:hbom:powerSupplyType`     | Linux power-supply type such as `Battery` or `Mains` |
-| `cdx:hbom:technology`          | Linux battery chemistry / technology                 |
+| Property                         | Meaning                                              |
+| -------------------------------- | ---------------------------------------------------- |
+| `cdx:hbom:powerSource`           | Current power source                                 |
+| `cdx:hbom:chargePercent`         | Battery charge percentage                            |
+| `cdx:hbom:isAcAttached`          | Whether AC power is attached                         |
+| `cdx:hbom:isCharging`            | Whether the battery is charging                      |
+| `cdx:hbom:scope`                 | Power-supply scope such as `System`                  |
+| `cdx:hbom:batteryId`             | Battery runtime identifier, redacted by default      |
+| `cdx:hbom:cycleCount`            | Battery cycle count                                  |
+| `cdx:hbom:health`                | Battery health summary                               |
+| `cdx:hbom:maximumCapacity`       | Maximum capacity percentage                          |
+| `cdx:hbom:fullyCharged`          | Whether the battery is fully charged                 |
+| `cdx:hbom:atWarningLevel`        | Whether the battery is at warning level              |
+| `cdx:hbom:deviceName`            | Battery or charger device name                       |
+| `cdx:hbom:cellRevision`          | Battery cell revision                                |
+| `cdx:hbom:batterySerialNumber`   | Battery serial number, redacted by default           |
+| `cdx:hbom:chargerId`             | Charger identifier                                   |
+| `cdx:hbom:family`                | Charger family identifier                            |
+| `cdx:hbom:watts`                 | Charger wattage                                      |
+| `cdx:hbom:powerSupplyType`       | Linux power-supply type such as `Battery` or `Mains` |
+| `cdx:hbom:technology`            | Linux battery chemistry / technology                 |
+| `cdx:hbom:powerNow`              | Instantaneous power draw reported by Linux           |
+| `cdx:hbom:warningLevel`          | UPower or platform battery warning level             |
+| `cdx:hbom:voltageNow`            | Instantaneous voltage reported by Linux              |
+| `cdx:hbom:voltageMinDesign`      | Minimum design voltage                               |
+| `cdx:hbom:voltageMaxDesign`      | Maximum design voltage                               |
+| `cdx:hbom:currentNow`            | Instantaneous current draw                           |
+| `cdx:hbom:energyNow`             | Current battery energy                               |
+| `cdx:hbom:energyFull`            | Full-charge battery energy                           |
+| `cdx:hbom:energyFullDesign`      | Design full-charge battery energy                    |
+| `cdx:hbom:chargeNow`             | Current battery charge                               |
+| `cdx:hbom:chargeFull`            | Full-charge battery charge                           |
+| `cdx:hbom:chargeFullDesign`      | Design full-charge battery charge                    |
+| `cdx:hbom:designCapacityPercent` | Full-charge vs. design-capacity percentage           |
 
 ## Linux sensor, thermal, and TPM properties
 
@@ -326,13 +441,16 @@ These are emitted in narrower situations but are still part of the current surfa
 | Property                  | Meaning                                             |
 | ------------------------- | --------------------------------------------------- |
 | `cdx:hbom:busInfo`        | Bus location / topology information                 |
+| `cdx:hbom:clockHz`        | Bus or device clock reported by `lshw`              |
 | `cdx:hbom:kernelDevices`  | Kernel device nodes grouped into a single component |
 | `cdx:hbom:kernelId`       | Kernel-facing identifier                            |
 | `cdx:hbom:kernelVersion`  | Kernel or driver version                            |
+| `cdx:hbom:isClaimed`      | Whether the Linux device is currently claimed       |
 | `cdx:hbom:modes`          | Supported operating or display modes                |
 | `cdx:hbom:physicalStores` | Physical stores backing an APFS container           |
 | `cdx:hbom:sampleRate`     | Single sample rate                                  |
 | `cdx:hbom:sampleRates`    | Multiple sample rates                               |
+| `cdx:hbom:width`          | Device width / bit width reported by `lshw`         |
 
 ## Privacy-sensitive properties
 
@@ -348,6 +466,10 @@ These properties may contain unique identifiers and remain redacted by default w
 - `cdx:hbom:deviceTreeLinuxSerial`
 - `cdx:hbom:displaySerialNumber`
 - `cdx:hbom:domainUuid`
+- `cdx:hbom:deviceUuid`
+- `cdx:hbom:equipmentIdentifier`
+- `cdx:hbom:imei`
+- `cdx:hbom:instanceIds`
 - `cdx:hbom:macAddress`
 - `cdx:hbom:mmcSerialNumber`
 - `cdx:hbom:platformUuid`
@@ -356,3 +478,4 @@ These properties may contain unique identifiers and remain redacted by default w
 - `cdx:hbom:serialNumberRight`
 - `cdx:hbom:switchUid`
 - `cdx:hbom:volumeUuid`
+- `cdx:hbom:ownNumbers`

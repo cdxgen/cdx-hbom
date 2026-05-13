@@ -96,8 +96,10 @@ export function getCommandPlan(options = {}) {
  * Collect hardware inventory for the requested target.
  *
  * On Linux, `includePrivilegedEnrichment: true` enables SMBIOS enrichment via
- * `dmidecode`. Upstream callers should expect that this usually requires root
- * privileges or passwordless sudo on the target host.
+ * `dmidecode` and allows a non-interactive `sudo -n` retry for a small set of
+ * permission-sensitive optional commands such as `drm_info`. Upstream callers
+ * should expect that this usually requires root privileges or passwordless sudo
+ * on the target host.
  *
  * @param {{
  *   platform?: string,

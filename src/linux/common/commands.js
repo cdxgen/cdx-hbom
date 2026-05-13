@@ -12,7 +12,8 @@
  *   parser: string,
  *   purpose: string,
  *   phase: string,
- *   sensitiveFields?: string[]
+ *   sensitiveFields?: string[],
+ *   privilege?: "none" | "optional" | "required"
  * }>}
  */
 export const LINUX_COMMON_COMMANDS = Object.freeze([
@@ -70,10 +71,10 @@ export const LINUX_COMMON_COMMANDS = Object.freeze([
     id: "lspci-vmmnn",
     category: "bus",
     command: "lspci",
-    args: ["-Dvmmnn"],
+    args: ["-Dvmmnnk"],
     parser: "lspci-vmmnn",
     purpose:
-      "Collect PCI bus and controller inventory when lspci is available.",
+      "Collect PCI bus, controller, and kernel driver inventory when lspci is available.",
     phase: "collector-v1",
   }),
   Object.freeze({
@@ -86,13 +87,129 @@ export const LINUX_COMMON_COMMANDS = Object.freeze([
     phase: "collector-v1",
   }),
   Object.freeze({
+    id: "lsusb-verbose",
+    category: "bus",
+    command: "lsusb",
+    args: ["-v"],
+    parser: "lsusb-verbose-text",
+    purpose:
+      "Collect richer USB descriptor metadata including class, power, and interface details when lsusb is available.",
+    phase: "collector-v1",
+    sensitiveFields: ["iSerial"],
+  }),
+  Object.freeze({
     id: "ethtool-driver-info",
     category: "network",
     command: "ethtool",
-    args: ["-i", "eth0"],
+    args: ["-i", "<interface>"],
     parser: "ethtool-driver-info",
     purpose:
-      "Collect per-interface network driver and firmware metadata when ethtool is available.",
+      "Collect per-interface network driver and firmware metadata when ethtool is available. The collector substitutes the interface name at runtime.",
+    phase: "collector-v1",
+  }),
+  Object.freeze({
+    id: "cpupower-frequency-info",
+    category: "cpu-memory",
+    command: "cpupower",
+    args: ["frequency-info"],
+    parser: "cpupower-frequency-info-text",
+    purpose:
+      "Collect CPU frequency driver, governor, and boost policy metadata when cpupower is available.",
+    phase: "collector-v1",
+  }),
+  Object.freeze({
+    id: "cpupower-idle-info",
+    category: "cpu-memory",
+    command: "cpupower",
+    args: ["idle-info"],
+    parser: "cpupower-idle-info-text",
+    purpose:
+      "Collect CPU idle driver, governor, and idle-state topology when cpupower is available.",
+    phase: "collector-v1",
+  }),
+  Object.freeze({
+    id: "drm-info-json",
+    category: "graphics",
+    command: "drm_info",
+    args: ["-j"],
+    parser: "drm-info-json",
+    purpose:
+      "Collect richer DRM/KMS graphics adapter and connector metadata when drm_info is available.",
+    phase: "collector-v1",
+    privilege: "optional",
+  }),
+  Object.freeze({
+    id: "upower-dump",
+    category: "power",
+    command: "upower",
+    args: ["--dump"],
+    parser: "upower-dump-text",
+    purpose:
+      "Collect user-session power and battery state from UPower when available.",
+    phase: "collector-v1",
+    sensitiveFields: ["serial"],
+  }),
+  Object.freeze({
+    id: "fwupdmgr-devices-json",
+    category: "platform",
+    command: "fwupdmgr",
+    args: ["get-devices", "--json"],
+    parser: "fwupdmgr-devices-json",
+    purpose:
+      "Collect firmware-update-capable device inventory from fwupd when available.",
+    phase: "collector-v1",
+    sensitiveFields: ["Serial", "InstanceIds"],
+  }),
+  Object.freeze({
+    id: "boltctl-domains",
+    category: "bus",
+    command: "boltctl",
+    args: ["domains", "--verbose"],
+    parser: "boltctl-text",
+    purpose:
+      "Collect Thunderbolt/USB4 domain topology from boltctl when available.",
+    phase: "collector-v1",
+    sensitiveFields: ["uuid"],
+  }),
+  Object.freeze({
+    id: "boltctl-list-all",
+    category: "bus",
+    command: "boltctl",
+    args: ["list", "--all"],
+    parser: "boltctl-text",
+    purpose:
+      "Collect Thunderbolt/USB4 device inventory from boltctl when available.",
+    phase: "collector-v1",
+    sensitiveFields: ["uuid"],
+  }),
+  Object.freeze({
+    id: "mmcli-list-json",
+    category: "network",
+    command: "mmcli",
+    args: ["-L", "-J"],
+    parser: "mmcli-list-json",
+    purpose: "Collect modem inventory from ModemManager when available.",
+    phase: "collector-v1",
+  }),
+  Object.freeze({
+    id: "mmcli-modem-json",
+    category: "network",
+    command: "mmcli",
+    args: ["-m", "<modem-path>", "-J"],
+    parser: "mmcli-json",
+    purpose:
+      "Collect per-modem detail from ModemManager when available. The collector substitutes the modem object path at runtime.",
+    phase: "collector-v1",
+    sensitiveFields: ["equipment-id", "imei", "own-numbers"],
+  }),
+  Object.freeze({
+    id: "edid-decode",
+    category: "graphics",
+    command: "edid-decode",
+    args: ["<edid-path>"],
+    parser: "edid-decode-text",
+    purpose:
+      "Collect richer display capability metadata from decoded EDID text when edid-decode is available. The collector substitutes the per-connector EDID sysfs path at runtime.",
     phase: "collector-v1",
   }),
   Object.freeze({
@@ -105,6 +222,7 @@ export const LINUX_COMMON_COMMANDS = Object.freeze([
       "Privileged enrichment for SMBIOS firmware and board metadata when permissions permit.",
     phase: "planned-enrichment",
     sensitiveFields: ["Serial Number", "UUID"],
+    privilege: "required",
   }),
   Object.freeze({
     id: "lshw-json",

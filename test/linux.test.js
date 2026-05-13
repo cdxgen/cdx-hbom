@@ -6,10 +6,16 @@ import {
   buildLinuxHbom,
   parseAsoundCards,
   parseAsoundPcm,
+  parseBoltctlText,
   parseCpuInfo,
+  parseCpupowerFrequencyInfo,
+  parseCpupowerIdleInfo,
   parseDmidecodeText,
+  parseDrmInfoJson,
   parseEdidBuffer,
+  parseEdidDecodeText,
   parseEthtoolDriverInfo,
+  parseFwupdmgrDevicesJson,
   parseHostnamectlJson,
   parseHwmonAttributes,
   parseIpLinkJson,
@@ -19,8 +25,12 @@ import {
   parseLsmemJson,
   parseLspciVmmnn,
   parseLsusbText,
+  parseLsusbVerboseText,
   parseMemInfo,
+  parseMmcliJson,
+  parseMmcliListJson,
   parseOsRelease,
+  parseUpowerDump,
 } from "../src/linux/common/index.js";
 
 test("parseOsRelease parses shell-style key/value pairs", () => {
@@ -194,6 +204,441 @@ Bus 001 Device 004: ID 05ac:8514 Apple, Inc. FaceTime HD Camera
       description: "Apple, Inc. FaceTime HD Camera",
     },
   ]);
+});
+
+test("parseLsusbVerboseText extracts richer USB descriptor metadata", () => {
+  const parsed =
+    parseLsusbVerboseText(`Bus 001 Device 002: ID 8087:0029 Intel Corp. AX200 Bluetooth
+Device Descriptor:
+  bcdUSB               2.01
+  bDeviceClass          224 Wireless
+  bDeviceSubClass         1 Radio Frequency
+  bDeviceProtocol         1 Bluetooth
+  idVendor           0x8087 Intel Corp.
+  idProduct          0x0029 AX200 Bluetooth
+  iManufacturer           1 Intel Corp.
+  iProduct                2 AX200 Bluetooth
+  iSerial                 3 BT-123456
+  bNumConfigurations      1
+  Configuration Descriptor:
+    bNumInterfaces          2
+    bmAttributes         0xe0
+      Self Powered
+      Remote Wakeup
+    MaxPower              100mA
+    Interface Descriptor:
+      bInterfaceClass       224 Wireless
+    Interface Descriptor:
+      bInterfaceClass       224 Wireless
+`);
+
+  assert.deepEqual(parsed, [
+    {
+      bus: "001",
+      device: "002",
+      vendorId: "8087",
+      productId: "0029",
+      description: "Intel Corp. AX200 Bluetooth",
+      version: "2.01",
+      deviceClassName: "Wireless",
+      deviceSubclassName: "Radio Frequency",
+      deviceProtocolName: "Bluetooth",
+      manufacturer: "Intel Corp.",
+      productName: "AX200 Bluetooth",
+      serial: "BT-123456",
+      configurationCount: 1,
+      interfaceCount: 2,
+      maxPowerMilliAmps: 100,
+      selfPowered: true,
+      remoteWakeup: true,
+      interfaceClassNames: ["Wireless"],
+    },
+  ]);
+});
+
+test("parseCpupowerFrequencyInfo parses driver, governor, and boost metadata", () => {
+  const parsed = parseCpupowerFrequencyInfo(`analyzing CPU 13:
+  driver: amd-pstate-epp
+  hardware limits: 400 MHz - 5.10 GHz
+  available cpufreq governors: performance powersave
+  current policy: frequency should be within 400 MHz and 5.10 GHz.
+                  The governor "performance" may decide which speed to use
+                  within this range.
+  current CPU frequency: Unable to call hardware
+  current CPU frequency: 4.09 GHz (asserted by call to kernel)
+  boost state support:
+    Supported: yes
+    Active: yes
+    AMD PSTATE Highest Performance: 196. Maximum Frequency: 5.10 GHz.
+    AMD PSTATE Nominal Performance: 146. Nominal Frequency: 3.80 GHz.
+    AMD PSTATE Lowest Non-linear Performance: 42. Lowest Non-linear Frequency: 1.09 GHz.
+    AMD PSTATE Lowest Performance: 16. Lowest Frequency: 400 MHz.
+`);
+
+  assert.deepEqual(parsed, {
+    driver: "amd-pstate-epp",
+    hardwareMin: "400 MHz",
+    hardwareMax: "5.10 GHz",
+    availableGovernors: ["performance", "powersave"],
+    policyMin: "400 MHz",
+    policyMax: "5.10 GHz",
+    governor: "performance",
+    currentFrequencies: [
+      "Unable to call hardware",
+      "4.09 GHz (asserted by call to kernel)",
+    ],
+    boostSupported: true,
+    boostActive: true,
+    highestPerformance: 196,
+    maximumFrequency: "5.10 GHz",
+    nominalPerformance: 146,
+    nominalFrequency: "3.80 GHz",
+    lowestNonLinearPerformance: 42,
+    lowestNonLinearFrequency: "1.09 GHz",
+    lowestPerformance: 16,
+    lowestFrequency: "400 MHz",
+  });
+});
+
+test("parseCpupowerIdleInfo parses idle driver, governor, and states", () => {
+  const parsed = parseCpupowerIdleInfo(`CPUidle driver: acpi_idle
+CPUidle governor: menu
+
+Number of idle states: 3
+Available idle states: POLL C1 C2
+POLL:
+Flags/Description: CPUIDLE CORE POLL IDLE
+Latency: 0
+Usage: 10
+Duration: 11
+C1:
+Flags/Description: ACPI FFH MWAIT 0x0
+Latency: 1
+Usage: 20
+Duration: 22
+C2:
+Flags/Description: ACPI IOPORT 0x414
+Latency: 18
+Usage: 30
+Duration: 33
+`);
+
+  assert.deepEqual(parsed, {
+    driver: "acpi_idle",
+    governor: "menu",
+    idleStateCount: 3,
+    availableIdleStates: ["POLL", "C1", "C2"],
+    idleStates: [
+      {
+        name: "POLL",
+        description: "CPUIDLE CORE POLL IDLE",
+        latency: 0,
+        usage: 10,
+        duration: 11,
+      },
+      {
+        name: "C1",
+        description: "ACPI FFH MWAIT 0x0",
+        latency: 1,
+        usage: 20,
+        duration: 22,
+      },
+      {
+        name: "C2",
+        description: "ACPI IOPORT 0x414",
+        latency: 18,
+        usage: 30,
+        duration: 33,
+      },
+    ],
+  });
+});
+
+test("parseDrmInfoJson normalizes DRM cards and connectors", () => {
+  const parsed = parseDrmInfoJson(`{
+    "/dev/dri/card1": {
+      "driver": {
+        "name": "vc4",
+        "desc": "Broadcom VC4 graphics",
+        "version": { "major": 0, "minor": 0, "patch": 0 },
+        "kernel": {
+          "release": "6.8.0-1053-raspi",
+          "version": "#57-Ubuntu"
+        },
+        "client_caps": { "ATOMIC": true, "ASPECT_RATIO": true },
+        "caps": { "DUMB_BUFFER": 1 }
+      },
+      "device": {
+        "available_nodes": 1,
+        "bus_type": 2,
+        "device_data": { "compatible": ["brcm,bcm2712d0-vc6"] },
+        "bus_data": { "fullname": "/axi/gpu" }
+      },
+      "fb_size": {
+        "min_width": 0,
+        "max_width": 8192,
+        "min_height": 0,
+        "max_height": 8192
+      },
+      "connectors": [
+        {
+          "id": 32,
+          "type": 11,
+          "status": 1,
+          "phy_width": 600,
+          "phy_height": 340,
+          "subpixel": 1,
+          "encoder_id": 31,
+          "encoders": [31],
+          "modes": [
+            { "name": "3840x2160", "hdisplay": 3840, "vdisplay": 2160 }
+          ],
+          "properties": {
+            "DPMS": {
+              "value": 0,
+              "spec": [{ "name": "On", "value": 0 }]
+            },
+            "link-status": {
+              "value": 0,
+              "spec": [{ "name": "Good", "value": 0 }]
+            },
+            "non-desktop": { "value": 0 },
+            "max bpc": { "value": 12 },
+            "Colorspace": {
+              "value": 0,
+              "spec": [{ "name": "Default", "value": 0 }]
+            }
+          }
+        }
+      ]
+    }
+  }`);
+
+  assert.deepEqual(parsed.cards, [
+    {
+      name: "card1",
+      kind: "card",
+      drmNode: "/dev/dri/card1",
+      driver: "vc4",
+      driverDescription: "Broadcom VC4 graphics",
+      driverVersion: "0.0.0",
+      kernelRelease: "6.8.0-1053-raspi",
+      kernelVersion: "#57-Ubuntu",
+      clientCaps: { ATOMIC: true, ASPECT_RATIO: true },
+      caps: { DUMB_BUFFER: 1 },
+      availableNodes: 1,
+      drmBusType: "platform",
+      vendorId: undefined,
+      productId: undefined,
+      subsystemVendorId: undefined,
+      subsystemDeviceId: undefined,
+      pciSlot: undefined,
+      ofCompatible: ["brcm,bcm2712d0-vc6"],
+      ofFullname: "/axi/gpu",
+      framebuffer: {
+        min_width: 0,
+        max_width: 8192,
+        min_height: 0,
+        max_height: 8192,
+      },
+    },
+  ]);
+  assert.deepEqual(parsed.connectors, [
+    {
+      cardName: "card1",
+      kind: "connector",
+      drmConnectorId: 32,
+      connectorType: "HDMI-A",
+      connectorTypeCode: 11,
+      status: "connected",
+      statusCode: 1,
+      physicalWidthMm: 600,
+      physicalHeightMm: 340,
+      subpixel: 1,
+      encoderId: 31,
+      encoderIds: [31],
+      modes: ["3840x2160"],
+      dpms: "On",
+      linkStatus: "Good",
+      nonDesktop: 0,
+      maxBpc: 12,
+      colorspace: "Default",
+      contentProtection: undefined,
+      crtcId: undefined,
+      variableRefreshEnabled: undefined,
+      name: "card1-HDMI-A-1",
+    },
+  ]);
+});
+
+test("parseBoltctlText extracts Thunderbolt domain and device properties", () => {
+  const parsed = parseBoltctlText(` ● domain0
+   ├─ uuid:          11111111-2222-3333-4444-555555555555
+   ├─ status:        online
+   ├─ security:      user
+   ├─ iommu:         yes
+   ├─ rx speed:      40 Gb/s
+   ├─ tx speed:      40 Gb/s
+
+ ● CalDigit TS4
+   ├─ vendor:        CalDigit
+   ├─ uuid:          99999999-aaaa-bbbb-cccc-dddddddddddd
+   ├─ type:          peripheral
+   ├─ generation:    Thunderbolt 4
+   ├─ status:        authorized
+   │  authorized:    2026-05-13 12:00:00 UTC
+`);
+
+  assert.deepEqual(parsed, [
+    {
+      name: "domain0",
+      uuid: "11111111-2222-3333-4444-555555555555",
+      status: "online",
+      security: "user",
+      iommu: "yes",
+      rxSpeed: "40 Gb/s",
+      txSpeed: "40 Gb/s",
+    },
+    {
+      name: "CalDigit TS4",
+      vendor: "CalDigit",
+      uuid: "99999999-aaaa-bbbb-cccc-dddddddddddd",
+      type: "peripheral",
+      generation: "Thunderbolt 4",
+      status: "authorized",
+      authorized: "2026-05-13 12:00:00 UTC",
+    },
+  ]);
+});
+
+test("parseMmcli JSON helpers normalize modem list and detail output", () => {
+  const list = parseMmcliListJson(`{
+    "modem-list": [
+      { "modem-path": "/org/freedesktop/ModemManager1/Modem/0" }
+    ]
+  }`);
+  const detail = parseMmcliJson(`{
+    "modem": {
+      "generic": {
+        "manufacturer": "Quectel",
+        "model": "RM500Q-GL",
+        "revision": "RM500QGLABR11A06M4G",
+        "plugin": "quectel",
+        "drivers": ["qmi_wwan", "option"],
+        "equipment-id": "359072060001234"
+      },
+      "status": {
+        "state": "registered",
+        "signal-quality": { "value": 72, "recent": true },
+        "access-technologies": "lte, 5gnr"
+      },
+      "3gpp": {
+        "operator-name": "ExampleTel",
+        "imei": "359072060001234"
+      },
+      "own-numbers": ["+15551234567"],
+      "sim-slots": ["/org/freedesktop/ModemManager1/SIM/0"]
+    }
+  }`);
+
+  assert.deepEqual(list, [
+    {
+      modemPath: "/org/freedesktop/ModemManager1/Modem/0",
+    },
+  ]);
+  assert.equal(detail.modem.generic.manufacturer, "Quectel");
+  assert.equal(detail.modem.status.signalQuality.value, 72);
+  assert.equal(detail.modem["3gpp"].operatorName, "ExampleTel");
+});
+
+test("parseUpowerDump extracts display device and daemon state", () => {
+  const parsed =
+    parseUpowerDump(`Device: /org/freedesktop/UPower/devices/DisplayDevice
+  power supply:         yes
+  updated:              Wed May 13 15:27:59 2026
+  has history:          yes
+  has statistics:       no
+  battery
+    present:             yes
+    state:               discharging
+    warning-level:       none
+    percentage:          84%
+    energy:              62.1 Wh
+    energy-full:         74.0 Wh
+    energy-full-design:  82.0 Wh
+    energy-rate:         37.0 W
+    voltage:             15.234 V
+    vendor:              SMP
+    model:               DELL M59JH45
+    serial:              BATT-12345
+
+Daemon:
+  daemon-version:  1.90.3
+  on-battery:      yes
+  lid-is-present:  yes
+`);
+
+  assert.equal(parsed.displayDevice?.deviceType, "battery");
+  assert.equal(parsed.displayDevice?.percentage, 84);
+  assert.equal(parsed.displayDevice?.warningLevel, "none");
+  assert.equal(parsed.daemon.onBattery, true);
+  assert.equal(parsed.daemon.daemonVersion, "1.90.3");
+});
+
+test("parseFwupdmgrDevicesJson normalizes fwupd device arrays", () => {
+  const parsed = parseFwupdmgrDevicesJson(`{
+    "Devices": [
+      {
+        "Name": "Acer SSD FA100 256GB",
+        "Plugin": "nvme",
+        "Version": "1.4.6.57",
+        "Vendor": "Biwin Storage Technology Co., Ltd.",
+        "VendorId": "NVME:0x1DEE",
+        "Guid": ["9e02e500-1f91-54f6-a50a-10ad5ab020d5"],
+        "InstanceIds": ["NVME\\\\VEN_1DEE&DEV_5216"],
+        "Flags": ["updatable", "registered"],
+        "Created": 1778220995
+      }
+    ]
+  }`);
+
+  assert.deepEqual(parsed, [
+    {
+      name: "Acer SSD FA100 256GB",
+      plugin: "nvme",
+      version: "1.4.6.57",
+      vendor: "Biwin Storage Technology Co., Ltd.",
+      vendorId: "NVME:0x1DEE",
+      guid: ["9e02e500-1f91-54f6-a50a-10ad5ab020d5"],
+      instanceIds: ["NVME\\VEN_1DEE&DEV_5216"],
+      flags: ["updatable", "registered"],
+      created: 1778220995,
+    },
+  ]);
+});
+
+test("parseEdidDecodeText extracts richer display capability metadata", () => {
+  const parsed = parseEdidDecodeText(`EDID version: 1.4
+Display Product Name: DELL U2720Q
+Display Product Serial Number: SN123456
+Native detailed mode: 3840x2160p60 533.250 MHz
+Image size: 60 cm x 34 cm
+Bits per primary color channel: 10
+Supported color formats: RGB 4:4:4, YCbCr 4:4:4, YCbCr 4:2:2
+Supported EOTF: Traditional SDR, SMPTE ST2084
+`);
+
+  assert.deepEqual(parsed, {
+    version: "1.4",
+    name: "DELL U2720Q",
+    serialNumber: "SN123456",
+    preferredResolution: "3840x2160p60",
+    widthCm: 60,
+    heightCm: 34,
+    bitsPerColorChannel: 10,
+    colorFormats: ["RGB 4:4:4", "YCbCr 4:4:4", "YCbCr 4:2:2"],
+    hdrEotf: ["Traditional SDR", "SMPTE ST2084"],
+  });
 });
 
 test("parseDmidecodeText parses BIOS, system, and baseboard sections", () => {
@@ -910,6 +1355,300 @@ test("linux build emits native audio, video, and EDID-backed display components"
   );
 });
 
+test("linux build merges drm_info enrichment into display components with graceful fallback", () => {
+  const bom = buildLinuxHbom({
+    architecture: "arm64",
+    sources: {
+      osRelease: { NAME: "Ubuntu" },
+      cpuInfo: [{ processor: "0", Processor: "ARMv8 Processor rev 1 (v8l)" }],
+      memInfo: { MemTotal: { value: 8192000, unit: "kB" } },
+      dmiInfo: {
+        sys_vendor: "Raspberry Pi Ltd",
+        product_name: "Raspberry Pi 5",
+      },
+      drmDevices: [
+        {
+          name: "card1",
+          kind: "card",
+          driver: "vc4-drm",
+          ofName: "gpu",
+          ofCompatible: ["brcm,bcm2712d0-vc6"],
+        },
+        {
+          name: "card1-HDMI-A-1",
+          kind: "connector",
+          status: "connected",
+          enabled: "enabled",
+          modes: ["3840x2160"],
+          edid: parseEdidBuffer(createSampleEdidBuffer()),
+        },
+      ],
+      drmInfo: {
+        cards: [
+          {
+            name: "card1",
+            kind: "card",
+            drmNode: "/dev/dri/card1",
+            driver: "vc4",
+            driverDescription: "Broadcom VC4 graphics",
+            driverVersion: "0.0.0",
+            kernelRelease: "6.8.0-1053-raspi",
+            drmBusType: "platform",
+            availableNodes: 1,
+            framebuffer: {
+              min_width: 0,
+              max_width: 8192,
+              min_height: 0,
+              max_height: 8192,
+            },
+            clientCaps: { ATOMIC: true },
+            caps: { DUMB_BUFFER: 1 },
+            ofCompatible: ["brcm,bcm2712d0-vc6"],
+          },
+        ],
+        connectors: [
+          {
+            cardName: "card1",
+            kind: "connector",
+            drmConnectorId: 32,
+            connectorType: "HDMI-A",
+            status: "connected",
+            dpms: "On",
+            linkStatus: "Good",
+            nonDesktop: 0,
+            maxBpc: 12,
+            colorspace: "Default",
+          },
+        ],
+      },
+    },
+  });
+
+  const adapter = bom.components.find(
+    (component) =>
+      getPropertyValue(component, "cdx:hbom:hardwareClass") ===
+      "display-adapter",
+  );
+  const connector = bom.components.find(
+    (component) =>
+      getPropertyValue(component, "cdx:hbom:hardwareClass") ===
+      "display-connector",
+  );
+
+  assert.equal(getPropertyValue(adapter, "cdx:hbom:drmNode"), "/dev/dri/card1");
+  assert.equal(
+    getPropertyValue(adapter, "cdx:hbom:driverDescription"),
+    "Broadcom VC4 graphics",
+  );
+  assert.equal(
+    getPropertyValue(adapter, "cdx:hbom:kernelRelease"),
+    "6.8.0-1053-raspi",
+  );
+  assert.equal(
+    getPropertyValue(adapter, "cdx:hbom:clientCapabilities"),
+    "ATOMIC",
+  );
+  assert.equal(
+    getPropertyValue(connector, "cdx:hbom:displayConnectorType"),
+    "HDMI-A",
+  );
+  assert.equal(getPropertyValue(connector, "cdx:hbom:drmConnectorId"), "32");
+  assert.equal(getPropertyValue(connector, "cdx:hbom:dpms"), "On");
+  assert.equal(getPropertyValue(connector, "cdx:hbom:linkStatus"), "Good");
+  assert.equal(getPropertyValue(connector, "cdx:hbom:maxBitsPerChannel"), "12");
+});
+
+test("linux build emits Thunderbolt, modem, fwupd, UPower, EDID decode, and command diagnostic enrichment", () => {
+  const bom = buildLinuxHbom({
+    architecture: "amd64",
+    sources: {
+      osRelease: { NAME: "Ubuntu" },
+      cpuInfo: [
+        {
+          processor: "0",
+          vendor_id: "AuthenticAMD",
+          "model name": "AMD Ryzen 7 8845HS",
+        },
+      ],
+      memInfo: { MemTotal: { value: 32768000, unit: "kB" } },
+      dmiInfo: { sys_vendor: "AZW", product_name: "SER8" },
+      upower:
+        parseUpowerDump(`Device: /org/freedesktop/UPower/devices/DisplayDevice
+  power supply:         yes
+  battery
+    state:               discharging
+    warning-level:       low
+    percentage:          84%
+    energy:              62.1 Wh
+    energy-full:         74.0 Wh
+    energy-full-design:  82.0 Wh
+    energy-rate:         37.0 W
+    voltage:             15.234 V
+    vendor:              SMP
+    model:               DELL M59JH45
+    serial:              BATT-12345
+
+Daemon:
+  on-battery:      yes
+  daemon-version:  1.90.3
+`),
+      boltctlDomains: parseBoltctlText(` ● domain0
+   ├─ uuid:          11111111-2222-3333-4444-555555555555
+   ├─ status:        online
+   ├─ security:      user
+   ├─ iommu:         yes
+   ├─ rx speed:      40 Gb/s
+   ├─ tx speed:      40 Gb/s
+`),
+      boltctlDevices: parseBoltctlText(` ● CalDigit TS4
+   ├─ vendor:        CalDigit
+   ├─ uuid:          99999999-aaaa-bbbb-cccc-dddddddddddd
+   ├─ type:          peripheral
+   ├─ generation:    Thunderbolt 4
+   ├─ status:        authorized
+`),
+      modems: [
+        {
+          modemPath: "/org/freedesktop/ModemManager1/Modem/0",
+          modem: {
+            generic: {
+              manufacturer: "Quectel",
+              model: "RM500Q-GL",
+              revision: "RM500QGLABR11A06M4G",
+              plugin: "quectel",
+              drivers: ["qmi_wwan", "option"],
+              equipmentId: "359072060001234",
+            },
+            status: {
+              state: "registered",
+              signalQuality: { value: 72 },
+              accessTechnologies: "lte, 5gnr",
+            },
+            "3gpp": {
+              operatorName: "ExampleTel",
+              imei: "359072060001234",
+            },
+            ownNumbers: ["+15551234567"],
+            simSlots: ["/org/freedesktop/ModemManager1/SIM/0"],
+          },
+        },
+      ],
+      fwupdDevices: parseFwupdmgrDevicesJson(`{
+        "Devices": [
+          {
+            "Name": "Acer SSD FA100 256GB",
+            "Plugin": "nvme",
+            "Version": "1.4.6.57",
+            "Vendor": "Biwin Storage Technology Co., Ltd.",
+            "VendorId": "NVME:0x1DEE",
+            "Guid": ["9e02e500-1f91-54f6-a50a-10ad5ab020d5"],
+            "Flags": ["updatable", "registered"]
+          }
+        ]
+      }`),
+      drmDevices: [
+        {
+          name: "card0",
+          kind: "card",
+          driver: "amdgpu",
+          pciSlot: "0000:c6:00.0",
+          vendorId: "1002",
+          productId: "1900",
+        },
+        {
+          name: "card0-HDMI-A-1",
+          kind: "connector",
+          status: "connected",
+          enabled: "enabled",
+          modes: ["3840x2160"],
+          edid: parseEdidBuffer(createSampleEdidBuffer()),
+        },
+      ],
+      edidDecoded: [
+        {
+          name: "card0-HDMI-A-1",
+          bitsPerColorChannel: 10,
+          colorFormats: ["RGB 4:4:4", "YCbCr 4:4:4"],
+          hdrEotf: ["Traditional SDR", "SMPTE ST2084"],
+        },
+      ],
+    },
+    commandDiagnostics: [
+      {
+        id: "edid-decode:card0-HDMI-A-1",
+        issue: "missing-command",
+        command: "edid-decode",
+        installHint: "install edid-decode",
+      },
+    ],
+  });
+
+  const thunderboltDevice = bom.components.find(
+    (component) =>
+      getPropertyValue(component, "cdx:hbom:hardwareClass") ===
+      "thunderbolt-device",
+  );
+  const modem = bom.components.find(
+    (component) =>
+      getPropertyValue(component, "cdx:hbom:hardwareClass") === "modem",
+  );
+  const firmwareDevice = bom.components.find(
+    (component) =>
+      getPropertyValue(component, "cdx:hbom:hardwareClass") ===
+      "firmware-device",
+  );
+  const displayConnector = bom.components.find(
+    (component) =>
+      getPropertyValue(component, "cdx:hbom:hardwareClass") ===
+      "display-connector",
+  );
+  const battery = bom.components.find(
+    (component) =>
+      getPropertyValue(component, "cdx:hbom:hardwareClass") === "power",
+  );
+
+  assert.equal(
+    getPropertyValue(bom.metadata.component, "cdx:hbom:powerSource"),
+    "Battery",
+  );
+  assert.equal(
+    getPropertyValue(bom.metadata.component, "cdx:hbom:isAcAttached"),
+    "false",
+  );
+  assert.equal(getPropertyValue(battery, "cdx:hbom:warningLevel"), "low");
+  assert.equal(thunderboltDevice?.name, "CalDigit TS4");
+  assert.equal(
+    getPropertyValue(thunderboltDevice, "cdx:hbom:deviceUuid"),
+    "redacted:dddd",
+  );
+  assert.equal(modem?.name, "RM500Q-GL");
+  assert.equal(getPropertyValue(modem, "cdx:hbom:plugin"), "quectel");
+  assert.equal(getPropertyValue(modem, "cdx:hbom:imei"), "redacted:1234");
+  assert.equal(firmwareDevice?.name, "Acer SSD FA100 256GB");
+  assert.equal(getPropertyValue(firmwareDevice, "cdx:hbom:plugin"), "nvme");
+  assert.equal(
+    getPropertyValue(displayConnector, "cdx:hbom:bitsPerColorChannel"),
+    "10",
+  );
+  assert.match(
+    getPropertyValue(displayConnector, "cdx:hbom:hdrEotf"),
+    /SMPTE ST2084/u,
+  );
+  assert.equal(
+    bom.properties.find(
+      (property) =>
+        property.name === "cdx:hbom:evidence:commandDiagnosticCount",
+    )?.value,
+    "1",
+  );
+  assert.match(
+    bom.properties.find(
+      (property) => property.name === "cdx:hbom:evidence:commandDiagnostic",
+    )?.value,
+    /missing-command/u,
+  );
+});
+
 test("linux build emits hwmon, thermal, TPM, and NVMe controller components", () => {
   const bom = buildLinuxHbom({
     architecture: "amd64",
@@ -1097,6 +1836,434 @@ test("linux build can emit native sysfs PCI, USB, and DRM components without com
         "display-connector",
     )?.name,
     "card0-HDMI-A-1",
+  );
+});
+
+test("linux build enriches CPU, network, and storage components from lshw", () => {
+  const bom = buildLinuxHbom({
+    architecture: "amd64",
+    sources: {
+      osRelease: { NAME: "Ubuntu" },
+      cpuInfo: [
+        {
+          processor: "0",
+          vendor_id: "AuthenticAMD",
+          "model name": "AMD Ryzen 7 8845HS w/ Radeon 780M Graphics",
+          flags: "sse sse2 avx avx2 svm aes",
+        },
+      ],
+      memInfo: { MemTotal: { value: 32768000, unit: "kB" } },
+      dmiInfo: { sys_vendor: "GMKtec", product_name: "NucBox K8 Plus" },
+      lscpu: {
+        Architecture: "x86_64",
+        "CPU(s)": "16",
+        "Model name": "AMD Ryzen 7 8845HS w/ Radeon 780M Graphics",
+        Flags: "sse sse2 avx avx2 svm aes",
+      },
+      networkInterfaces: [
+        {
+          name: "wlp4s0",
+          ifname: "wlp4s0",
+          address: "52:54:00:12:34:56",
+          linkType: "1",
+        },
+      ],
+      ethtool: {
+        wlp4s0: {
+          driver: "iwlwifi",
+          version: "6.8.0-111-generic",
+          "firmware-version": "77.b405f9d4.0 cc-a0-77.ucode",
+          "bus-info": "0000:04:00.0",
+        },
+      },
+      blockDevices: [
+        {
+          name: "nvme0n1",
+          transport: "nvme",
+          removable: false,
+          rotational: false,
+          size: 2048,
+        },
+      ],
+      nvmeControllers: [
+        {
+          name: "nvme0",
+          address: "0000:05:00.0",
+          namespaces: ["nvme0n1"],
+        },
+      ],
+      lshw: [
+        {
+          id: "system",
+          class: "system",
+          children: [
+            {
+              id: "cpu",
+              class: "processor",
+              product: "AMD Ryzen 7 8845HS w/ Radeon 780M Graphics",
+              vendor: "Advanced Micro Devices [AMD]",
+              size: 4000000000,
+              capacity: 5100000000,
+              configuration: { microcode: "175133190" },
+              capabilities: { avx2: true, svm: true, aes: true },
+            },
+            {
+              id: "wifi",
+              class: "network",
+              description: "Wireless interface",
+              product: "Wi-Fi 6 AX200",
+              vendor: "Intel Corporation",
+              businfo: "pci@0000:04:00.0",
+              logicalname: ["wlp4s0"],
+              version: "1a",
+              configuration: {
+                driver: "iwlwifi",
+                driverversion: "6.8.0-111-generic",
+                firmware: "77.b405f9d4.0 cc-a0-77.ucode",
+                link: "yes",
+                wireless: "IEEE 802.11",
+              },
+              capabilities: {
+                ethernet: true,
+                physical: "Physical interface",
+                wireless: "Wireless-LAN",
+              },
+            },
+            {
+              id: "nvme",
+              class: "storage",
+              description: "NVMe device",
+              product: "CT2000P310SSD8",
+              vendor: "Micron/Crucial Technology",
+              businfo: "pci@0000:05:00.0",
+              logicalname: "/dev/nvme0",
+              version: "V8CR000",
+              serial: "25044DB332FB",
+              configuration: {
+                driver: "nvme",
+                state: "live",
+                nqn: "nqn.2016-08.com.micron:nvme:nvm-subsystem-sn-25044DB332FB",
+              },
+              capabilities: { nvme: true, nvm_express: true },
+              children: [
+                {
+                  id: "namespace:1",
+                  class: "disk",
+                  logicalname: "/dev/nvme0n1",
+                  configuration: {
+                    wwid: "eui.000000000000000100a075254db332fb",
+                  },
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    },
+  });
+
+  const processor = bom.components.find(
+    (component) =>
+      getPropertyValue(component, "cdx:hbom:hardwareClass") === "processor",
+  );
+  const wireless = bom.components.find(
+    (component) => component.version === "wlp4s0",
+  );
+  const storage = bom.components.find(
+    (component) =>
+      getPropertyValue(component, "cdx:hbom:hardwareClass") === "storage",
+  );
+  const storageController = bom.components.find(
+    (component) =>
+      getPropertyValue(component, "cdx:hbom:hardwareClass") ===
+      "storage-controller",
+  );
+
+  assert.match(
+    getPropertyValue(processor, "cdx:hbom:cpuFeatures"),
+    /\bavx2\b/u,
+  );
+  assert.equal(
+    getPropertyValue(processor, "cdx:hbom:microcodeVersion"),
+    "175133190",
+  );
+  assert.equal(wireless?.name, "Wi-Fi 6 AX200");
+  assert.equal(wireless?.manufacturer?.name, "Intel Corporation");
+  assert.equal(getPropertyValue(wireless, "cdx:hbom:linkDetected"), "true");
+  assert.equal(storage?.name, "CT2000P310SSD8");
+  assert.equal(storage?.manufacturer?.name, "Micron/Crucial Technology");
+  assert.equal(
+    getPropertyValue(storage, "cdx:hbom:firmwareVersion"),
+    "V8CR000",
+  );
+  assert.equal(
+    getPropertyValue(storage, "cdx:hbom:wwid"),
+    "eui.000000000000000100a075254db332fb",
+  );
+  assert.equal(
+    storageController?.manufacturer?.name,
+    "Micron/Crucial Technology",
+  );
+  assert.equal(
+    getPropertyValue(storageController, "cdx:hbom:nqn"),
+    "nqn.2016-08.com.micron:nvme:nvm-subsystem-sn-25044DB332FB",
+  );
+});
+
+test("linux build emits richer USB, cpupower, and battery properties", () => {
+  const bom = buildLinuxHbom({
+    architecture: "amd64",
+    sources: {
+      osRelease: { NAME: "Ubuntu" },
+      cpuInfo: [
+        {
+          processor: "0",
+          vendor_id: "AuthenticAMD",
+          "model name": "AMD Ryzen 7 8845HS w/ Radeon 780M Graphics",
+        },
+      ],
+      memInfo: { MemTotal: { value: 32768000, unit: "kB" } },
+      dmiInfo: { sys_vendor: "GMKtec", product_name: "NucBox K8 Plus" },
+      lscpu: {
+        Architecture: "x86_64",
+        "CPU(s)": "16",
+        "Socket(s)": "1",
+        "Thread(s) per core": "2",
+        "Core(s) per socket": "8",
+        "CPU min MHz": "400.0000",
+        "CPU max MHz": "5100.0000",
+        "On-line CPU(s) list": "0-15",
+      },
+      cpupowerFrequency: {
+        driver: "amd-pstate-epp",
+        availableGovernors: ["performance", "powersave"],
+        governor: "performance",
+        hardwareMin: "400 MHz",
+        hardwareMax: "5.10 GHz",
+        boostSupported: true,
+        boostActive: true,
+        currentFrequencies: ["4.09 GHz (asserted by call to kernel)"],
+      },
+      cpupowerIdle: {
+        driver: "acpi_idle",
+        governor: "menu",
+        idleStateCount: 4,
+        availableIdleStates: ["POLL", "C1", "C2", "C3"],
+        idleStates: [
+          { name: "POLL", latency: 0, usage: 10 },
+          { name: "C1", latency: 1, usage: 20 },
+        ],
+      },
+      usbDevices: [
+        {
+          bus: "001",
+          device: "002",
+          vendorId: "8087",
+          productId: "0029",
+          description: "Intel Corp. AX200 Bluetooth",
+        },
+      ],
+      usbVerboseDevices: [
+        {
+          bus: "001",
+          device: "002",
+          vendorId: "8087",
+          productId: "0029",
+          productName: "AX200 Bluetooth",
+          manufacturer: "Intel Corp.",
+          serial: "BT-123456",
+          version: "2.01",
+          deviceClassName: "Wireless",
+          deviceSubclassName: "Radio Frequency",
+          deviceProtocolName: "Bluetooth",
+          interfaceClassNames: ["Wireless"],
+          configurationCount: 1,
+          interfaceCount: 2,
+          maxPowerMilliAmps: 100,
+          selfPowered: true,
+          remoteWakeup: true,
+        },
+      ],
+      powerSupplies: [
+        {
+          name: "BAT0",
+          type: "Battery",
+          status: "Discharging",
+          capacity: 84,
+          cycleCount: 42,
+          manufacturer: "SMP",
+          modelName: "DELL M59JH45",
+          serialNumber: "BATT-12345",
+          technology: "Li-ion",
+          scope: "System",
+          voltageNow: 15234000,
+          voltageMinDesign: 15000000,
+          currentNow: 2450000,
+          powerNow: 37000000,
+          energyNow: 62100000,
+          energyFull: 74000000,
+          energyFullDesign: 82000000,
+        },
+      ],
+    },
+  });
+
+  const processor = bom.components.find(
+    (component) =>
+      getPropertyValue(component, "cdx:hbom:hardwareClass") === "processor",
+  );
+  const usbDevice = bom.components.find(
+    (component) =>
+      getPropertyValue(component, "cdx:hbom:hardwareClass") === "usb-device",
+  );
+  const battery = bom.components.find(
+    (component) =>
+      getPropertyValue(component, "cdx:hbom:hardwareClass") === "power",
+  );
+
+  assert.equal(
+    getPropertyValue(processor, "cdx:hbom:frequencyDriver"),
+    "amd-pstate-epp",
+  );
+  assert.equal(
+    getPropertyValue(processor, "cdx:hbom:availableGovernors"),
+    "performance, powersave",
+  );
+  assert.equal(getPropertyValue(processor, "cdx:hbom:idleDriver"), "acpi_idle");
+  assert.match(
+    getPropertyValue(processor, "cdx:hbom:idleStateSummary"),
+    /POLL/u,
+  );
+  assert.equal(usbDevice?.name, "AX200 Bluetooth");
+  assert.equal(usbDevice?.manufacturer?.name, "Intel Corp.");
+  assert.equal(
+    getPropertyValue(usbDevice, "cdx:hbom:usbClassName"),
+    "Wireless",
+  );
+  assert.equal(
+    getPropertyValue(usbDevice, "cdx:hbom:maxPowerMilliAmps"),
+    "100",
+  );
+  assert.equal(
+    getPropertyValue(usbDevice, "cdx:hbom:deviceSerial"),
+    "redacted:3456",
+  );
+  assert.equal(getPropertyValue(battery, "cdx:hbom:scope"), "System");
+  assert.equal(
+    getPropertyValue(battery, "cdx:hbom:designCapacityPercent"),
+    "90",
+  );
+  assert.equal(getPropertyValue(battery, "cdx:hbom:powerNow"), "37000000");
+});
+
+test("linux build enriches PCI, display, and Bluetooth components from lshw", () => {
+  const bom = buildLinuxHbom({
+    architecture: "arm64",
+    sources: {
+      osRelease: { NAME: "Ubuntu" },
+      cpuInfo: [{ processor: "0", Processor: "ARMv8 Processor rev 1 (v8l)" }],
+      memInfo: { MemTotal: { value: 8192000, unit: "kB" } },
+      dmiInfo: {
+        sys_vendor: "Raspberry Pi Ltd",
+        product_name: "Raspberry Pi 5",
+      },
+      pciDevices: [
+        {
+          Slot: "0000:00:01.0",
+          Class: "Host bridge [0600]",
+          Vendor: "Advanced Micro Devices, Inc. [AMD] [1022]",
+          Device: "Device [14ea]",
+        },
+      ],
+      drmDevices: [
+        {
+          name: "card0",
+          kind: "card",
+          driver: "amdgpu",
+          pciSlot: "0000:c6:00.0",
+          vendorId: "1002",
+          productId: "1900",
+        },
+      ],
+      lshw: [
+        {
+          id: "system",
+          class: "system",
+          children: [
+            {
+              id: "bridge0",
+              class: "bridge",
+              description: "Host bridge",
+              product: "AMD Root Complex",
+              vendor: "Advanced Micro Devices, Inc. [AMD]",
+              businfo: "pci@0000:00:01.0",
+              version: "00",
+              capabilities: { bus_master: "bus mastering" },
+            },
+            {
+              id: "display0",
+              class: "display",
+              description: "VGA compatible controller",
+              product: "Phoenix3",
+              vendor: "Advanced Micro Devices, Inc. [AMD/ATI]",
+              businfo: "pci@0000:c6:00.0",
+              version: "c5",
+              configuration: { driver: "amdgpu" },
+              capabilities: {
+                vga_controller: true,
+                bus_master: "bus mastering",
+              },
+            },
+            {
+              id: "bt0",
+              class: "communication",
+              description: "BlueTooth interface",
+              product: "4345",
+              vendor: "Broadcom",
+              businfo: "mmc@1:0001:3",
+              logicalname: "mmc1:0001:3",
+              configuration: { wireless: "BlueTooth" },
+              capabilities: { wireless: true, bluetooth: true },
+            },
+          ],
+        },
+      ],
+    },
+  });
+
+  const pciDevice = bom.components.find(
+    (component) => component.version === "0000:00:01.0",
+  );
+  const displayAdapter = bom.components.find(
+    (component) =>
+      getPropertyValue(component, "cdx:hbom:hardwareClass") ===
+      "display-adapter",
+  );
+  const bluetooth = bom.components.find(
+    (component) =>
+      getPropertyValue(component, "cdx:hbom:hardwareClass") ===
+      "bluetooth-controller",
+  );
+
+  assert.equal(pciDevice?.name, "AMD Root Complex");
+  assert.equal(
+    getPropertyValue(pciDevice, "cdx:hbom:busInfo"),
+    "pci@0000:00:01.0",
+  );
+  assert.equal(displayAdapter?.name, "Phoenix3");
+  assert.equal(
+    displayAdapter?.manufacturer?.name,
+    "Advanced Micro Devices, Inc. [AMD/ATI]",
+  );
+  assert.match(
+    getPropertyValue(displayAdapter, "cdx:hbom:capabilities"),
+    /vga_controller/u,
+  );
+  assert.equal(bluetooth?.name, "4345");
+  assert.equal(bluetooth?.manufacturer?.name, "Broadcom");
+  assert.equal(
+    getPropertyValue(bluetooth, "cdx:hbom:wirelessType"),
+    "BlueTooth",
   );
 });
 
