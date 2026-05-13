@@ -12,7 +12,8 @@
  *   parser: string,
  *   purpose: string,
  *   phase: string,
- *   sensitiveFields?: string[]
+ *   sensitiveFields?: string[],
+ *   privilege?: "none" | "optional" | "required"
  * }>}
  */
 export const LINUX_COMMON_COMMANDS = Object.freeze([
@@ -135,6 +136,80 @@ export const LINUX_COMMON_COMMANDS = Object.freeze([
     purpose:
       "Collect richer DRM/KMS graphics adapter and connector metadata when drm_info is available.",
     phase: "collector-v1",
+    privilege: "optional",
+  }),
+  Object.freeze({
+    id: "upower-dump",
+    category: "power",
+    command: "upower",
+    args: ["--dump"],
+    parser: "upower-dump-text",
+    purpose:
+      "Collect user-session power and battery state from UPower when available.",
+    phase: "collector-v1",
+    sensitiveFields: ["serial"],
+  }),
+  Object.freeze({
+    id: "fwupdmgr-devices-json",
+    category: "platform",
+    command: "fwupdmgr",
+    args: ["get-devices", "--json"],
+    parser: "fwupdmgr-devices-json",
+    purpose:
+      "Collect firmware-update-capable device inventory from fwupd when available.",
+    phase: "collector-v1",
+    sensitiveFields: ["Serial", "InstanceIds"],
+  }),
+  Object.freeze({
+    id: "boltctl-domains",
+    category: "bus",
+    command: "boltctl",
+    args: ["domains", "--verbose"],
+    parser: "boltctl-text",
+    purpose:
+      "Collect Thunderbolt/USB4 domain topology from boltctl when available.",
+    phase: "collector-v1",
+    sensitiveFields: ["uuid"],
+  }),
+  Object.freeze({
+    id: "boltctl-list-all",
+    category: "bus",
+    command: "boltctl",
+    args: ["list", "--all"],
+    parser: "boltctl-text",
+    purpose:
+      "Collect Thunderbolt/USB4 device inventory from boltctl when available.",
+    phase: "collector-v1",
+    sensitiveFields: ["uuid"],
+  }),
+  Object.freeze({
+    id: "mmcli-list-json",
+    category: "network",
+    command: "mmcli",
+    args: ["-L", "-J"],
+    parser: "mmcli-list-json",
+    purpose: "Collect modem inventory from ModemManager when available.",
+    phase: "collector-v1",
+  }),
+  Object.freeze({
+    id: "mmcli-modem-json",
+    category: "network",
+    command: "mmcli",
+    args: ["-m", "0", "-J"],
+    parser: "mmcli-json",
+    purpose: "Collect per-modem detail from ModemManager when available.",
+    phase: "collector-v1",
+    sensitiveFields: ["equipment-id", "imei", "own-numbers"],
+  }),
+  Object.freeze({
+    id: "edid-decode",
+    category: "graphics",
+    command: "edid-decode",
+    args: ["/sys/class/drm/card0-HDMI-A-1/edid"],
+    parser: "edid-decode-text",
+    purpose:
+      "Collect richer display capability metadata from decoded EDID text when edid-decode is available.",
+    phase: "collector-v1",
   }),
   Object.freeze({
     id: "dmidecode-firmware-board",
@@ -146,6 +221,7 @@ export const LINUX_COMMON_COMMANDS = Object.freeze([
       "Privileged enrichment for SMBIOS firmware and board metadata when permissions permit.",
     phase: "planned-enrichment",
     sensitiveFields: ["Serial Number", "UUID"],
+    privilege: "required",
   }),
   Object.freeze({
     id: "lshw-json",

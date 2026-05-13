@@ -55,6 +55,12 @@ test("getCommandPlan rejects unsupported targets", () => {
     linuxAmd64Plan.some((spec) => spec.id === "cpupower-frequency-info"),
   );
   assert.ok(linuxArm64Plan.some((spec) => spec.id === "cpupower-idle-info"));
+  assert.ok(linuxAmd64Plan.some((spec) => spec.id === "drm-info-json"));
+  assert.ok(linuxAmd64Plan.some((spec) => spec.id === "upower-dump"));
+  assert.ok(linuxArm64Plan.some((spec) => spec.id === "fwupdmgr-devices-json"));
+  assert.ok(linuxArm64Plan.some((spec) => spec.id === "boltctl-list-all"));
+  assert.ok(linuxArm64Plan.some((spec) => spec.id === "mmcli-list-json"));
+  assert.ok(linuxAmd64Plan.some((spec) => spec.id === "edid-decode"));
 
   assert.throws(
     () =>

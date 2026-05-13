@@ -660,6 +660,240 @@ export function parseDrmInfoJson(stdout) {
 }
 
 /**
+ * Parse `boltctl` text output into entry maps.
+ *
+ * @param {string} stdout Command stdout.
+ * @returns {Array<Record<string, unknown>>} Parsed Thunderbolt/USB4 entries.
+ */
+export function parseBoltctlText(stdout) {
+  const entries = [];
+  let currentEntry;
+
+  for (const rawLine of stdout.split(/\r?\n/u)) {
+    const line = rawLine.trimEnd();
+    const headerMatch = line.match(/^\s*[●*]\s+(.+)$/u);
+
+    if (headerMatch) {
+      if (currentEntry) {
+        entries.push(currentEntry);
+      }
+      currentEntry = { name: headerMatch[1].trim() };
+      continue;
+    }
+
+    if (!currentEntry) {
+      continue;
+    }
+
+    const propertyMatch =
+      line.match(/^[│ ]*[├└]─\s*([^:]+):\s*(.*)$/u) ??
+      line.match(/^[│ ]+([^:]+):\s*(.*)$/u);
+    if (!propertyMatch) {
+      continue;
+    }
+
+    const key = normalizeBoltctlKey(propertyMatch[1]);
+    if (!key) {
+      continue;
+    }
+
+    const value = propertyMatch[2].trim();
+    currentEntry[key] = value || undefined;
+  }
+
+  if (currentEntry) {
+    entries.push(currentEntry);
+  }
+
+  return entries;
+}
+
+/**
+ * Parse `mmcli -L -J` output.
+ *
+ * @param {string} stdout Command stdout.
+ * @returns {Array<Record<string, unknown>>} Parsed modem list entries.
+ */
+export function parseMmcliListJson(stdout) {
+  const parsed = JSON.parse(stdout);
+  const modems = Array.isArray(parsed?.["modem-list"])
+    ? parsed["modem-list"]
+    : [];
+
+  return modems
+    .map((entry) =>
+      typeof entry === "string"
+        ? { modemPath: entry }
+        : normalizeObjectKeys(entry),
+    )
+    .filter((entry) => entry && typeof entry === "object");
+}
+
+/**
+ * Parse `mmcli -m <id> -J` output.
+ *
+ * @param {string} stdout Command stdout.
+ * @returns {Record<string, unknown>} Parsed modem details.
+ */
+export function parseMmcliJson(stdout) {
+  return normalizeObjectKeys(JSON.parse(stdout));
+}
+
+/**
+ * Parse `upower --dump` output.
+ *
+ * @param {string} stdout Command stdout.
+ * @returns {{ devices: Array<Record<string, unknown>>, daemon: Record<string, unknown>, displayDevice?: Record<string, unknown> }} Parsed power state.
+ */
+export function parseUpowerDump(stdout) {
+  const devices = [];
+  let daemon = {};
+  let currentSection;
+
+  for (const rawLine of stdout.split(/\r?\n/u)) {
+    const line = rawLine.trimEnd();
+    const deviceMatch = line.match(/^Device:\s+(.+)$/u);
+    if (deviceMatch) {
+      if (currentSection?.kind === "device") {
+        devices.push(currentSection);
+      }
+      currentSection = {
+        kind: "device",
+        path: deviceMatch[1].trim(),
+      };
+      continue;
+    }
+
+    if (/^Daemon:\s*$/u.test(line)) {
+      if (currentSection?.kind === "device") {
+        devices.push(currentSection);
+      }
+      daemon = { kind: "daemon" };
+      currentSection = daemon;
+      continue;
+    }
+
+    if (!currentSection) {
+      continue;
+    }
+
+    const trimmed = line.trim();
+    if (!trimmed) {
+      continue;
+    }
+
+    const propertyMatch = trimmed.match(/^([^:]+):\s*(.*)$/u);
+    if (!propertyMatch) {
+      if (currentSection.kind === "device") {
+        currentSection.deviceType = trimmed.toLowerCase();
+      }
+      continue;
+    }
+
+    const key = normalizeUpowerKey(propertyMatch[1]);
+    currentSection[key] = normalizeUpowerValue(propertyMatch[2]);
+  }
+
+  if (currentSection?.kind === "device") {
+    devices.push(currentSection);
+  }
+
+  return {
+    devices,
+    daemon,
+    displayDevice: devices.find((entry) =>
+      String(entry.path).endsWith("DisplayDevice"),
+    ),
+  };
+}
+
+/**
+ * Parse `fwupdmgr get-devices --json` output.
+ *
+ * @param {string} stdout Command stdout.
+ * @returns {Array<Record<string, unknown>>} Parsed fwupd device records.
+ */
+export function parseFwupdmgrDevicesJson(stdout) {
+  const parsed = JSON.parse(stdout);
+  return Array.isArray(parsed?.Devices)
+    ? parsed.Devices.map((entry) => normalizeObjectKeys(entry))
+    : [];
+}
+
+/**
+ * Parse `edid-decode` text output.
+ *
+ * @param {string} stdout Command stdout.
+ * @returns {Record<string, unknown>} Parsed display capability metadata.
+ */
+export function parseEdidDecodeText(stdout) {
+  const result = {};
+
+  stdout.split(/\r?\n/u).forEach((rawLine) => {
+    const line = rawLine.trim();
+    if (!line) {
+      return;
+    }
+
+    let match = line.match(/^EDID version:\s+(.+)$/u);
+    if (match) {
+      result.version = match[1].trim();
+      return;
+    }
+
+    match = line.match(/^Display Product Name:\s+(.+)$/u);
+    if (match) {
+      result.name = match[1].trim();
+      return;
+    }
+
+    match = line.match(/^Display Product Serial Number:\s+(.+)$/u);
+    if (match) {
+      result.serialNumber = match[1].trim();
+      return;
+    }
+
+    match = line.match(/^Native detailed mode:\s+([^\s]+).+$/u);
+    if (match) {
+      result.preferredResolution = match[1].trim();
+      return;
+    }
+
+    match = line.match(/^Image size:\s+(\d+)\s+cm\s+x\s+(\d+)\s+cm$/u);
+    if (match) {
+      result.widthCm = Number.parseInt(match[1], 10);
+      result.heightCm = Number.parseInt(match[2], 10);
+      return;
+    }
+
+    match = line.match(/^Bits per primary color channel:\s+(\d+)$/u);
+    if (match) {
+      result.bitsPerColorChannel = Number.parseInt(match[1], 10);
+      return;
+    }
+
+    match = line.match(/^Supported color formats:\s+(.+)$/u);
+    if (match) {
+      result.colorFormats = match[1]
+        .split(/,\s*/u)
+        .map((entry) => entry.trim())
+        .filter(Boolean);
+      return;
+    }
+
+    match = line.match(/^Supported EOTF:\s+(.+)$/u);
+    if (match) {
+      result.hdrEotf = match[1]
+        .split(/,\s*/u)
+        .map((entry) => entry.trim())
+        .filter(Boolean);
+    }
+  });
+
+  return result;
+}
+
+/**
  * Parse `lsmem --json` output.
  *
  * @param {string} stdout Command stdout.
@@ -939,12 +1173,19 @@ export function parseHwmonAttributes(input) {
  *     drmDevices?: Array<Record<string, unknown>>,
  *     drmInfo?: { cards: Array<Record<string, unknown>>, connectors: Array<Record<string, unknown>> },
  *     cpupowerFrequency?: Record<string, unknown>,
- *     cpupowerIdle?: Record<string, unknown>
+ *     cpupowerIdle?: Record<string, unknown>,
+ *     boltctlDomains?: Array<Record<string, unknown>>,
+ *     boltctlDevices?: Array<Record<string, unknown>>,
+ *     modems?: Array<Record<string, unknown>>,
+ *     upower?: { devices: Array<Record<string, unknown>>, daemon: Record<string, unknown>, displayDevice?: Record<string, unknown> },
+ *     fwupdDevices?: Array<Record<string, unknown>>,
+ *     edidDecoded?: Array<Record<string, unknown>>
  *   },
  *   includeSensitiveIdentifiers?: boolean,
  *   collectedAt?: string,
  *   executedCommands?: Array<{ id: string, category: string, command: string, args: string[] }>,
- *   observedFiles?: string[]
+ *   observedFiles?: string[],
+ *   commandDiagnostics?: Array<Record<string, unknown>>
  * }} options Build inputs.
  * @returns {object} CycloneDX BOM.
  */
@@ -969,7 +1210,10 @@ export function buildLinuxHbom(options) {
     sources.blockDevices ?? [],
     sources.lsblk ?? [],
   );
-  const powerSupplies = sources.powerSupplies ?? [];
+  const powerSupplies = mergePowerSources(
+    sources.powerSupplies ?? [],
+    sources.upower,
+  );
   const hwmonDevices = sources.hwmonDevices ?? [];
   const thermalZones = sources.thermalZones ?? [];
   const tpmDevices = sources.tpmDevices ?? [];
@@ -997,8 +1241,17 @@ export function buildLinuxHbom(options) {
     sources.drmDevices ?? [],
     sources.drmInfo ?? { cards: [], connectors: [] },
   );
+  const enrichedDrmDevices = mergeEdidDecodedSources(
+    drmDevices,
+    sources.edidDecoded ?? [],
+  );
   const cpupowerFrequency = sources.cpupowerFrequency ?? {};
   const cpupowerIdle = sources.cpupowerIdle ?? {};
+  const boltctlDomains = sources.boltctlDomains ?? [];
+  const boltctlDevices = sources.boltctlDevices ?? [];
+  const modems = sources.modems ?? [];
+  const upower = sources.upower ?? { devices: [], daemon: {} };
+  const fwupdDevices = sources.fwupdDevices ?? [];
   const timestamp = options.collectedAt ?? new Date().toISOString();
   const identifierPolicy = options.includeSensitiveIdentifiers
     ? "raw-identifiers-enabled"
@@ -1099,6 +1352,18 @@ export function buildLinuxHbom(options) {
       createProperty(
         "cdx:hbom:chassisType",
         normalizeChassisType(hostnamectl.Chassis ?? dmiInfo.chassis_type),
+      ),
+      createProperty(
+        "cdx:hbom:powerSource",
+        inferLinuxPowerSource(upower?.daemon?.onBattery),
+      ),
+      createProperty(
+        "cdx:hbom:isAcAttached",
+        inferLinuxAcAttachment(upower?.daemon?.onBattery),
+      ),
+      createProperty(
+        "cdx:hbom:warningLevel",
+        getStringValue(upower?.displayDevice?.warningLevel),
       ),
       createProperty("cdx:hbom:identifierPolicy", identifierPolicy),
     ]),
@@ -1491,7 +1756,10 @@ export function buildLinuxHbom(options) {
     ...pciDevices.map((device) => createPciComponent(device, lshwNodes)),
     ...usbDevices.map((device) => createUsbComponent(device, options)),
     ...createVideoComponents(videoDevices),
-    ...createDisplayComponents(drmDevices, options, lshwNodes),
+    ...createDisplayComponents(enrichedDrmDevices, options, lshwNodes),
+    ...createThunderboltComponents(boltctlDomains, boltctlDevices, options),
+    ...createModemComponents(modems, options),
+    ...createFirmwareManagedComponents(fwupdDevices, options),
     ...createLshwCommunicationComponents(lshwNodes),
   ]);
 
@@ -1534,6 +1802,11 @@ export function buildLinuxHbom(options) {
           options.executedCommands?.length ?? 0,
         ),
         ...collectCommandProperties(options.executedCommands ?? []),
+        createProperty(
+          "cdx:hbom:evidence:commandDiagnosticCount",
+          options.commandDiagnostics?.length ?? 0,
+        ),
+        ...collectCommandDiagnosticProperties(options.commandDiagnostics ?? []),
       ]),
     }),
     options.trace,
@@ -1565,90 +1838,246 @@ export async function collectLinuxHardware(options) {
 
   const allowPartial = options.allowPartial ?? true;
   const executedCommands = [];
+  const commandDiagnostics = [];
   const observedFiles = [];
   const sources = collectLinuxFileSources(observedFiles);
+  const recordCommandError = (error) => {
+    const diagnostic = toCommandDiagnostic(error);
+    if (diagnostic) {
+      commandDiagnostics.push(diagnostic);
+    }
+  };
 
   if (options.includeCommandEnrichment !== false) {
-    await attemptCollection(async () => {
-      sources.lscpu = parseLscpuJson(
-        await runCommand(getRequiredLinuxCommand("lscpu-json"), options),
+    await attemptCollection(
+      async () => {
+        sources.lscpu = parseLscpuJson(
+          await runCommand(getRequiredLinuxCommand("lscpu-json"), options),
+        );
+        executedCommands.push(
+          toEvidenceCommand(getRequiredLinuxCommand("lscpu-json")),
+        );
+      },
+      allowPartial,
+      recordCommandError,
+    );
+    await attemptCollection(
+      async () => {
+        sources.lsblk = parseLsblkJson(
+          await runCommand(getRequiredLinuxCommand("lsblk-json"), options),
+        );
+        executedCommands.push(
+          toEvidenceCommand(getRequiredLinuxCommand("lsblk-json")),
+        );
+      },
+      allowPartial,
+      recordCommandError,
+    );
+    await attemptCollection(
+      async () => {
+        sources.ipLink = parseIpLinkJson(
+          await runCommand(getRequiredLinuxCommand("ip-link-json"), options),
+        );
+        executedCommands.push(
+          toEvidenceCommand(getRequiredLinuxCommand("ip-link-json")),
+        );
+      },
+      allowPartial,
+      recordCommandError,
+    );
+    await attemptCollection(
+      async () => {
+        sources.lsmem = parseLsmemJson(
+          await runCommand(getRequiredLinuxCommand("lsmem-json"), options),
+        );
+        executedCommands.push(
+          toEvidenceCommand(getRequiredLinuxCommand("lsmem-json")),
+        );
+      },
+      allowPartial,
+      recordCommandError,
+    );
+    await attemptCollection(
+      async () => {
+        sources.hostnamectl = parseHostnamectlJson(
+          await runCommand(
+            getRequiredLinuxCommand("hostnamectl-json"),
+            options,
+          ),
+        );
+        executedCommands.push(
+          toEvidenceCommand(getRequiredLinuxCommand("hostnamectl-json")),
+        );
+      },
+      allowPartial,
+      recordCommandError,
+    );
+    await attemptCollection(
+      async () => {
+        sources.lshw = parseLshwJson(
+          await runCommand(getRequiredLinuxCommand("lshw-json"), options),
+        );
+        executedCommands.push(
+          toEvidenceCommand(getRequiredLinuxCommand("lshw-json")),
+        );
+      },
+      allowPartial,
+      recordCommandError,
+    );
+    await attemptCollection(
+      async () => {
+        sources.pciDevices = parseLspciVmmnn(
+          await runCommand(getRequiredLinuxCommand("lspci-vmmnn"), options),
+        );
+        executedCommands.push(
+          toEvidenceCommand(getRequiredLinuxCommand("lspci-vmmnn")),
+        );
+      },
+      allowPartial,
+      recordCommandError,
+    );
+    await attemptCollection(
+      async () => {
+        sources.usbDevices = parseLsusbText(
+          await runCommand(getRequiredLinuxCommand("lsusb"), options),
+        );
+        executedCommands.push(
+          toEvidenceCommand(getRequiredLinuxCommand("lsusb")),
+        );
+      },
+      allowPartial,
+      recordCommandError,
+    );
+    await attemptCollection(
+      async () => {
+        sources.usbVerboseDevices = parseLsusbVerboseText(
+          await runCommand(getRequiredLinuxCommand("lsusb-verbose"), options),
+        );
+        executedCommands.push(
+          toEvidenceCommand(getRequiredLinuxCommand("lsusb-verbose")),
+        );
+      },
+      allowPartial,
+      recordCommandError,
+    );
+    await attemptCollection(
+      async () => {
+        sources.drmInfo = parseDrmInfoJson(
+          await runCommand(getRequiredLinuxCommand("drm-info-json"), options),
+        );
+        executedCommands.push(
+          toEvidenceCommand(getRequiredLinuxCommand("drm-info-json")),
+        );
+      },
+      allowPartial,
+      recordCommandError,
+    );
+    await attemptCollection(
+      async () => {
+        sources.upower = parseUpowerDump(
+          await runCommand(getRequiredLinuxCommand("upower-dump"), options),
+        );
+        executedCommands.push(
+          toEvidenceCommand(getRequiredLinuxCommand("upower-dump")),
+        );
+      },
+      allowPartial,
+      recordCommandError,
+    );
+    await attemptCollection(
+      async () => {
+        sources.fwupdDevices = parseFwupdmgrDevicesJson(
+          await runCommand(
+            getRequiredLinuxCommand("fwupdmgr-devices-json"),
+            options,
+          ),
+        );
+        executedCommands.push(
+          toEvidenceCommand(getRequiredLinuxCommand("fwupdmgr-devices-json")),
+        );
+      },
+      allowPartial,
+      recordCommandError,
+    );
+    await attemptCollection(
+      async () => {
+        sources.boltctlDomains = parseBoltctlText(
+          await runCommand(getRequiredLinuxCommand("boltctl-domains"), options),
+        );
+        executedCommands.push(
+          toEvidenceCommand(getRequiredLinuxCommand("boltctl-domains")),
+        );
+      },
+      allowPartial,
+      recordCommandError,
+    );
+    await attemptCollection(
+      async () => {
+        sources.boltctlDevices = parseBoltctlText(
+          await runCommand(
+            getRequiredLinuxCommand("boltctl-list-all"),
+            options,
+          ),
+        );
+        executedCommands.push(
+          toEvidenceCommand(getRequiredLinuxCommand("boltctl-list-all")),
+        );
+      },
+      allowPartial,
+      recordCommandError,
+    );
+    await attemptCollection(
+      async () => {
+        const modemList = parseMmcliListJson(
+          await runCommand(getRequiredLinuxCommand("mmcli-list-json"), options),
+        );
+        executedCommands.push(
+          toEvidenceCommand(getRequiredLinuxCommand("mmcli-list-json")),
+        );
+        sources.modems = [];
+        for (const entry of modemList) {
+          const modemPath =
+            getStringValue(entry.modemPath) ?? getStringValue(entry.path);
+          if (!modemPath) {
+            continue;
+          }
+
+          await attemptCollection(
+            async () => {
+              const spec = createMmcliModemCommand(modemPath);
+              sources.modems.push({
+                modemPath,
+                ...parseMmcliJson(await runCommand(spec, options)),
+              });
+              executedCommands.push(toEvidenceCommand(spec));
+            },
+            allowPartial,
+            recordCommandError,
+          );
+        }
+      },
+      allowPartial,
+      recordCommandError,
+    );
+    sources.edidDecoded = [];
+    for (const device of sources.drmDevices ?? []) {
+      if (device.kind !== "connector" || !getStringValue(device.edidPath)) {
+        continue;
+      }
+
+      await attemptCollection(
+        async () => {
+          const spec = createEdidDecodeCommand(device);
+          sources.edidDecoded.push({
+            name: getStringValue(device.name),
+            ...parseEdidDecodeText(await runCommand(spec, options)),
+          });
+          executedCommands.push(toEvidenceCommand(spec));
+        },
+        allowPartial,
+        recordCommandError,
       );
-      executedCommands.push(
-        toEvidenceCommand(getRequiredLinuxCommand("lscpu-json")),
-      );
-    }, allowPartial);
-    await attemptCollection(async () => {
-      sources.lsblk = parseLsblkJson(
-        await runCommand(getRequiredLinuxCommand("lsblk-json"), options),
-      );
-      executedCommands.push(
-        toEvidenceCommand(getRequiredLinuxCommand("lsblk-json")),
-      );
-    }, allowPartial);
-    await attemptCollection(async () => {
-      sources.ipLink = parseIpLinkJson(
-        await runCommand(getRequiredLinuxCommand("ip-link-json"), options),
-      );
-      executedCommands.push(
-        toEvidenceCommand(getRequiredLinuxCommand("ip-link-json")),
-      );
-    }, allowPartial);
-    await attemptCollection(async () => {
-      sources.lsmem = parseLsmemJson(
-        await runCommand(getRequiredLinuxCommand("lsmem-json"), options),
-      );
-      executedCommands.push(
-        toEvidenceCommand(getRequiredLinuxCommand("lsmem-json")),
-      );
-    }, allowPartial);
-    await attemptCollection(async () => {
-      sources.hostnamectl = parseHostnamectlJson(
-        await runCommand(getRequiredLinuxCommand("hostnamectl-json"), options),
-      );
-      executedCommands.push(
-        toEvidenceCommand(getRequiredLinuxCommand("hostnamectl-json")),
-      );
-    }, allowPartial);
-    await attemptCollection(async () => {
-      sources.lshw = parseLshwJson(
-        await runCommand(getRequiredLinuxCommand("lshw-json"), options),
-      );
-      executedCommands.push(
-        toEvidenceCommand(getRequiredLinuxCommand("lshw-json")),
-      );
-    }, allowPartial);
-    await attemptCollection(async () => {
-      sources.pciDevices = parseLspciVmmnn(
-        await runCommand(getRequiredLinuxCommand("lspci-vmmnn"), options),
-      );
-      executedCommands.push(
-        toEvidenceCommand(getRequiredLinuxCommand("lspci-vmmnn")),
-      );
-    }, allowPartial);
-    await attemptCollection(async () => {
-      sources.usbDevices = parseLsusbText(
-        await runCommand(getRequiredLinuxCommand("lsusb"), options),
-      );
-      executedCommands.push(
-        toEvidenceCommand(getRequiredLinuxCommand("lsusb")),
-      );
-    }, allowPartial);
-    await attemptCollection(async () => {
-      sources.usbVerboseDevices = parseLsusbVerboseText(
-        await runCommand(getRequiredLinuxCommand("lsusb-verbose"), options),
-      );
-      executedCommands.push(
-        toEvidenceCommand(getRequiredLinuxCommand("lsusb-verbose")),
-      );
-    }, allowPartial);
-    await attemptCollection(async () => {
-      sources.drmInfo = parseDrmInfoJson(
-        await runCommand(getRequiredLinuxCommand("drm-info-json"), options),
-      );
-      executedCommands.push(
-        toEvidenceCommand(getRequiredLinuxCommand("drm-info-json")),
-      );
-    }, allowPartial);
+    }
     sources.ethtool = {};
     const interfaceNames = [
       ...new Set(
@@ -1663,56 +2092,75 @@ export async function collectLinuxHardware(options) {
       ),
     ];
     for (const interfaceName of interfaceNames) {
-      await attemptCollection(async () => {
-        const spec = createEthtoolCommand(interfaceName);
-        sources.ethtool[interfaceName] = parseEthtoolDriverInfo(
-          await runCommand(spec, options),
-        );
-        executedCommands.push(toEvidenceCommand(spec));
-      }, allowPartial);
+      await attemptCollection(
+        async () => {
+          const spec = createEthtoolCommand(interfaceName);
+          sources.ethtool[interfaceName] = parseEthtoolDriverInfo(
+            await runCommand(spec, options),
+          );
+          executedCommands.push(toEvidenceCommand(spec));
+        },
+        allowPartial,
+        recordCommandError,
+      );
     }
-    await attemptCollection(async () => {
-      sources.cpupowerFrequency = parseCpupowerFrequencyInfo(
-        await runCommand(
-          getRequiredLinuxCommand("cpupower-frequency-info"),
-          options,
-        ),
-      );
-      executedCommands.push(
-        toEvidenceCommand(getRequiredLinuxCommand("cpupower-frequency-info")),
-      );
-    }, allowPartial);
-    await attemptCollection(async () => {
-      sources.cpupowerIdle = parseCpupowerIdleInfo(
-        await runCommand(
-          getRequiredLinuxCommand("cpupower-idle-info"),
-          options,
-        ),
-      );
-      executedCommands.push(
-        toEvidenceCommand(getRequiredLinuxCommand("cpupower-idle-info")),
-      );
-    }, allowPartial);
+    await attemptCollection(
+      async () => {
+        sources.cpupowerFrequency = parseCpupowerFrequencyInfo(
+          await runCommand(
+            getRequiredLinuxCommand("cpupower-frequency-info"),
+            options,
+          ),
+        );
+        executedCommands.push(
+          toEvidenceCommand(getRequiredLinuxCommand("cpupower-frequency-info")),
+        );
+      },
+      allowPartial,
+      recordCommandError,
+    );
+    await attemptCollection(
+      async () => {
+        sources.cpupowerIdle = parseCpupowerIdleInfo(
+          await runCommand(
+            getRequiredLinuxCommand("cpupower-idle-info"),
+            options,
+          ),
+        );
+        executedCommands.push(
+          toEvidenceCommand(getRequiredLinuxCommand("cpupower-idle-info")),
+        );
+      },
+      allowPartial,
+      recordCommandError,
+    );
   }
 
   if (options.includePrivilegedEnrichment === true) {
-    await attemptCollection(async () => {
-      sources.dmidecode = parseDmidecodeText(
-        await runCommand(
-          getRequiredLinuxCommand("dmidecode-firmware-board"),
-          options,
-        ),
-      );
-      executedCommands.push(
-        toEvidenceCommand(getRequiredLinuxCommand("dmidecode-firmware-board")),
-      );
-    }, allowPartial);
+    await attemptCollection(
+      async () => {
+        sources.dmidecode = parseDmidecodeText(
+          await runCommand(
+            getRequiredLinuxCommand("dmidecode-firmware-board"),
+            options,
+          ),
+        );
+        executedCommands.push(
+          toEvidenceCommand(
+            getRequiredLinuxCommand("dmidecode-firmware-board"),
+          ),
+        );
+      },
+      allowPartial,
+      recordCommandError,
+    );
   }
 
   return buildLinuxHbom({
     architecture: options.architecture,
     sources,
     includeSensitiveIdentifiers: options.includeSensitiveIdentifiers,
+    commandDiagnostics,
     executedCommands,
     observedFiles,
   });
@@ -1992,6 +2440,10 @@ function readDrmDevices(observedFiles) {
     );
     return {
       name,
+      sysfsPath: basePath,
+      edidPath: safeExistsSync(join(basePath, "edid"))
+        ? join(basePath, "edid")
+        : undefined,
       kind: /^card\d+$/u.test(name)
         ? "card"
         : name.includes("-")
@@ -2617,13 +3069,6 @@ function mergeDrmSources(sysfsDevices, drmInfo) {
   const existingNames = new Set(
     merged.map((entry) => getStringValue(entry.name)).filter(Boolean),
   );
-  const _sysfsCardNames = new Set(
-    sysfsDevices
-      .filter((entry) => entry.kind === "card")
-      .map((entry) => getStringValue(entry.name))
-      .filter(Boolean),
-  );
-
   const drmOnlyCards = normalizedInfo.cards
     .filter((entry) => {
       const name = getStringValue(entry.name);
@@ -2650,6 +3095,98 @@ function mergeDrmSources(sysfsDevices, drmInfo) {
     .filter((entry) => !existingNames.has(getStringValue(entry.name)));
 
   return [...merged, ...drmOnlyCards, ...drmOnlyConnectors];
+}
+
+function mergePowerSources(powerSupplies, upower) {
+  const displayDevice = upower?.displayDevice;
+  if (
+    !displayDevice ||
+    getStringValue(displayDevice.deviceType) === "unknown"
+  ) {
+    return powerSupplies;
+  }
+
+  const upowerBattery = createUpowerBatterySummary(
+    displayDevice,
+    upower?.daemon,
+  );
+  if (!upowerBattery) {
+    return powerSupplies;
+  }
+
+  const existingBatteryIndex = powerSupplies.findIndex(
+    (entry) => getStringValue(entry.type)?.toLowerCase() === "battery",
+  );
+  if (existingBatteryIndex === -1) {
+    return [...powerSupplies, upowerBattery];
+  }
+
+  return powerSupplies.map((entry, index) =>
+    index === existingBatteryIndex
+      ? mergePowerSupply(entry, upowerBattery)
+      : entry,
+  );
+}
+
+function mergePowerSupply(primary, secondary) {
+  return {
+    ...secondary,
+    ...primary,
+    status: getStringValue(primary.status) ?? getStringValue(secondary.status),
+    capacity:
+      getNumberValue(primary.capacity) ?? getNumberValue(secondary.capacity),
+    warningLevel:
+      getStringValue(primary.warningLevel) ??
+      getStringValue(secondary.warningLevel),
+    powerSource:
+      getStringValue(primary.powerSource) ??
+      getStringValue(secondary.powerSource),
+    isAcAttached:
+      getBooleanValue(primary.isAcAttached) ??
+      getBooleanValue(secondary.isAcAttached),
+  };
+}
+
+function mergeEdidDecodedSources(drmDevices, edidDecoded) {
+  const decodedByName = new Map(
+    edidDecoded
+      .map((entry) => [getStringValue(entry.name), entry])
+      .filter(([name]) => Boolean(name)),
+  );
+
+  return drmDevices.map((device) => {
+    const decoded = decodedByName.get(getStringValue(device.name));
+    if (!decoded) {
+      return device;
+    }
+
+    return {
+      ...decoded,
+      ...device,
+      edidDecoded: decoded,
+      edid: device.edid
+        ? {
+            ...decoded,
+            ...device.edid,
+            version:
+              getStringValue(device.edid?.version) ??
+              getStringValue(decoded.version),
+            serialNumber:
+              getStringValue(device.edid?.serialNumber) ??
+              getStringValue(decoded.serialNumber),
+            preferredResolution:
+              getStringValue(device.edid?.preferredResolution) ??
+              getStringValue(decoded.preferredResolution),
+            widthCm:
+              getNumberValue(device.edid?.widthCm) ??
+              getNumberValue(decoded.widthCm),
+            heightCm:
+              getNumberValue(device.edid?.heightCm) ??
+              getNumberValue(decoded.heightCm),
+          }
+        : undefined,
+    };
+  });
 }
 
 function mergeDrmCard(device, drmCard) {
@@ -2810,7 +3347,19 @@ function toPowerComponents(supply, options) {
             "cdx:hbom:isCharging",
             getStringValue(supply.status) === "Charging",
           ),
+          createProperty(
+            "cdx:hbom:isAcAttached",
+            getBooleanValue(supply.isAcAttached),
+          ),
+          createProperty(
+            "cdx:hbom:powerSource",
+            getStringValue(supply.powerSource),
+          ),
           createProperty("cdx:hbom:status", getStringValue(supply.status)),
+          createProperty(
+            "cdx:hbom:warningLevel",
+            getStringValue(supply.warningLevel),
+          ),
           createProperty(
             "cdx:hbom:cycleCount",
             getNumberValue(supply.cycleCount),
@@ -2889,7 +3438,19 @@ function toPowerComponents(supply, options) {
           "cdx:hbom:connected",
           getNumberValue(supply.online) === 1,
         ),
+        createProperty(
+          "cdx:hbom:isAcAttached",
+          getBooleanValue(supply.isAcAttached),
+        ),
+        createProperty(
+          "cdx:hbom:powerSource",
+          getStringValue(supply.powerSource),
+        ),
         createProperty("cdx:hbom:status", getStringValue(supply.status)),
+        createProperty(
+          "cdx:hbom:warningLevel",
+          getStringValue(supply.warningLevel),
+        ),
         createProperty("cdx:hbom:scope", getStringValue(supply.scope)),
         createProperty(
           "cdx:hbom:technology",
@@ -3633,11 +4194,24 @@ function createDisplayComponents(drmDevices, options = {}, lshwNodes = []) {
             "cdx:hbom:drmConnectorId",
             getNumberValue(device.drmConnectorId),
           ),
+          createProperty(
+            "cdx:hbom:physicalSize",
+            formatDisplayMillimeterSize(
+              getNumberValue(device.physicalWidthMm),
+              getNumberValue(device.physicalHeightMm),
+            ),
+          ),
           createProperty("cdx:hbom:dpms", getScalarStringValue(device.dpms)),
           createProperty(
             "cdx:hbom:linkStatus",
             getScalarStringValue(device.linkStatus),
           ),
+          createProperty("cdx:hbom:subpixel", getNumberValue(device.subpixel)),
+          createProperty(
+            "cdx:hbom:encoderId",
+            getNumberValue(device.encoderId),
+          ),
+          createProperty("cdx:hbom:encoderIds", formatList(device.encoderIds)),
           createProperty(
             "cdx:hbom:nonDesktop",
             normalizeBooleanLike(getScalarStringValue(device.nonDesktop)),
@@ -3663,6 +4237,18 @@ function createDisplayComponents(drmDevices, options = {}, lshwNodes = []) {
             normalizeBooleanLike(
               getScalarStringValue(device.variableRefreshEnabled),
             ),
+          ),
+          createProperty(
+            "cdx:hbom:bitsPerColorChannel",
+            getNumberValue(device.edidDecoded?.bitsPerColorChannel),
+          ),
+          createProperty(
+            "cdx:hbom:colorFormats",
+            formatList(device.edidDecoded?.colorFormats),
+          ),
+          createProperty(
+            "cdx:hbom:hdrEotf",
+            formatList(device.edidDecoded?.hdrEotf),
           ),
         ]),
       }),
@@ -3707,6 +4293,18 @@ function createDisplayComponents(drmDevices, options = {}, lshwNodes = []) {
             getStringValue(device.edid?.version),
           ),
           createProperty(
+            "cdx:hbom:bitsPerColorChannel",
+            getNumberValue(device.edidDecoded?.bitsPerColorChannel),
+          ),
+          createProperty(
+            "cdx:hbom:colorFormats",
+            formatList(device.edidDecoded?.colorFormats),
+          ),
+          createProperty(
+            "cdx:hbom:hdrEotf",
+            formatList(device.edidDecoded?.hdrEotf),
+          ),
+          createProperty(
             "cdx:hbom:manufactureWeek",
             getNumberValue(device.edid?.weekOfManufacture),
           ),
@@ -3721,11 +4319,187 @@ function createDisplayComponents(drmDevices, options = {}, lshwNodes = []) {
   ];
 }
 
+function createThunderboltComponents(domains, devices, options = {}) {
+  return [
+    ...domains.map((entry) =>
+      createHardwareComponent("bus", {
+        name:
+          normalizeThunderboltName(getStringValue(entry.name)) ??
+          "Thunderbolt/USB4 Domain",
+        description: "Thunderbolt/USB4 domain",
+        properties: compact([
+          createProperty(
+            "cdx:hbom:domainUuid",
+            redactIdentifier(getStringValue(entry.uuid), options),
+          ),
+          createProperty("cdx:hbom:routeString", getStringValue(entry.route)),
+          createProperty("cdx:hbom:status", getStringValue(entry.status)),
+          createProperty(
+            "cdx:hbom:securityLevel",
+            getStringValue(entry.security),
+          ),
+          createProperty(
+            "cdx:hbom:iommuProtection",
+            normalizeBooleanLike(getStringValue(entry.iommu)),
+          ),
+          createProperty(
+            "cdx:hbom:bootAclCount",
+            getNumberValue(entry.bootacl),
+          ),
+          createProperty(
+            "cdx:hbom:speed",
+            formatThunderboltSpeed(entry.rxSpeed, entry.txSpeed),
+          ),
+        ]),
+      }),
+    ),
+    ...devices.map((entry) =>
+      createHardwareComponent("thunderbolt-device", {
+        name:
+          normalizeThunderboltName(getStringValue(entry.name)) ??
+          getStringValue(entry.device) ??
+          "Thunderbolt Device",
+        manufacturer: getStringValue(entry.vendor)
+          ? { name: getStringValue(entry.vendor) }
+          : undefined,
+        description: getStringValue(entry.type),
+        properties: compact([
+          createProperty("cdx:hbom:deviceName", getStringValue(entry.name)),
+          createProperty(
+            "cdx:hbom:deviceUuid",
+            redactIdentifier(getStringValue(entry.uuid), options),
+          ),
+          createProperty(
+            "cdx:hbom:thunderboltGeneration",
+            getStringValue(entry.generation),
+          ),
+          createProperty("cdx:hbom:status", getStringValue(entry.status)),
+          createProperty("cdx:hbom:stored", getStringValue(entry.stored)),
+          createProperty(
+            "cdx:hbom:authorized",
+            getStringValue(entry.authorized),
+          ),
+          createProperty(
+            "cdx:hbom:connectedAt",
+            getStringValue(entry.connected),
+          ),
+          createProperty("cdx:hbom:policy", getStringValue(entry.policy)),
+          createProperty("cdx:hbom:key", getStringValue(entry.key)),
+        ]),
+      }),
+    ),
+  ];
+}
+
+function createModemComponents(modems, options = {}) {
+  return modems
+    .map((entry) => normalizeMmcliModem(entry))
+    .filter(Boolean)
+    .map((modem) =>
+      createHardwareComponent("modem", {
+        name:
+          getStringValue(modem.model) ??
+          getStringValue(modem.manufacturer) ??
+          "Modem",
+        version: getStringValue(modem.revision),
+        manufacturer: getStringValue(modem.manufacturer)
+          ? { name: getStringValue(modem.manufacturer) }
+          : undefined,
+        description: getStringValue(modem.accessTechnologies),
+        properties: compact([
+          createProperty("cdx:hbom:modemPath", getStringValue(modem.modemPath)),
+          createProperty("cdx:hbom:driver", formatList(modem.drivers)),
+          createProperty("cdx:hbom:plugin", getStringValue(modem.plugin)),
+          createProperty("cdx:hbom:state", getStringValue(modem.state)),
+          createProperty(
+            "cdx:hbom:signalQuality",
+            getNumberValue(modem.signalQuality),
+          ),
+          createProperty(
+            "cdx:hbom:accessTechnologies",
+            getStringValue(modem.accessTechnologies),
+          ),
+          createProperty(
+            "cdx:hbom:operatorName",
+            getStringValue(modem.operatorName),
+          ),
+          createProperty(
+            "cdx:hbom:equipmentIdentifier",
+            redactIdentifier(
+              getStringValue(modem.equipmentIdentifier),
+              options,
+            ),
+          ),
+          createProperty(
+            "cdx:hbom:imei",
+            redactIdentifier(getStringValue(modem.imei), options),
+          ),
+          createProperty(
+            "cdx:hbom:ownNumbers",
+            redactIdentifier(formatList(modem.ownNumbers), options),
+          ),
+          createProperty("cdx:hbom:simSlots", formatList(modem.simSlots)),
+        ]),
+      }),
+    );
+}
+
+function createFirmwareManagedComponents(devices, options = {}) {
+  return devices.map((device) =>
+    createHardwareComponent("firmware-device", {
+      name:
+        getStringValue(device.name) ??
+        getStringValue(device.summary) ??
+        "Firmware-managed Device",
+      version: getStringValue(device.version),
+      manufacturer: getStringValue(device.vendor)
+        ? { name: getStringValue(device.vendor) }
+        : undefined,
+      description: getStringValue(device.summary),
+      properties: compact([
+        createProperty("cdx:hbom:plugin", getStringValue(device.plugin)),
+        createProperty("cdx:hbom:protocol", getStringValue(device.protocol)),
+        createProperty("cdx:hbom:flags", formatList(device.flags)),
+        createProperty("cdx:hbom:guids", formatList(device.guid)),
+        createProperty(
+          "cdx:hbom:instanceIds",
+          redactIdentifier(formatList(device.instanceIds), options),
+        ),
+        createProperty(
+          "cdx:hbom:deviceSerial",
+          redactIdentifier(getStringValue(device.serial), options),
+        ),
+        createProperty("cdx:hbom:vendorId", getStringValue(device.vendorId)),
+        createProperty("cdx:hbom:createdEpoch", getNumberValue(device.created)),
+      ]),
+    }),
+  );
+}
+
 function createEthtoolCommand(interfaceName) {
   return {
     ...getRequiredLinuxCommand("ethtool-driver-info"),
     id: `ethtool-driver-info:${interfaceName}`,
     args: ["-i", interfaceName],
+  };
+}
+
+function createMmcliModemCommand(modemPath) {
+  return {
+    ...getRequiredLinuxCommand("mmcli-modem-json"),
+    id: `mmcli-modem-json:${modemPath}`,
+    args: ["-m", modemPath, "-J"],
+  };
+}
+
+function createEdidDecodeCommand(device) {
+  return {
+    ...getRequiredLinuxCommand("edid-decode"),
+    id: `edid-decode:${getStringValue(device.name) ?? "display"}`,
+    args: [
+      getStringValue(device.edidPath) ??
+        getRequiredLinuxCommand("edid-decode").args[0],
+    ],
   };
 }
 
@@ -3773,10 +4547,20 @@ function collectCommandProperties(commands) {
   );
 }
 
-async function attemptCollection(action, allowPartial) {
+function collectCommandDiagnosticProperties(diagnostics) {
+  return diagnostics.map((entry) =>
+    createProperty(
+      "cdx:hbom:evidence:commandDiagnostic",
+      JSON.stringify(entry),
+    ),
+  );
+}
+
+async function attemptCollection(action, allowPartial, onError = undefined) {
   try {
     await action();
   } catch (error) {
+    onError?.(error);
     if (!allowPartial) {
       throw error;
     }
@@ -3790,6 +4574,25 @@ function toEvidenceCommand(spec) {
     command: spec.command,
     args: [...spec.args],
   };
+}
+
+function toCommandDiagnostic(error) {
+  if (!error || typeof error !== "object") {
+    return undefined;
+  }
+
+  return compactObject({
+    id: getStringValue(error.commandId),
+    category: getStringValue(error.category),
+    command: getStringValue(error.command),
+    args: Array.isArray(error.args) ? error.args.join(" ") : undefined,
+    issue: getStringValue(error.issue),
+    code: getStringValue(error.code),
+    exitCode: getNumberValue(error.exitCode),
+    message: getStringValue(error.message),
+    installHint: getStringValue(error.installHint),
+    privilegeHint: getStringValue(error.privilegeHint),
+  });
 }
 
 function getRequiredLinuxCommand(id) {
@@ -5026,6 +5829,207 @@ function normalizeBooleanLike(value) {
     return undefined;
   }
   return value === "1" || value.toLowerCase() === "true";
+}
+
+function normalizeBoltctlKey(value) {
+  return toCamelCaseKey(value);
+}
+
+function normalizeUpowerKey(value) {
+  return toCamelCaseKey(value);
+}
+
+function normalizeUpowerValue(value) {
+  const normalized = String(value ?? "")
+    .trim()
+    .replace(/^'(.*)'$/u, "$1");
+  if (!normalized) {
+    return undefined;
+  }
+  if (/^(yes|no)$/iu.test(normalized)) {
+    return normalized.toLowerCase() === "yes";
+  }
+  if (/^\d+(?:\.\d+)?%$/u.test(normalized)) {
+    return Number.parseFloat(normalized.slice(0, -1));
+  }
+  return normalized;
+}
+
+function createUpowerBatterySummary(displayDevice, daemon = {}) {
+  const capacity = getNumberValue(displayDevice.percentage);
+  const status = normalizeIdentityString(getStringValue(displayDevice.state));
+
+  if (
+    capacity === undefined &&
+    !status &&
+    !getStringValue(displayDevice.model) &&
+    !getStringValue(displayDevice.vendor)
+  ) {
+    return undefined;
+  }
+
+  return compactObject({
+    type: "Battery",
+    name: "DisplayDevice",
+    modelName: getStringValue(displayDevice.model),
+    manufacturer: getStringValue(displayDevice.vendor),
+    serialNumber: getStringValue(displayDevice.serial),
+    status,
+    capacity,
+    warningLevel: getStringValue(displayDevice.warningLevel),
+    isAcAttached: inferLinuxAcAttachment(daemon.onBattery),
+    powerSource: inferLinuxPowerSource(daemon.onBattery),
+    energyNow: parseUpowerMicroUnit(displayDevice.energy, "Wh"),
+    energyFull: parseUpowerMicroUnit(displayDevice.energyFull, "Wh"),
+    energyFullDesign: parseUpowerMicroUnit(
+      displayDevice.energyFullDesign,
+      "Wh",
+    ),
+    powerNow: parseUpowerMicroUnit(displayDevice.energyRate, "W"),
+    voltageNow: parseUpowerMicroUnit(displayDevice.voltage, "V"),
+  });
+}
+
+function inferLinuxPowerSource(onBattery) {
+  const normalized = getBooleanValue(onBattery);
+  if (normalized === undefined) {
+    return undefined;
+  }
+  return normalized ? "Battery" : "AC";
+}
+
+function inferLinuxAcAttachment(onBattery) {
+  const normalized = getBooleanValue(onBattery);
+  return normalized === undefined ? undefined : !normalized;
+}
+
+function normalizeMmcliModem(entry) {
+  const modem = entry?.modem ?? entry;
+  if (!modem || typeof modem !== "object") {
+    return undefined;
+  }
+
+  const generic = modem.generic ?? {};
+  const status = modem.status ?? {};
+  const g3pp = modem["3gpp"] ?? {};
+  const signalQuality = status.signalQuality ?? {};
+
+  return compactObject({
+    modemPath:
+      getStringValue(entry?.modemPath) ??
+      getStringValue(modem.path) ??
+      getStringValue(generic.device),
+    manufacturer: getStringValue(generic.manufacturer),
+    model: getStringValue(generic.model),
+    revision: getStringValue(generic.revision),
+    plugin: getStringValue(generic.plugin),
+    drivers: Array.isArray(generic.drivers) ? generic.drivers : undefined,
+    state: getStringValue(status.state),
+    signalQuality:
+      getNumberValue(signalQuality.value) ??
+      getNumberValue(status.signalQuality),
+    accessTechnologies:
+      getStringValue(status.accessTechnologies) ??
+      getStringValue(generic.currentCapabilities),
+    operatorName: getStringValue(g3pp.operatorName),
+    equipmentIdentifier: getStringValue(generic.equipmentId),
+    imei: getStringValue(g3pp.imei),
+    ownNumbers: Array.isArray(modem.ownNumbers) ? modem.ownNumbers : undefined,
+    simSlots: Array.isArray(modem.simSlots) ? modem.simSlots : undefined,
+  });
+}
+
+function formatDisplayMillimeterSize(widthMm, heightMm) {
+  const normalizedWidth = getNumberValue(widthMm);
+  const normalizedHeight = getNumberValue(heightMm);
+
+  return normalizedWidth !== undefined && normalizedHeight !== undefined
+    ? `${normalizedWidth} x ${normalizedHeight} mm`
+    : undefined;
+}
+
+function normalizeThunderboltName(value) {
+  if (!value) {
+    return undefined;
+  }
+
+  return value
+    .replace("thunderboltusb4_bus_", "Thunderbolt/USB4 Bus ")
+    .replaceAll("_", " ");
+}
+
+function formatThunderboltSpeed(rxSpeed, txSpeed) {
+  const rx = getStringValue(rxSpeed);
+  const tx = getStringValue(txSpeed);
+  if (rx && tx && rx !== tx) {
+    return `RX ${rx}, TX ${tx}`;
+  }
+  return rx ?? tx ?? undefined;
+}
+
+function normalizeObjectKeys(value) {
+  if (Array.isArray(value)) {
+    return value.map((entry) => normalizeObjectKeys(entry));
+  }
+  if (!value || typeof value !== "object") {
+    return value;
+  }
+
+  return Object.entries(value).reduce((result, [key, entryValue]) => {
+    result[toCamelCaseKey(key) ?? key] = normalizeObjectKeys(entryValue);
+    return result;
+  }, {});
+}
+
+function compactObject(value) {
+  return Object.fromEntries(
+    Object.entries(value ?? {}).filter(([, entry]) => entry !== undefined),
+  );
+}
+
+function toCamelCaseKey(value) {
+  const raw = String(value ?? "")
+    .trim()
+    .replace(/[()]/gu, "");
+  if (!raw) {
+    return undefined;
+  }
+  if (/^[A-Z0-9]+$/u.test(raw)) {
+    return raw.toLowerCase();
+  }
+  if (/^[\p{L}\p{N}]+$/u.test(raw) && /[A-Z]/u.test(raw.slice(1))) {
+    return `${raw[0].toLowerCase()}${raw.slice(1)}`;
+  }
+
+  const normalized = raw.replace(/[^\p{L}\p{N}]+/gu, " ").trim();
+
+  if (!normalized) {
+    return undefined;
+  }
+
+  const [first, ...rest] = normalized.split(/\s+/u);
+  return [first.toLowerCase(), ...rest.map(capitalizeWord)].join("");
+}
+
+function capitalizeWord(value) {
+  return value
+    ? `${value[0].toUpperCase()}${value.slice(1).toLowerCase()}`
+    : "";
+}
+
+function parseUpowerMicroUnit(value, unit) {
+  const normalized = getStringValue(value);
+  const match = normalized?.match(
+    new RegExp(
+      `^(\\d+(?:\\.\\d+)?)\\s*${unit.replace(/[-/\\^$*+?.()|[\]{}]/gu, "\\$&")}$`,
+      "iu",
+    ),
+  );
+  if (!match) {
+    return undefined;
+  }
+
+  return Math.round(Number.parseFloat(match[1]) * 1_000_000);
 }
 
 function getScalarStringValue(value) {

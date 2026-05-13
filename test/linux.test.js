@@ -6,13 +6,16 @@ import {
   buildLinuxHbom,
   parseAsoundCards,
   parseAsoundPcm,
+  parseBoltctlText,
   parseCpuInfo,
   parseCpupowerFrequencyInfo,
   parseCpupowerIdleInfo,
   parseDmidecodeText,
   parseDrmInfoJson,
   parseEdidBuffer,
+  parseEdidDecodeText,
   parseEthtoolDriverInfo,
+  parseFwupdmgrDevicesJson,
   parseHostnamectlJson,
   parseHwmonAttributes,
   parseIpLinkJson,
@@ -24,7 +27,10 @@ import {
   parseLsusbText,
   parseLsusbVerboseText,
   parseMemInfo,
+  parseMmcliJson,
+  parseMmcliListJson,
   parseOsRelease,
+  parseUpowerDump,
 } from "../src/linux/common/index.js";
 
 test("parseOsRelease parses shell-style key/value pairs", () => {
@@ -463,6 +469,176 @@ test("parseDrmInfoJson normalizes DRM cards and connectors", () => {
       name: "card1-HDMI-A-1",
     },
   ]);
+});
+
+test("parseBoltctlText extracts Thunderbolt domain and device properties", () => {
+  const parsed = parseBoltctlText(` ● domain0
+   ├─ uuid:          11111111-2222-3333-4444-555555555555
+   ├─ status:        online
+   ├─ security:      user
+   ├─ iommu:         yes
+   ├─ rx speed:      40 Gb/s
+   ├─ tx speed:      40 Gb/s
+
+ ● CalDigit TS4
+   ├─ vendor:        CalDigit
+   ├─ uuid:          99999999-aaaa-bbbb-cccc-dddddddddddd
+   ├─ type:          peripheral
+   ├─ generation:    Thunderbolt 4
+   ├─ status:        authorized
+   │  authorized:    2026-05-13 12:00:00 UTC
+`);
+
+  assert.deepEqual(parsed, [
+    {
+      name: "domain0",
+      uuid: "11111111-2222-3333-4444-555555555555",
+      status: "online",
+      security: "user",
+      iommu: "yes",
+      rxSpeed: "40 Gb/s",
+      txSpeed: "40 Gb/s",
+    },
+    {
+      name: "CalDigit TS4",
+      vendor: "CalDigit",
+      uuid: "99999999-aaaa-bbbb-cccc-dddddddddddd",
+      type: "peripheral",
+      generation: "Thunderbolt 4",
+      status: "authorized",
+      authorized: "2026-05-13 12:00:00 UTC",
+    },
+  ]);
+});
+
+test("parseMmcli JSON helpers normalize modem list and detail output", () => {
+  const list = parseMmcliListJson(`{
+    "modem-list": [
+      { "modem-path": "/org/freedesktop/ModemManager1/Modem/0" }
+    ]
+  }`);
+  const detail = parseMmcliJson(`{
+    "modem": {
+      "generic": {
+        "manufacturer": "Quectel",
+        "model": "RM500Q-GL",
+        "revision": "RM500QGLABR11A06M4G",
+        "plugin": "quectel",
+        "drivers": ["qmi_wwan", "option"],
+        "equipment-id": "359072060001234"
+      },
+      "status": {
+        "state": "registered",
+        "signal-quality": { "value": 72, "recent": true },
+        "access-technologies": "lte, 5gnr"
+      },
+      "3gpp": {
+        "operator-name": "ExampleTel",
+        "imei": "359072060001234"
+      },
+      "own-numbers": ["+15551234567"],
+      "sim-slots": ["/org/freedesktop/ModemManager1/SIM/0"]
+    }
+  }`);
+
+  assert.deepEqual(list, [
+    {
+      modemPath: "/org/freedesktop/ModemManager1/Modem/0",
+    },
+  ]);
+  assert.equal(detail.modem.generic.manufacturer, "Quectel");
+  assert.equal(detail.modem.status.signalQuality.value, 72);
+  assert.equal(detail.modem["3gpp"].operatorName, "ExampleTel");
+});
+
+test("parseUpowerDump extracts display device and daemon state", () => {
+  const parsed =
+    parseUpowerDump(`Device: /org/freedesktop/UPower/devices/DisplayDevice
+  power supply:         yes
+  updated:              Wed May 13 15:27:59 2026
+  has history:          yes
+  has statistics:       no
+  battery
+    present:             yes
+    state:               discharging
+    warning-level:       none
+    percentage:          84%
+    energy:              62.1 Wh
+    energy-full:         74.0 Wh
+    energy-full-design:  82.0 Wh
+    energy-rate:         37.0 W
+    voltage:             15.234 V
+    vendor:              SMP
+    model:               DELL M59JH45
+    serial:              BATT-12345
+
+Daemon:
+  daemon-version:  1.90.3
+  on-battery:      yes
+  lid-is-present:  yes
+`);
+
+  assert.equal(parsed.displayDevice?.deviceType, "battery");
+  assert.equal(parsed.displayDevice?.percentage, 84);
+  assert.equal(parsed.displayDevice?.warningLevel, "none");
+  assert.equal(parsed.daemon.onBattery, true);
+  assert.equal(parsed.daemon.daemonVersion, "1.90.3");
+});
+
+test("parseFwupdmgrDevicesJson normalizes fwupd device arrays", () => {
+  const parsed = parseFwupdmgrDevicesJson(`{
+    "Devices": [
+      {
+        "Name": "Acer SSD FA100 256GB",
+        "Plugin": "nvme",
+        "Version": "1.4.6.57",
+        "Vendor": "Biwin Storage Technology Co., Ltd.",
+        "VendorId": "NVME:0x1DEE",
+        "Guid": ["9e02e500-1f91-54f6-a50a-10ad5ab020d5"],
+        "InstanceIds": ["NVME\\\\VEN_1DEE&DEV_5216"],
+        "Flags": ["updatable", "registered"],
+        "Created": 1778220995
+      }
+    ]
+  }`);
+
+  assert.deepEqual(parsed, [
+    {
+      name: "Acer SSD FA100 256GB",
+      plugin: "nvme",
+      version: "1.4.6.57",
+      vendor: "Biwin Storage Technology Co., Ltd.",
+      vendorId: "NVME:0x1DEE",
+      guid: ["9e02e500-1f91-54f6-a50a-10ad5ab020d5"],
+      instanceIds: ["NVME\\VEN_1DEE&DEV_5216"],
+      flags: ["updatable", "registered"],
+      created: 1778220995,
+    },
+  ]);
+});
+
+test("parseEdidDecodeText extracts richer display capability metadata", () => {
+  const parsed = parseEdidDecodeText(`EDID version: 1.4
+Display Product Name: DELL U2720Q
+Display Product Serial Number: SN123456
+Native detailed mode: 3840x2160p60 533.250 MHz
+Image size: 60 cm x 34 cm
+Bits per primary color channel: 10
+Supported color formats: RGB 4:4:4, YCbCr 4:4:4, YCbCr 4:2:2
+Supported EOTF: Traditional SDR, SMPTE ST2084
+`);
+
+  assert.deepEqual(parsed, {
+    version: "1.4",
+    name: "DELL U2720Q",
+    serialNumber: "SN123456",
+    preferredResolution: "3840x2160p60",
+    widthCm: 60,
+    heightCm: 34,
+    bitsPerColorChannel: 10,
+    colorFormats: ["RGB 4:4:4", "YCbCr 4:4:4", "YCbCr 4:2:2"],
+    hdrEotf: ["Traditional SDR", "SMPTE ST2084"],
+  });
 });
 
 test("parseDmidecodeText parses BIOS, system, and baseboard sections", () => {
@@ -1280,6 +1456,197 @@ test("linux build merges drm_info enrichment into display components with gracef
   assert.equal(getPropertyValue(connector, "cdx:hbom:dpms"), "On");
   assert.equal(getPropertyValue(connector, "cdx:hbom:linkStatus"), "Good");
   assert.equal(getPropertyValue(connector, "cdx:hbom:maxBitsPerChannel"), "12");
+});
+
+test("linux build emits Thunderbolt, modem, fwupd, UPower, EDID decode, and command diagnostic enrichment", () => {
+  const bom = buildLinuxHbom({
+    architecture: "amd64",
+    sources: {
+      osRelease: { NAME: "Ubuntu" },
+      cpuInfo: [
+        {
+          processor: "0",
+          vendor_id: "AuthenticAMD",
+          "model name": "AMD Ryzen 7 8845HS",
+        },
+      ],
+      memInfo: { MemTotal: { value: 32768000, unit: "kB" } },
+      dmiInfo: { sys_vendor: "AZW", product_name: "SER8" },
+      upower:
+        parseUpowerDump(`Device: /org/freedesktop/UPower/devices/DisplayDevice
+  power supply:         yes
+  battery
+    state:               discharging
+    warning-level:       low
+    percentage:          84%
+    energy:              62.1 Wh
+    energy-full:         74.0 Wh
+    energy-full-design:  82.0 Wh
+    energy-rate:         37.0 W
+    voltage:             15.234 V
+    vendor:              SMP
+    model:               DELL M59JH45
+    serial:              BATT-12345
+
+Daemon:
+  on-battery:      yes
+  daemon-version:  1.90.3
+`),
+      boltctlDomains: parseBoltctlText(` ● domain0
+   ├─ uuid:          11111111-2222-3333-4444-555555555555
+   ├─ status:        online
+   ├─ security:      user
+   ├─ iommu:         yes
+   ├─ rx speed:      40 Gb/s
+   ├─ tx speed:      40 Gb/s
+`),
+      boltctlDevices: parseBoltctlText(` ● CalDigit TS4
+   ├─ vendor:        CalDigit
+   ├─ uuid:          99999999-aaaa-bbbb-cccc-dddddddddddd
+   ├─ type:          peripheral
+   ├─ generation:    Thunderbolt 4
+   ├─ status:        authorized
+`),
+      modems: [
+        {
+          modemPath: "/org/freedesktop/ModemManager1/Modem/0",
+          modem: {
+            generic: {
+              manufacturer: "Quectel",
+              model: "RM500Q-GL",
+              revision: "RM500QGLABR11A06M4G",
+              plugin: "quectel",
+              drivers: ["qmi_wwan", "option"],
+              equipmentId: "359072060001234",
+            },
+            status: {
+              state: "registered",
+              signalQuality: { value: 72 },
+              accessTechnologies: "lte, 5gnr",
+            },
+            "3gpp": {
+              operatorName: "ExampleTel",
+              imei: "359072060001234",
+            },
+            ownNumbers: ["+15551234567"],
+            simSlots: ["/org/freedesktop/ModemManager1/SIM/0"],
+          },
+        },
+      ],
+      fwupdDevices: parseFwupdmgrDevicesJson(`{
+        "Devices": [
+          {
+            "Name": "Acer SSD FA100 256GB",
+            "Plugin": "nvme",
+            "Version": "1.4.6.57",
+            "Vendor": "Biwin Storage Technology Co., Ltd.",
+            "VendorId": "NVME:0x1DEE",
+            "Guid": ["9e02e500-1f91-54f6-a50a-10ad5ab020d5"],
+            "Flags": ["updatable", "registered"]
+          }
+        ]
+      }`),
+      drmDevices: [
+        {
+          name: "card0",
+          kind: "card",
+          driver: "amdgpu",
+          pciSlot: "0000:c6:00.0",
+          vendorId: "1002",
+          productId: "1900",
+        },
+        {
+          name: "card0-HDMI-A-1",
+          kind: "connector",
+          status: "connected",
+          enabled: "enabled",
+          modes: ["3840x2160"],
+          edid: parseEdidBuffer(createSampleEdidBuffer()),
+        },
+      ],
+      edidDecoded: [
+        {
+          name: "card0-HDMI-A-1",
+          bitsPerColorChannel: 10,
+          colorFormats: ["RGB 4:4:4", "YCbCr 4:4:4"],
+          hdrEotf: ["Traditional SDR", "SMPTE ST2084"],
+        },
+      ],
+    },
+    commandDiagnostics: [
+      {
+        id: "edid-decode:card0-HDMI-A-1",
+        issue: "missing-command",
+        command: "edid-decode",
+        installHint: "install edid-decode",
+      },
+    ],
+  });
+
+  const thunderboltDevice = bom.components.find(
+    (component) =>
+      getPropertyValue(component, "cdx:hbom:hardwareClass") ===
+      "thunderbolt-device",
+  );
+  const modem = bom.components.find(
+    (component) =>
+      getPropertyValue(component, "cdx:hbom:hardwareClass") === "modem",
+  );
+  const firmwareDevice = bom.components.find(
+    (component) =>
+      getPropertyValue(component, "cdx:hbom:hardwareClass") ===
+      "firmware-device",
+  );
+  const displayConnector = bom.components.find(
+    (component) =>
+      getPropertyValue(component, "cdx:hbom:hardwareClass") ===
+      "display-connector",
+  );
+  const battery = bom.components.find(
+    (component) =>
+      getPropertyValue(component, "cdx:hbom:hardwareClass") === "power",
+  );
+
+  assert.equal(
+    getPropertyValue(bom.metadata.component, "cdx:hbom:powerSource"),
+    "Battery",
+  );
+  assert.equal(
+    getPropertyValue(bom.metadata.component, "cdx:hbom:isAcAttached"),
+    "false",
+  );
+  assert.equal(getPropertyValue(battery, "cdx:hbom:warningLevel"), "low");
+  assert.equal(thunderboltDevice?.name, "CalDigit TS4");
+  assert.equal(
+    getPropertyValue(thunderboltDevice, "cdx:hbom:deviceUuid"),
+    "redacted:dddd",
+  );
+  assert.equal(modem?.name, "RM500Q-GL");
+  assert.equal(getPropertyValue(modem, "cdx:hbom:plugin"), "quectel");
+  assert.equal(getPropertyValue(modem, "cdx:hbom:imei"), "redacted:1234");
+  assert.equal(firmwareDevice?.name, "Acer SSD FA100 256GB");
+  assert.equal(getPropertyValue(firmwareDevice, "cdx:hbom:plugin"), "nvme");
+  assert.equal(
+    getPropertyValue(displayConnector, "cdx:hbom:bitsPerColorChannel"),
+    "10",
+  );
+  assert.match(
+    getPropertyValue(displayConnector, "cdx:hbom:hdrEotf"),
+    /SMPTE ST2084/u,
+  );
+  assert.equal(
+    bom.properties.find(
+      (property) =>
+        property.name === "cdx:hbom:evidence:commandDiagnosticCount",
+    )?.value,
+    "1",
+  );
+  assert.match(
+    bom.properties.find(
+      (property) => property.name === "cdx:hbom:evidence:commandDiagnostic",
+    )?.value,
+    /missing-command/u,
+  );
 });
 
 test("linux build emits hwmon, thermal, TPM, and NVMe controller components", () => {
