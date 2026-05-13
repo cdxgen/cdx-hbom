@@ -70,10 +70,10 @@ export const LINUX_COMMON_COMMANDS = Object.freeze([
     id: "lspci-vmmnn",
     category: "bus",
     command: "lspci",
-    args: ["-Dvmmnn"],
+    args: ["-Dvmmnnk"],
     parser: "lspci-vmmnn",
     purpose:
-      "Collect PCI bus and controller inventory when lspci is available.",
+      "Collect PCI bus, controller, and kernel driver inventory when lspci is available.",
     phase: "collector-v1",
   }),
   Object.freeze({

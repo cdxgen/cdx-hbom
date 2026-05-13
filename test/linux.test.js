@@ -1100,6 +1100,279 @@ test("linux build can emit native sysfs PCI, USB, and DRM components without com
   );
 });
 
+test("linux build enriches CPU, network, and storage components from lshw", () => {
+  const bom = buildLinuxHbom({
+    architecture: "amd64",
+    sources: {
+      osRelease: { NAME: "Ubuntu" },
+      cpuInfo: [
+        {
+          processor: "0",
+          vendor_id: "AuthenticAMD",
+          "model name": "AMD Ryzen 7 8845HS w/ Radeon 780M Graphics",
+          flags: "sse sse2 avx avx2 svm aes",
+        },
+      ],
+      memInfo: { MemTotal: { value: 32768000, unit: "kB" } },
+      dmiInfo: { sys_vendor: "GMKtec", product_name: "NucBox K8 Plus" },
+      lscpu: {
+        Architecture: "x86_64",
+        "CPU(s)": "16",
+        "Model name": "AMD Ryzen 7 8845HS w/ Radeon 780M Graphics",
+        Flags: "sse sse2 avx avx2 svm aes",
+      },
+      networkInterfaces: [
+        {
+          name: "wlp4s0",
+          ifname: "wlp4s0",
+          address: "52:54:00:12:34:56",
+          linkType: "1",
+        },
+      ],
+      ethtool: {
+        wlp4s0: {
+          driver: "iwlwifi",
+          version: "6.8.0-111-generic",
+          "firmware-version": "77.b405f9d4.0 cc-a0-77.ucode",
+          "bus-info": "0000:04:00.0",
+        },
+      },
+      blockDevices: [
+        {
+          name: "nvme0n1",
+          transport: "nvme",
+          removable: false,
+          rotational: false,
+          size: 2048,
+        },
+      ],
+      nvmeControllers: [
+        {
+          name: "nvme0",
+          address: "0000:05:00.0",
+          namespaces: ["nvme0n1"],
+        },
+      ],
+      lshw: [
+        {
+          id: "system",
+          class: "system",
+          children: [
+            {
+              id: "cpu",
+              class: "processor",
+              product: "AMD Ryzen 7 8845HS w/ Radeon 780M Graphics",
+              vendor: "Advanced Micro Devices [AMD]",
+              size: 4000000000,
+              capacity: 5100000000,
+              configuration: { microcode: "175133190" },
+              capabilities: { avx2: true, svm: true, aes: true },
+            },
+            {
+              id: "wifi",
+              class: "network",
+              description: "Wireless interface",
+              product: "Wi-Fi 6 AX200",
+              vendor: "Intel Corporation",
+              businfo: "pci@0000:04:00.0",
+              logicalname: ["wlp4s0"],
+              version: "1a",
+              configuration: {
+                driver: "iwlwifi",
+                driverversion: "6.8.0-111-generic",
+                firmware: "77.b405f9d4.0 cc-a0-77.ucode",
+                link: "yes",
+                wireless: "IEEE 802.11",
+              },
+              capabilities: {
+                ethernet: true,
+                physical: "Physical interface",
+                wireless: "Wireless-LAN",
+              },
+            },
+            {
+              id: "nvme",
+              class: "storage",
+              description: "NVMe device",
+              product: "CT2000P310SSD8",
+              vendor: "Micron/Crucial Technology",
+              businfo: "pci@0000:05:00.0",
+              logicalname: "/dev/nvme0",
+              version: "V8CR000",
+              serial: "25044DB332FB",
+              configuration: {
+                driver: "nvme",
+                state: "live",
+                nqn: "nqn.2016-08.com.micron:nvme:nvm-subsystem-sn-25044DB332FB",
+              },
+              capabilities: { nvme: true, nvm_express: true },
+              children: [
+                {
+                  id: "namespace:1",
+                  class: "disk",
+                  logicalname: "/dev/nvme0n1",
+                  configuration: {
+                    wwid: "eui.000000000000000100a075254db332fb",
+                  },
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    },
+  });
+
+  const processor = bom.components.find(
+    (component) =>
+      getPropertyValue(component, "cdx:hbom:hardwareClass") === "processor",
+  );
+  const wireless = bom.components.find(
+    (component) => component.version === "wlp4s0",
+  );
+  const storage = bom.components.find(
+    (component) =>
+      getPropertyValue(component, "cdx:hbom:hardwareClass") === "storage",
+  );
+  const storageController = bom.components.find(
+    (component) =>
+      getPropertyValue(component, "cdx:hbom:hardwareClass") ===
+      "storage-controller",
+  );
+
+  assert.match(getPropertyValue(processor, "cdx:hbom:cpuFeatures"), /\bavx2\b/u);
+  assert.equal(
+    getPropertyValue(processor, "cdx:hbom:microcodeVersion"),
+    "175133190",
+  );
+  assert.equal(wireless?.name, "Wi-Fi 6 AX200");
+  assert.equal(wireless?.manufacturer?.name, "Intel Corporation");
+  assert.equal(
+    getPropertyValue(wireless, "cdx:hbom:linkDetected"),
+    "true",
+  );
+  assert.equal(storage?.name, "CT2000P310SSD8");
+  assert.equal(storage?.manufacturer?.name, "Micron/Crucial Technology");
+  assert.equal(
+    getPropertyValue(storage, "cdx:hbom:firmwareVersion"),
+    "V8CR000",
+  );
+  assert.equal(
+    getPropertyValue(storage, "cdx:hbom:wwid"),
+    "eui.000000000000000100a075254db332fb",
+  );
+  assert.equal(storageController?.manufacturer?.name, "Micron/Crucial Technology");
+  assert.equal(
+    getPropertyValue(storageController, "cdx:hbom:nqn"),
+    "nqn.2016-08.com.micron:nvme:nvm-subsystem-sn-25044DB332FB",
+  );
+});
+
+test("linux build enriches PCI, display, and Bluetooth components from lshw", () => {
+  const bom = buildLinuxHbom({
+    architecture: "arm64",
+    sources: {
+      osRelease: { NAME: "Ubuntu" },
+      cpuInfo: [{ processor: "0", Processor: "ARMv8 Processor rev 1 (v8l)" }],
+      memInfo: { MemTotal: { value: 8192000, unit: "kB" } },
+      dmiInfo: { sys_vendor: "Raspberry Pi Ltd", product_name: "Raspberry Pi 5" },
+      pciDevices: [
+        {
+          Slot: "0000:00:01.0",
+          Class: "Host bridge [0600]",
+          Vendor: "Advanced Micro Devices, Inc. [AMD] [1022]",
+          Device: "Device [14ea]",
+        },
+      ],
+      drmDevices: [
+        {
+          name: "card0",
+          kind: "card",
+          driver: "amdgpu",
+          pciSlot: "0000:c6:00.0",
+          vendorId: "1002",
+          productId: "1900",
+        },
+      ],
+      lshw: [
+        {
+          id: "system",
+          class: "system",
+          children: [
+            {
+              id: "bridge0",
+              class: "bridge",
+              description: "Host bridge",
+              product: "AMD Root Complex",
+              vendor: "Advanced Micro Devices, Inc. [AMD]",
+              businfo: "pci@0000:00:01.0",
+              version: "00",
+              capabilities: { bus_master: "bus mastering" },
+            },
+            {
+              id: "display0",
+              class: "display",
+              description: "VGA compatible controller",
+              product: "Phoenix3",
+              vendor: "Advanced Micro Devices, Inc. [AMD/ATI]",
+              businfo: "pci@0000:c6:00.0",
+              version: "c5",
+              configuration: { driver: "amdgpu" },
+              capabilities: { vga_controller: true, bus_master: "bus mastering" },
+            },
+            {
+              id: "bt0",
+              class: "communication",
+              description: "BlueTooth interface",
+              product: "4345",
+              vendor: "Broadcom",
+              businfo: "mmc@1:0001:3",
+              logicalname: "mmc1:0001:3",
+              configuration: { wireless: "BlueTooth" },
+              capabilities: { wireless: true, bluetooth: true },
+            },
+          ],
+        },
+      ],
+    },
+  });
+
+  const pciDevice = bom.components.find(
+    (component) => component.version === "0000:00:01.0",
+  );
+  const displayAdapter = bom.components.find(
+    (component) =>
+      getPropertyValue(component, "cdx:hbom:hardwareClass") ===
+      "display-adapter",
+  );
+  const bluetooth = bom.components.find(
+    (component) =>
+      getPropertyValue(component, "cdx:hbom:hardwareClass") ===
+      "bluetooth-controller",
+  );
+
+  assert.equal(pciDevice?.name, "AMD Root Complex");
+  assert.equal(
+    getPropertyValue(pciDevice, "cdx:hbom:busInfo"),
+    "pci@0000:00:01.0",
+  );
+  assert.equal(displayAdapter?.name, "Phoenix3");
+  assert.equal(
+    displayAdapter?.manufacturer?.name,
+    "Advanced Micro Devices, Inc. [AMD/ATI]",
+  );
+  assert.match(
+    getPropertyValue(displayAdapter, "cdx:hbom:capabilities"),
+    /vga_controller/u,
+  );
+  assert.equal(bluetooth?.name, "4345");
+  assert.equal(bluetooth?.manufacturer?.name, "Broadcom");
+  assert.equal(
+    getPropertyValue(bluetooth, "cdx:hbom:wirelessType"),
+    "BlueTooth",
+  );
+});
+
 test("linux build normalizes DMI placeholders, chassis codes, and filters virtual devices", () => {
   const bom = buildLinuxHbom({
     architecture: "amd64",
