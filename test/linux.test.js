@@ -10,6 +10,7 @@ import {
   parseCpupowerFrequencyInfo,
   parseCpupowerIdleInfo,
   parseDmidecodeText,
+  parseDrmInfoJson,
   parseEdidBuffer,
   parseEthtoolDriverInfo,
   parseHostnamectlJson,
@@ -345,6 +346,123 @@ Duration: 33
       },
     ],
   });
+});
+
+test("parseDrmInfoJson normalizes DRM cards and connectors", () => {
+  const parsed = parseDrmInfoJson(`{
+    "/dev/dri/card1": {
+      "driver": {
+        "name": "vc4",
+        "desc": "Broadcom VC4 graphics",
+        "version": { "major": 0, "minor": 0, "patch": 0 },
+        "kernel": {
+          "release": "6.8.0-1053-raspi",
+          "version": "#57-Ubuntu"
+        },
+        "client_caps": { "ATOMIC": true, "ASPECT_RATIO": true },
+        "caps": { "DUMB_BUFFER": 1 }
+      },
+      "device": {
+        "available_nodes": 1,
+        "bus_type": 2,
+        "device_data": { "compatible": ["brcm,bcm2712d0-vc6"] },
+        "bus_data": { "fullname": "/axi/gpu" }
+      },
+      "fb_size": {
+        "min_width": 0,
+        "max_width": 8192,
+        "min_height": 0,
+        "max_height": 8192
+      },
+      "connectors": [
+        {
+          "id": 32,
+          "type": 11,
+          "status": 1,
+          "phy_width": 600,
+          "phy_height": 340,
+          "subpixel": 1,
+          "encoder_id": 31,
+          "encoders": [31],
+          "modes": [
+            { "name": "3840x2160", "hdisplay": 3840, "vdisplay": 2160 }
+          ],
+          "properties": {
+            "DPMS": {
+              "value": 0,
+              "spec": [{ "name": "On", "value": 0 }]
+            },
+            "link-status": {
+              "value": 0,
+              "spec": [{ "name": "Good", "value": 0 }]
+            },
+            "non-desktop": { "value": 0 },
+            "max bpc": { "value": 12 },
+            "Colorspace": {
+              "value": 0,
+              "spec": [{ "name": "Default", "value": 0 }]
+            }
+          }
+        }
+      ]
+    }
+  }`);
+
+  assert.deepEqual(parsed.cards, [
+    {
+      name: "card1",
+      kind: "card",
+      drmNode: "/dev/dri/card1",
+      driver: "vc4",
+      driverDescription: "Broadcom VC4 graphics",
+      driverVersion: "0.0.0",
+      kernelRelease: "6.8.0-1053-raspi",
+      kernelVersion: "#57-Ubuntu",
+      clientCaps: { ATOMIC: true, ASPECT_RATIO: true },
+      caps: { DUMB_BUFFER: 1 },
+      availableNodes: 1,
+      drmBusType: "platform",
+      vendorId: undefined,
+      productId: undefined,
+      subsystemVendorId: undefined,
+      subsystemDeviceId: undefined,
+      pciSlot: undefined,
+      ofCompatible: ["brcm,bcm2712d0-vc6"],
+      ofFullname: "/axi/gpu",
+      framebuffer: {
+        min_width: 0,
+        max_width: 8192,
+        min_height: 0,
+        max_height: 8192,
+      },
+    },
+  ]);
+  assert.deepEqual(parsed.connectors, [
+    {
+      cardName: "card1",
+      kind: "connector",
+      drmConnectorId: 32,
+      connectorType: "HDMI-A",
+      connectorTypeCode: 11,
+      status: "connected",
+      statusCode: 1,
+      physicalWidthMm: 600,
+      physicalHeightMm: 340,
+      subpixel: 1,
+      encoderId: 31,
+      encoderIds: [31],
+      modes: ["3840x2160"],
+      dpms: "On",
+      linkStatus: "Good",
+      nonDesktop: 0,
+      maxBpc: 12,
+      colorspace: "Default",
+      contentProtection: undefined,
+      crtcId: undefined,
+      variableRefreshEnabled: undefined,
+      name: "card1-HDMI-A-1",
+    },
+  ]);
 });
 
 test("parseDmidecodeText parses BIOS, system, and baseboard sections", () => {
@@ -1059,6 +1177,109 @@ test("linux build emits native audio, video, and EDID-backed display components"
       ?.value,
     "snd_hda_intel",
   );
+});
+
+test("linux build merges drm_info enrichment into display components with graceful fallback", () => {
+  const bom = buildLinuxHbom({
+    architecture: "arm64",
+    sources: {
+      osRelease: { NAME: "Ubuntu" },
+      cpuInfo: [{ processor: "0", Processor: "ARMv8 Processor rev 1 (v8l)" }],
+      memInfo: { MemTotal: { value: 8192000, unit: "kB" } },
+      dmiInfo: {
+        sys_vendor: "Raspberry Pi Ltd",
+        product_name: "Raspberry Pi 5",
+      },
+      drmDevices: [
+        {
+          name: "card1",
+          kind: "card",
+          driver: "vc4-drm",
+          ofName: "gpu",
+          ofCompatible: ["brcm,bcm2712d0-vc6"],
+        },
+        {
+          name: "card1-HDMI-A-1",
+          kind: "connector",
+          status: "connected",
+          enabled: "enabled",
+          modes: ["3840x2160"],
+          edid: parseEdidBuffer(createSampleEdidBuffer()),
+        },
+      ],
+      drmInfo: {
+        cards: [
+          {
+            name: "card1",
+            kind: "card",
+            drmNode: "/dev/dri/card1",
+            driver: "vc4",
+            driverDescription: "Broadcom VC4 graphics",
+            driverVersion: "0.0.0",
+            kernelRelease: "6.8.0-1053-raspi",
+            drmBusType: "platform",
+            availableNodes: 1,
+            framebuffer: {
+              min_width: 0,
+              max_width: 8192,
+              min_height: 0,
+              max_height: 8192,
+            },
+            clientCaps: { ATOMIC: true },
+            caps: { DUMB_BUFFER: 1 },
+            ofCompatible: ["brcm,bcm2712d0-vc6"],
+          },
+        ],
+        connectors: [
+          {
+            cardName: "card1",
+            kind: "connector",
+            drmConnectorId: 32,
+            connectorType: "HDMI-A",
+            status: "connected",
+            dpms: "On",
+            linkStatus: "Good",
+            nonDesktop: 0,
+            maxBpc: 12,
+            colorspace: "Default",
+          },
+        ],
+      },
+    },
+  });
+
+  const adapter = bom.components.find(
+    (component) =>
+      getPropertyValue(component, "cdx:hbom:hardwareClass") ===
+      "display-adapter",
+  );
+  const connector = bom.components.find(
+    (component) =>
+      getPropertyValue(component, "cdx:hbom:hardwareClass") ===
+      "display-connector",
+  );
+
+  assert.equal(getPropertyValue(adapter, "cdx:hbom:drmNode"), "/dev/dri/card1");
+  assert.equal(
+    getPropertyValue(adapter, "cdx:hbom:driverDescription"),
+    "Broadcom VC4 graphics",
+  );
+  assert.equal(
+    getPropertyValue(adapter, "cdx:hbom:kernelRelease"),
+    "6.8.0-1053-raspi",
+  );
+  assert.equal(
+    getPropertyValue(adapter, "cdx:hbom:clientCapabilities"),
+    "ATOMIC",
+  );
+  assert.equal(
+    getPropertyValue(connector, "cdx:hbom:displayConnectorType"),
+    "HDMI-A",
+  );
+  assert.equal(getPropertyValue(connector, "cdx:hbom:drmConnectorId"), "32");
+  assert.equal(getPropertyValue(connector, "cdx:hbom:dpms"), "On");
+  assert.equal(getPropertyValue(connector, "cdx:hbom:linkStatus"), "Good");
+  assert.equal(getPropertyValue(connector, "cdx:hbom:maxBitsPerChannel"), "12");
 });
 
 test("linux build emits hwmon, thermal, TPM, and NVMe controller components", () => {

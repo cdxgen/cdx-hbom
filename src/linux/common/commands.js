@@ -127,6 +127,16 @@ export const LINUX_COMMON_COMMANDS = Object.freeze([
     phase: "collector-v1",
   }),
   Object.freeze({
+    id: "drm-info-json",
+    category: "graphics",
+    command: "drm_info",
+    args: ["-j"],
+    parser: "drm-info-json",
+    purpose:
+      "Collect richer DRM/KMS graphics adapter and connector metadata when drm_info is available.",
+    phase: "collector-v1",
+  }),
+  Object.freeze({
     id: "dmidecode-firmware-board",
     category: "platform",
     command: "dmidecode",

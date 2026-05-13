@@ -98,8 +98,16 @@ These appear across multiple hardware classes.
 | `cdx:hbom:cpuFamily`        | CPU family identifier                             |
 | `cdx:hbom:model`            | CPU model identifier                              |
 | `cdx:hbom:stepping`         | CPU stepping                                      |
+| `cdx:hbom:clusterCount`     | Reported CPU cluster count                        |
+| `cdx:hbom:numaNodeCount`    | Reported NUMA node count                          |
 | `cdx:hbom:addressSizes`     | CPU address size capabilities reported by `lscpu` |
 | `cdx:hbom:byteOrder`        | CPU byte order reported by `lscpu`                |
+| `cdx:hbom:opModes`          | CPU operating modes such as `32-bit, 64-bit`      |
+| `cdx:hbom:minClockMHz`      | Minimum reported CPU frequency in MHz             |
+| `cdx:hbom:maxClockMHz`      | Maximum reported CPU frequency in MHz             |
+| `cdx:hbom:onlineCpuSet`     | Online CPU set reported by `lscpu`                |
+| `cdx:hbom:offlineCpuSet`    | Offline CPU set reported by `lscpu`               |
+| `cdx:hbom:scalingPercent`   | CPU scaling percentage summary                    |
 | `cdx:hbom:size`             | Human-readable memory size                        |
 | `cdx:hbom:sizeBytes`        | Exact size in bytes                               |
 | `cdx:hbom:memoryRangeCount` | Number of memory ranges reported by `lsmem`       |
@@ -201,6 +209,7 @@ These appear across multiple hardware classes.
 | `cdx:hbom:displaySerialNumber` | Display serial number, redacted by default                  |
 | `cdx:hbom:displayAdapter`      | Parent graphics adapter for a display connector             |
 | `cdx:hbom:displayConnector`    | Display connector or output name                            |
+| `cdx:hbom:displayConnectorType`| DRM/KMS connector type such as `HDMI-A` or `DP`            |
 | `cdx:hbom:edidVersion`         | EDID version                                                |
 | `cdx:hbom:preferredResolution` | Preferred resolution from EDID                              |
 | `cdx:hbom:physicalSize`        | Physical display dimensions                                 |
@@ -209,10 +218,28 @@ These appear across multiple hardware classes.
 | `cdx:hbom:connectorCount`      | Number of graphics/display connectors represented           |
 | `cdx:hbom:instanceCount`       | Number of Linux device instances grouped into one component |
 | `cdx:hbom:index`               | Linux video / graphics index                                |
+| `cdx:hbom:drmConnectorId`      | Numeric DRM/KMS connector identifier                        |
+| `cdx:hbom:dpms`                | DRM/KMS power-management state for a connector              |
 | `cdx:hbom:kernelDevices`       | Kernel device node names represented by the component       |
+| `cdx:hbom:drmNode`             | DRM device node such as `/dev/dri/card1`                    |
+| `cdx:hbom:drmBusType`          | DRM-reported bus type such as `PCI` or `platform`           |
+| `cdx:hbom:drmAvailableNodes`   | Number of DRM node types exposed by the adapter             |
+| `cdx:hbom:framebufferMinWidth` | Minimum framebuffer width supported by the adapter          |
+| `cdx:hbom:framebufferMaxWidth` | Maximum framebuffer width supported by the adapter          |
+| `cdx:hbom:framebufferMinHeight`| Minimum framebuffer height supported by the adapter         |
+| `cdx:hbom:framebufferMaxHeight`| Maximum framebuffer height supported by the adapter         |
 | `cdx:hbom:ofName`              | Open Firmware / device-tree name                            |
 | `cdx:hbom:ofCompatible`        | Open Firmware compatible values                             |
 | `cdx:hbom:modes`               | Supported display or video modes                            |
+| `cdx:hbom:maxBitsPerChannel`   | Maximum bits-per-channel reported for a connector           |
+| `cdx:hbom:colorspace`          | Active or supported DRM colorspace selection                |
+| `cdx:hbom:contentProtection`   | DRM content-protection state                                |
+| `cdx:hbom:crtcId`              | Current bound CRTC identifier                               |
+| `cdx:hbom:clientCapabilities`  | DRM client capabilities supported by the driver             |
+| `cdx:hbom:driverDescription`   | Driver-reported graphics description                        |
+| `cdx:hbom:driverVersion`       | Driver-reported graphics version                            |
+| `cdx:hbom:kernelRelease`       | Kernel release reported by the DRM driver                   |
+| `cdx:hbom:variableRefreshEnabled` | Whether VRR is enabled on the connector                  |
 
 ## Bluetooth properties
 
@@ -253,8 +280,11 @@ These appear across multiple hardware classes.
 | `cdx:hbom:usbKernelName`             | Linux USB kernel device name     |
 | `cdx:hbom:usbDevpath`                | Linux USB device path            |
 | `cdx:hbom:usbClass`                  | USB class code / class name      |
+| `cdx:hbom:usbClassName`              | USB class name from verbose descriptors |
 | `cdx:hbom:usbSubclass`               | USB subclass                     |
+| `cdx:hbom:usbSubclassName`           | USB subclass name from verbose descriptors |
 | `cdx:hbom:usbProtocol`               | USB protocol                     |
+| `cdx:hbom:usbProtocolName`           | USB protocol name from verbose descriptors |
 | `cdx:hbom:currentAvailable`          | Available USB bus power/current  |
 | `cdx:hbom:currentRequired`           | Required USB bus power/current   |
 | `cdx:hbom:extraOperatingCurrentUsed` | Additional USB operating current |
@@ -280,6 +310,7 @@ These appear across multiple hardware classes.
 | `cdx:hbom:chargePercent`       | Battery charge percentage                            |
 | `cdx:hbom:isAcAttached`        | Whether AC power is attached                         |
 | `cdx:hbom:isCharging`          | Whether the battery is charging                      |
+| `cdx:hbom:scope`               | Power-supply scope such as `System`                  |
 | `cdx:hbom:batteryId`           | Battery runtime identifier, redacted by default      |
 | `cdx:hbom:cycleCount`          | Battery cycle count                                  |
 | `cdx:hbom:health`              | Battery health summary                               |
@@ -294,6 +325,7 @@ These appear across multiple hardware classes.
 | `cdx:hbom:watts`               | Charger wattage                                      |
 | `cdx:hbom:powerSupplyType`     | Linux power-supply type such as `Battery` or `Mains` |
 | `cdx:hbom:technology`          | Linux battery chemistry / technology                 |
+| `cdx:hbom:powerNow`            | Instantaneous power draw reported by Linux           |
 
 ## Linux sensor, thermal, and TPM properties
 
@@ -326,13 +358,16 @@ These are emitted in narrower situations but are still part of the current surfa
 | Property                  | Meaning                                             |
 | ------------------------- | --------------------------------------------------- |
 | `cdx:hbom:busInfo`        | Bus location / topology information                 |
+| `cdx:hbom:clockHz`        | Bus or device clock reported by `lshw`              |
 | `cdx:hbom:kernelDevices`  | Kernel device nodes grouped into a single component |
 | `cdx:hbom:kernelId`       | Kernel-facing identifier                            |
 | `cdx:hbom:kernelVersion`  | Kernel or driver version                            |
+| `cdx:hbom:isClaimed`      | Whether the Linux device is currently claimed       |
 | `cdx:hbom:modes`          | Supported operating or display modes                |
 | `cdx:hbom:physicalStores` | Physical stores backing an APFS container           |
 | `cdx:hbom:sampleRate`     | Single sample rate                                  |
 | `cdx:hbom:sampleRates`    | Multiple sample rates                               |
+| `cdx:hbom:width`          | Device width / bit width reported by `lshw`         |
 
 ## Privacy-sensitive properties
 

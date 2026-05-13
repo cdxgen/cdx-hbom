@@ -569,6 +569,97 @@ export function parseCpupowerIdleInfo(stdout) {
 }
 
 /**
+ * Parse `drm_info -j` output.
+ *
+ * @param {string} stdout Command stdout.
+ * @returns {{ cards: Array<Record<string, unknown>>, connectors: Array<Record<string, unknown>> }} Parsed DRM records.
+ */
+export function parseDrmInfoJson(stdout) {
+  const parsed = JSON.parse(stdout);
+  const cards = [];
+  const connectors = [];
+
+  for (const [nodePath, entry] of Object.entries(parsed ?? {})) {
+    const cardName = nodePath.split("/").at(-1);
+    if (!cardName) {
+      continue;
+    }
+
+    const driver = entry?.driver ?? {};
+    const device = entry?.device ?? {};
+    const deviceData = device.device_data ?? {};
+    const busData = device.bus_data ?? {};
+    cards.push({
+      name: cardName,
+      kind: "card",
+      drmNode: nodePath,
+      driver: getScalarStringValue(driver.name),
+      driverDescription: getScalarStringValue(driver.desc),
+      driverVersion: formatDrmVersion(driver.version),
+      kernelRelease: getScalarStringValue(driver.kernel?.release),
+      kernelVersion: getScalarStringValue(driver.kernel?.version),
+      clientCaps: driver.client_caps ?? undefined,
+      caps: driver.caps ?? undefined,
+      availableNodes: getNumberValue(device.available_nodes),
+      drmBusType: formatDrmBusType(device.bus_type),
+      vendorId: normalizeHexNumber(deviceData.vendor),
+      productId: normalizeHexNumber(deviceData.device),
+      subsystemVendorId: normalizeHexNumber(deviceData.subsystem_vendor),
+      subsystemDeviceId: normalizeHexNumber(deviceData.subsystem_device),
+      pciSlot: formatDrmPciAddress(busData),
+      ofCompatible: Array.isArray(deviceData.compatible)
+        ? deviceData.compatible.filter((value) => typeof value === "string")
+        : undefined,
+      ofFullname: getScalarStringValue(busData.fullname),
+      framebuffer: entry?.fb_size ?? undefined,
+    });
+
+    const cardConnectors = Array.isArray(entry?.connectors)
+      ? entry.connectors
+      : [];
+    cardConnectors.forEach((connector, index) => {
+      const typeName = formatDrmConnectorType(connector.type);
+      connectors.push({
+        cardName,
+        kind: "connector",
+        drmConnectorId: getNumberValue(connector.id),
+        connectorType: typeName,
+        connectorTypeCode: getNumberValue(connector.type),
+        status: formatDrmConnectorStatus(connector.status),
+        statusCode: getNumberValue(connector.status),
+        physicalWidthMm: getNumberValue(connector.phy_width),
+        physicalHeightMm: getNumberValue(connector.phy_height),
+        subpixel: getNumberValue(connector.subpixel),
+        encoderId: getNumberValue(connector.encoder_id),
+        encoderIds: Array.isArray(connector.encoders)
+          ? connector.encoders
+              .map((value) => getNumberValue(value))
+              .filter((value) => value !== undefined)
+          : undefined,
+        modes: normalizeDrmModes(connector.modes),
+        dpms: getDrmPropertyValue(connector.properties, "DPMS"),
+        linkStatus: getDrmPropertyValue(connector.properties, "link-status"),
+        nonDesktop: getDrmPropertyValue(connector.properties, "non-desktop"),
+        maxBpc: getDrmPropertyValue(connector.properties, "max bpc"),
+        colorspace: getDrmPropertyValue(connector.properties, "Colorspace"),
+        contentProtection: getDrmPropertyValue(
+          connector.properties,
+          "content protection",
+        ),
+        crtcId: getDrmPropertyValue(connector.properties, "CRTC_ID"),
+        variableRefreshEnabled: getDrmPropertyValue(
+          connector.properties,
+          "VRR_ENABLED",
+        ),
+        name: `${cardName}-${typeName}-${index + 1}`,
+      });
+    });
+  }
+
+  return { cards, connectors };
+}
+
+/**
  * Parse `lsmem --json` output.
  *
  * @param {string} stdout Command stdout.
@@ -846,6 +937,7 @@ export function parseHwmonAttributes(input) {
  *     lshw?: Array<Record<string, unknown>>,
  *     ethtool?: Record<string, Record<string, string>>,
  *     drmDevices?: Array<Record<string, unknown>>,
+ *     drmInfo?: { cards: Array<Record<string, unknown>>, connectors: Array<Record<string, unknown>> },
  *     cpupowerFrequency?: Record<string, unknown>,
  *     cpupowerIdle?: Record<string, unknown>
  *   },
@@ -901,7 +993,10 @@ export function buildLinuxHbom(options) {
   const lshw = sources.lshw ?? [];
   const lshwNodes = walkLshwNodes(lshw);
   const ethtool = sources.ethtool ?? {};
-  const drmDevices = sources.drmDevices ?? [];
+  const drmDevices = mergeDrmSources(
+    sources.drmDevices ?? [],
+    sources.drmInfo ?? { cards: [], connectors: [] },
+  );
   const cpupowerFrequency = sources.cpupowerFrequency ?? {};
   const cpupowerIdle = sources.cpupowerIdle ?? {};
   const timestamp = options.collectedAt ?? new Date().toISOString();
@@ -1544,6 +1639,14 @@ export async function collectLinuxHardware(options) {
       );
       executedCommands.push(
         toEvidenceCommand(getRequiredLinuxCommand("lsusb-verbose")),
+      );
+    }, allowPartial);
+    await attemptCollection(async () => {
+      sources.drmInfo = parseDrmInfoJson(
+        await runCommand(getRequiredLinuxCommand("drm-info-json"), options),
+      );
+      executedCommands.push(
+        toEvidenceCommand(getRequiredLinuxCommand("drm-info-json")),
       );
     }, allowPartial);
     sources.ethtool = {};
@@ -2463,6 +2566,162 @@ function mergeUsbSources(commandDevices, sysfsDevices, verboseDevices = []) {
   return [...merged, ...sysfsOnly, ...verboseOnly];
 }
 
+function mergeDrmSources(sysfsDevices, drmInfo) {
+  const normalizedInfo = {
+    cards: Array.isArray(drmInfo?.cards) ? drmInfo.cards : [],
+    connectors: Array.isArray(drmInfo?.connectors) ? drmInfo.connectors : [],
+  };
+  const cardInfoByName = new Map(
+    normalizedInfo.cards
+      .map((entry) => [getStringValue(entry.name), entry])
+      .filter(([name]) => Boolean(name)),
+  );
+  const connectorInfoByCard = normalizedInfo.connectors.reduce(
+    (result, entry) => {
+      const cardName = getStringValue(entry.cardName);
+      if (!cardName) {
+        return result;
+      }
+      const list = result.get(cardName) ?? [];
+      list.push(entry);
+      result.set(cardName, list);
+      return result;
+    },
+    new Map(),
+  );
+  const matchedConnectors = new Set();
+
+  const merged = sysfsDevices.map((device) => {
+    if (device.kind === "card") {
+      const drmCard = cardInfoByName.get(getStringValue(device.name));
+      return drmCard ? mergeDrmCard(device, drmCard) : device;
+    }
+
+    if (device.kind === "connector") {
+      const cardName = getDisplayCardName(device.name);
+      const candidates = cardName
+        ? (connectorInfoByCard.get(cardName) ?? []).filter(
+            (entry) => !matchedConnectors.has(entry),
+          )
+        : [];
+      const match = matchDrmConnector(device, candidates);
+      if (match) {
+        matchedConnectors.add(match);
+      }
+      return match ? mergeDrmConnector(device, match) : device;
+    }
+
+    return device;
+  });
+
+  const existingNames = new Set(
+    merged.map((entry) => getStringValue(entry.name)).filter(Boolean),
+  );
+  const _sysfsCardNames = new Set(
+    sysfsDevices
+      .filter((entry) => entry.kind === "card")
+      .map((entry) => getStringValue(entry.name))
+      .filter(Boolean),
+  );
+
+  const drmOnlyCards = normalizedInfo.cards
+    .filter((entry) => {
+      const name = getStringValue(entry.name);
+      return Boolean(name) && !existingNames.has(name);
+    })
+    .map((entry) => ({ ...entry }));
+
+  const connectorCounters = new Map();
+  const drmOnlyConnectors = normalizedInfo.connectors
+    .filter((entry) => !matchedConnectors.has(entry))
+    .map((entry) => {
+      const cardName = getStringValue(entry.cardName) ?? "card0";
+      const connectorType = getStringValue(entry.connectorType) ?? "Connector";
+      const counterKey = `${cardName}:${connectorType}`;
+      const nextIndex = (connectorCounters.get(counterKey) ?? 0) + 1;
+      connectorCounters.set(counterKey, nextIndex);
+      const generatedName = `${cardName}-${connectorType}-${nextIndex}`;
+      return {
+        ...entry,
+        kind: "connector",
+        name: generatedName,
+      };
+    })
+    .filter((entry) => !existingNames.has(getStringValue(entry.name)));
+
+  return [...merged, ...drmOnlyCards, ...drmOnlyConnectors];
+}
+
+function mergeDrmCard(device, drmCard) {
+  return {
+    ...drmCard,
+    ...device,
+    name: getStringValue(device.name) ?? getStringValue(drmCard.name),
+    kind: "card",
+    driver: getStringValue(device.driver) ?? getStringValue(drmCard.driver),
+    pciSlot: getStringValue(device.pciSlot) ?? getStringValue(drmCard.pciSlot),
+    vendorId:
+      getStringValue(device.vendorId) ?? getStringValue(drmCard.vendorId),
+    productId:
+      getStringValue(device.productId) ?? getStringValue(drmCard.productId),
+    subsystemVendorId:
+      getStringValue(device.subsystemVendorId) ??
+      getStringValue(drmCard.subsystemVendorId),
+    subsystemDeviceId:
+      getStringValue(device.subsystemDeviceId) ??
+      getStringValue(drmCard.subsystemDeviceId),
+    ofName: getStringValue(device.ofName),
+    ofCompatible:
+      Array.isArray(device.ofCompatible) && device.ofCompatible.length
+        ? device.ofCompatible
+        : drmCard.ofCompatible,
+  };
+}
+
+function mergeDrmConnector(device, drmConnector) {
+  return {
+    ...drmConnector,
+    ...device,
+    name: getStringValue(device.name) ?? getStringValue(drmConnector.name),
+    kind: "connector",
+    status:
+      getStringValue(device.status) ?? getStringValue(drmConnector.status),
+    modes:
+      Array.isArray(device.modes) && device.modes.length
+        ? device.modes
+        : drmConnector.modes,
+    edid: device.edid ?? drmConnector.edid,
+  };
+}
+
+function matchDrmConnector(device, candidates) {
+  const deviceName = getStringValue(device.name);
+  const connectorType = inferConnectorTypeFromName(deviceName);
+
+  if (connectorType) {
+    const typeMatches = candidates.filter(
+      (candidate) => getStringValue(candidate.connectorType) === connectorType,
+    );
+    if (typeMatches.length === 1) {
+      return typeMatches[0];
+    }
+    if (typeMatches.length > 1) {
+      const connectorIndex = inferConnectorOrdinalFromName(deviceName);
+      if (connectorIndex !== undefined && typeMatches[connectorIndex - 1]) {
+        return typeMatches[connectorIndex - 1];
+      }
+      return typeMatches[0];
+    }
+  }
+
+  const ordinal = inferConnectorOrdinalFromName(deviceName);
+  if (ordinal !== undefined && candidates[ordinal - 1]) {
+    return candidates[ordinal - 1];
+  }
+
+  return candidates[0];
+}
+
 function createLinuxAudioComponents(audioCards, audioPcm) {
   const pcmByCard = audioPcm.reduce((result, device) => {
     const cardNumber = getNumberValue(device.cardNumber);
@@ -3290,6 +3549,43 @@ function createDisplayComponents(drmDevices, options = {}, lshwNodes = []) {
             connectorCountByCard.get(device.name),
           ),
           createProperty("cdx:hbom:busInfo", getStringValue(lshwNode?.businfo)),
+          createProperty("cdx:hbom:drmNode", getStringValue(device.drmNode)),
+          createProperty(
+            "cdx:hbom:drmBusType",
+            getStringValue(device.drmBusType),
+          ),
+          createProperty(
+            "cdx:hbom:driverDescription",
+            getStringValue(device.driverDescription),
+          ),
+          createProperty(
+            "cdx:hbom:driverVersion",
+            getStringValue(device.driverVersion),
+          ),
+          createProperty(
+            "cdx:hbom:kernelRelease",
+            getStringValue(device.kernelRelease),
+          ),
+          createProperty(
+            "cdx:hbom:drmAvailableNodes",
+            getNumberValue(device.availableNodes),
+          ),
+          createProperty(
+            "cdx:hbom:framebufferMinWidth",
+            getNumberValue(device.framebuffer?.min_width),
+          ),
+          createProperty(
+            "cdx:hbom:framebufferMaxWidth",
+            getNumberValue(device.framebuffer?.max_width),
+          ),
+          createProperty(
+            "cdx:hbom:framebufferMinHeight",
+            getNumberValue(device.framebuffer?.min_height),
+          ),
+          createProperty(
+            "cdx:hbom:framebufferMaxHeight",
+            getNumberValue(device.framebuffer?.max_height),
+          ),
           createProperty(
             "cdx:hbom:deviceRevision",
             getStringValue(lshwNode?.version),
@@ -3301,8 +3597,13 @@ function createDisplayComponents(drmDevices, options = {}, lshwNodes = []) {
             getBooleanValue(lshwNode?.claimed),
           ),
           createProperty(
+            "cdx:hbom:clientCapabilities",
+            formatCapabilities(device.clientCaps),
+          ),
+          createProperty(
             "cdx:hbom:capabilities",
-            formatCapabilities(lshwNode?.capabilities),
+            formatCapabilities(device.caps) ??
+              formatCapabilities(lshwNode?.capabilities),
           ),
         ]),
       });
@@ -3323,6 +3624,45 @@ function createDisplayComponents(drmDevices, options = {}, lshwNodes = []) {
           createProperty(
             "cdx:hbom:displayAdapter",
             getDisplayCardName(device.name),
+          ),
+          createProperty(
+            "cdx:hbom:displayConnectorType",
+            getStringValue(device.connectorType),
+          ),
+          createProperty(
+            "cdx:hbom:drmConnectorId",
+            getNumberValue(device.drmConnectorId),
+          ),
+          createProperty("cdx:hbom:dpms", getScalarStringValue(device.dpms)),
+          createProperty(
+            "cdx:hbom:linkStatus",
+            getScalarStringValue(device.linkStatus),
+          ),
+          createProperty(
+            "cdx:hbom:nonDesktop",
+            normalizeBooleanLike(getScalarStringValue(device.nonDesktop)),
+          ),
+          createProperty(
+            "cdx:hbom:maxBitsPerChannel",
+            getNumberValue(device.maxBpc),
+          ),
+          createProperty(
+            "cdx:hbom:colorspace",
+            getScalarStringValue(device.colorspace),
+          ),
+          createProperty(
+            "cdx:hbom:contentProtection",
+            getScalarStringValue(device.contentProtection),
+          ),
+          createProperty(
+            "cdx:hbom:crtcId",
+            getScalarStringValue(device.crtcId),
+          ),
+          createProperty(
+            "cdx:hbom:variableRefreshEnabled",
+            normalizeBooleanLike(
+              getScalarStringValue(device.variableRefreshEnabled),
+            ),
           ),
         ]),
       }),
@@ -4457,6 +4797,230 @@ function flattenLsblkDevices(devices) {
   });
 }
 
+function formatDrmVersion(version) {
+  if (!version || typeof version !== "object") {
+    return undefined;
+  }
+
+  const major = getNumberValue(version.major);
+  const minor = getNumberValue(version.minor);
+  const patch = getNumberValue(version.patch);
+  if (major === undefined && minor === undefined && patch === undefined) {
+    return undefined;
+  }
+
+  return [major ?? 0, minor ?? 0, patch ?? 0].join(".");
+}
+
+function formatDrmBusType(value) {
+  const busType = getNumberValue(value);
+  switch (busType) {
+    case 0:
+      return "PCI";
+    case 1:
+      return "USB";
+    case 2:
+      return "platform";
+    case 3:
+      return "host1x";
+    default:
+      return busType === undefined ? undefined : String(busType);
+  }
+}
+
+function formatDrmPciAddress(busData) {
+  if (!busData || typeof busData !== "object") {
+    return undefined;
+  }
+
+  const domain = getNumberValue(busData.domain);
+  const bus = getNumberValue(busData.bus);
+  const slot = getNumberValue(busData.slot);
+  const fn = getNumberValue(busData.function);
+  if (
+    domain === undefined ||
+    bus === undefined ||
+    slot === undefined ||
+    fn === undefined
+  ) {
+    return undefined;
+  }
+
+  return `${domain.toString(16).padStart(4, "0")}:${bus
+    .toString(16)
+    .padStart(2, "0")}:${slot.toString(16).padStart(2, "0")}.${fn}`;
+}
+
+function formatDrmConnectorType(value) {
+  const connectorType = getNumberValue(value);
+  switch (connectorType) {
+    case 1:
+      return "VGA";
+    case 2:
+      return "DVI-I";
+    case 3:
+      return "DVI-D";
+    case 4:
+      return "DVI-A";
+    case 5:
+      return "Composite";
+    case 6:
+      return "SVIDEO";
+    case 7:
+      return "LVDS";
+    case 8:
+      return "Component";
+    case 9:
+      return "DIN";
+    case 10:
+      return "DP";
+    case 11:
+      return "HDMI-A";
+    case 12:
+      return "HDMI-B";
+    case 13:
+      return "TV";
+    case 14:
+      return "eDP";
+    case 15:
+      return "Virtual";
+    case 16:
+      return "DSI";
+    case 17:
+      return "DPI";
+    case 18:
+      return "Writeback";
+    case 19:
+      return "SPI";
+    case 20:
+      return "USB";
+    default:
+      return connectorType === undefined
+        ? "Connector"
+        : `Connector-${connectorType}`;
+  }
+}
+
+function formatDrmConnectorStatus(value) {
+  const status = getNumberValue(value);
+  switch (status) {
+    case 1:
+      return "connected";
+    case 2:
+      return "disconnected";
+    case 3:
+      return "unknown";
+    default:
+      return status === undefined ? undefined : String(status);
+  }
+}
+
+function getDrmPropertyValue(properties, propertyName) {
+  if (!properties || typeof properties !== "object") {
+    return undefined;
+  }
+
+  const property = properties[propertyName];
+  if (!property || typeof property !== "object") {
+    return undefined;
+  }
+
+  const value = property.value ?? property.raw_value;
+  if (Array.isArray(property.spec)) {
+    const matchingSpec = property.spec.find(
+      (entry) => getNumberValue(entry?.value) === getNumberValue(value),
+    );
+    const label = getStringValue(matchingSpec?.name);
+    if (label) {
+      return label;
+    }
+  }
+
+  if (typeof value === "boolean" || typeof value === "number") {
+    return value;
+  }
+
+  return getStringValue(value);
+}
+
+function normalizeDrmModes(modes) {
+  if (!Array.isArray(modes) || !modes.length) {
+    return undefined;
+  }
+
+  const formatted = modes
+    .map((mode) => {
+      if (typeof mode === "string") {
+        return mode.trim();
+      }
+      if (!mode || typeof mode !== "object") {
+        return undefined;
+      }
+      const name = getStringValue(mode.name);
+      if (name) {
+        return name;
+      }
+      const width = getNumberValue(mode.hdisplay);
+      const height = getNumberValue(mode.vdisplay);
+      const refresh = getNumberValue(mode.vrefresh);
+      if (width !== undefined && height !== undefined) {
+        return refresh !== undefined
+          ? `${width}x${height}@${refresh}`
+          : `${width}x${height}`;
+      }
+      return undefined;
+    })
+    .filter(Boolean);
+
+  return formatted.length ? [...new Set(formatted)] : undefined;
+}
+
+function inferConnectorTypeFromName(name) {
+  const normalized = getStringValue(name);
+  if (!normalized) {
+    return undefined;
+  }
+
+  const connectorName = normalized.replace(/^card\d+-/u, "");
+  for (const connectorType of [
+    "Writeback",
+    "HDMI-A",
+    "HDMI-B",
+    "DVI-I",
+    "DVI-D",
+    "DVI-A",
+    "Composite",
+    "SVIDEO",
+    "Component",
+    "Virtual",
+    "LVDS",
+    "eDP",
+    "DSI",
+    "DPI",
+    "VGA",
+    "DIN",
+    "DP",
+    "TV",
+    "SPI",
+    "USB",
+  ]) {
+    if (
+      connectorName.startsWith(`${connectorType}-`) ||
+      connectorName === connectorType
+    ) {
+      return connectorType;
+    }
+  }
+
+  return undefined;
+}
+
+function inferConnectorOrdinalFromName(name) {
+  const normalized = getStringValue(name);
+  const match = normalized?.match(/-(\d+)$/u);
+  return match ? Number.parseInt(match[1], 10) : undefined;
+}
+
 function normalizeBooleanLike(value) {
   if (value === undefined) {
     return undefined;
@@ -4488,6 +5052,13 @@ function getNumberValue(value) {
 
 function getBooleanValue(value) {
   return typeof value === "boolean" ? value : undefined;
+}
+
+function normalizeHexNumber(value) {
+  const parsed = getNumberValue(value);
+  return parsed === undefined
+    ? undefined
+    : parsed.toString(16).padStart(4, "0");
 }
 
 function toNumber(value) {
