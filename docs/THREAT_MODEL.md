@@ -82,11 +82,12 @@ Trust boundary 4: published package / CI/CD pipeline ←→ registries and relea
 - `safeSpawnSync()` uses array-based arguments through `spawnSync`, not shell-joined command strings
 - `shell` defaults to `false`
 - `runCommand()` routes execution through a small shared wrapper with bounded timeout and max buffer
-- `CDX_HBOM_ALLOWED_COMMANDS` (or fallback `CDXGEN_ALLOWED_COMMANDS`) can restrict the effective command set
+- Linux collectors use a fixed internal command registry rather than caller-supplied command strings
 - Executed commands are tracked through `commandsExecuted` and surfaced in BOM evidence properties
 - Darwin uses absolute paths for system utilities, reducing ambiguity about which binary is executed
+- upstream wrappers and integrators are expected to enforce any stricter command allowlisting or trusted-`PATH` policy around the collector process
 
-**Residual risk:** Medium. Linux enrichment commands such as `lscpu` and `lsblk` are resolved by executable name unless the environment constrains them. A hostile local environment can still influence command resolution if the caller has not locked down `PATH` or allowlists.
+**Residual risk:** Medium. Linux enrichment commands such as `lscpu` and `lsblk` are resolved by executable name unless the surrounding environment constrains them. A hostile local environment can still influence command resolution if the upstream caller or integrator has not locked down `PATH` and execution policy.
 
 #### T1.2: Sensitive identifier leakage in BOM output
 
@@ -124,7 +125,7 @@ Trust boundary 4: published package / CI/CD pipeline ←→ registries and relea
 
 - privileged enrichment is off by default
 - Linux privileged mode is explicit through `--privileged` / `includePrivilegedEnrichment: true`
-- non-interactive `sudo -n` retry is limited to documented permission-sensitive commands instead of every optional command
+- non-interactive `sudo -n` retry is explicitly opt-in per command and limited to documented permission-sensitive commands instead of every optional command
 - the command plan exposes which commands are expected and which ones may need privilege, including template entries that expand to concrete per-device or per-interface arguments during live collection
 - failures in privileged enrichment can be isolated through `allowPartial`
 - the CLI and BOM can surface install and privilege diagnostics without corrupting JSON output
@@ -165,11 +166,11 @@ Trust boundary 4: published package / CI/CD pipeline ←→ registries and relea
 **Mitigations:**
 
 - Darwin commands use explicit absolute paths such as `/usr/sbin/system_profiler` and `/usr/bin/pmset`
-- `CDX_HBOM_ALLOWED_COMMANDS` can enforce a strict local allowlist
 - `shell: false` prevents shell metacharacter expansion
 - the safe wrapper contains a Windows shell-hijack guard for current-working-directory shadowing when shell mode is enabled
+- upstream wrappers and integrators are responsible for enforcing strict command allowlisting and a trusted `PATH` where deployment policy requires it
 
-**Residual risk:** Medium. Linux commands are generally executed by basename, so a compromised local environment can still alter resolution if the caller does not lock down `PATH` or allowlists.
+**Residual risk:** Medium. Linux commands are generally executed by basename, so a compromised local environment can still alter resolution if the upstream caller or integrator does not lock down `PATH` and execution policy.
 
 #### T2.3: Poisoned local command or kernel data
 
@@ -268,7 +269,7 @@ Trust boundary 4: published package / CI/CD pipeline ←→ registries and relea
 
 | Control                            | Implementation                                                                                                      | Threat(s) Addressed                 |
 | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------- | ----------------------------------- |
-| Command allowlisting               | `CDX_HBOM_ALLOWED_COMMANDS` / `CDXGEN_ALLOWED_COMMANDS` + `safeSpawnSync()`                                         | T1.1, T2.2                          |
+| Upstream command policy            | Integrator-enforced allowlisting and trusted-`PATH` policy around `cdx-hbom`                                        | T1.1, T2.2                          |
 | Array-based spawn, shell off       | `spawnSync(command, args, { shell: false })` via `safeSpawnSync()`                                                  | T1.1                                |
 | Timeout and output bounds          | 15-second default timeout, 10 MB `maxBuffer`                                                                        | T1.3                                |
 | Default identifier redaction       | `redactIdentifier()` and explicit `--sensitive` opt-in                                                              | T1.2, T4.1                          |
@@ -284,7 +285,7 @@ Trust boundary 4: published package / CI/CD pipeline ←→ registries and relea
 1. **Collect on trusted hosts**: `cdx-hbom` can only be as trustworthy as the host it inventories.
 2. **Keep default redaction enabled**: only use `--sensitive` when you have a clear need for raw identifiers.
 3. **Review output before sharing**: especially `cdx:hbom:evidence:file*`, `cdx:hbom:evidence:command*`, `cdx:hbom:evidence:commandDiagnostic*`, serial-like properties, and topology details.
-4. **Use command allowlists in controlled environments**: set `CDX_HBOM_ALLOWED_COMMANDS` to the exact commands you permit.
+4. **Enforce command policy in the parent environment**: if your deployment requires strict execution control, apply command allowlisting and a trusted `PATH` in the calling wrapper, CI job, or parent application.
 5. **Use Linux privileged enrichment sparingly**: enable `--privileged` only when additional SMBIOS or permission-gated hardware detail is required and the environment is appropriately hardened for `sudo -n`.
 6. **Prefer `buildHardwareFromSources()` for offline reconstruction**: when live command execution is undesirable, capture and vet the source data first.
 7. **Pin package and Node.js versions in CI**: combine reproducible installs with provenance verification where available.

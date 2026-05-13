@@ -14,6 +14,7 @@ import { recordCollectorTrace } from "./trace.js";
  * @property {string} phase Rollout phase such as `collector-v1` or `planned-enrichment`.
  * @property {string[]} [sensitiveFields] Field names that should be redacted by default.
  * @property {"none" | "optional" | "required"} [privilege] Privilege expectation for the command.
+ * @property {boolean} [sudoRetryOnPermissionDenied] When true, `runCommand()` may retry once with `sudo -n` after an explicit permission-denied failure when privileged enrichment is enabled.
  */
 
 /**
@@ -36,6 +37,7 @@ export async function runCommand(spec, options = {}) {
     shouldRetryWithSudo(spec, options, result, shouldRunWithSudo) &&
     process.getuid?.() !== 0
   ) {
+    recordSudoRetry(spec, options, result);
     result = executeCommand(spec, options, timeoutMs, true);
   }
 
@@ -83,19 +85,36 @@ function shouldRetryWithSudo(spec, options, result, attemptedWithSudo) {
   if (
     attemptedWithSudo ||
     options.includePrivilegedEnrichment !== true ||
-    (spec.privilege ?? "none") !== "optional"
+    spec.sudoRetryOnPermissionDenied !== true ||
+    result.status === 0
   ) {
     return false;
   }
 
-  const stdout = String(result.stdout ?? "").trim();
   const stderr = String(result.stderr ?? "").trim();
   const errorText = [result.error?.message, stderr].filter(Boolean).join("\n");
 
-  return (
-    isPermissionLikeMessage(errorText) &&
-    (result.status !== 0 || looksLikeEmptyStructuredOutput(stdout))
-  );
+  return isPermissionLikeMessage(errorText);
+}
+
+function recordSudoRetry(spec, options, result) {
+  const stderr = String(result.stderr ?? "").trim();
+  const reason = summarizeCommandIssue(stderr || result.error?.message);
+
+  recordCollectorTrace(options.trace, {
+    args: [...spec.args],
+    category: spec.category,
+    command: spec.command,
+    id: spec.id,
+    issue: "permission-denied",
+    kind: "command-retry",
+    privileged: true,
+    reason,
+    retryCommand: "sudo",
+    retryArgs: ["-n", spec.command, ...spec.args],
+    status: "scheduled",
+    target: `${spec.command}${spec.args.length ? ` ${spec.args.join(" ")}` : ""}`,
+  });
 }
 
 function recordCommandWarning(spec, options, stdout, stderr) {
@@ -239,11 +258,6 @@ function isPermissionLikeMessage(value) {
   return /permission denied|operation not permitted|must be root|can't read memory from \/dev\/mem|a password is required|sudo:/u.test(
     String(value ?? "").toLowerCase(),
   );
-}
-
-function looksLikeEmptyStructuredOutput(stdout) {
-  const normalized = String(stdout ?? "").trim();
-  return normalized === "" || normalized === "{}" || normalized === "[]";
 }
 
 function buildHintMessage(spec, errorType) {
