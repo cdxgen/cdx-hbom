@@ -51,7 +51,8 @@ export const LINUX_COMMON_COMMANDS = Object.freeze([
     command: "lsmem",
     args: ["--json"],
     parser: "lsmem-json",
-    purpose: "Collect structured Linux memory range information when available.",
+    purpose:
+      "Collect structured Linux memory range information when available.",
     phase: "collector-v1",
   }),
   Object.freeze({
@@ -60,7 +61,8 @@ export const LINUX_COMMON_COMMANDS = Object.freeze([
     command: "hostnamectl",
     args: ["--json=short", "status"],
     parser: "json",
-    purpose: "Collect host chassis and firmware metadata on systemd systems when available.",
+    purpose:
+      "Collect host chassis and firmware metadata on systemd systems when available.",
     phase: "collector-v1",
     sensitiveFields: ["HardwareSerial"],
   }),
@@ -70,7 +72,8 @@ export const LINUX_COMMON_COMMANDS = Object.freeze([
     command: "lspci",
     args: ["-Dvmmnn"],
     parser: "lspci-vmmnn",
-    purpose: "Collect PCI bus and controller inventory when lspci is available.",
+    purpose:
+      "Collect PCI bus and controller inventory when lspci is available.",
     phase: "collector-v1",
   }),
   Object.freeze({
@@ -88,7 +91,8 @@ export const LINUX_COMMON_COMMANDS = Object.freeze([
     command: "ethtool",
     args: ["-i", "eth0"],
     parser: "ethtool-driver-info",
-    purpose: "Collect per-interface network driver and firmware metadata when ethtool is available.",
+    purpose:
+      "Collect per-interface network driver and firmware metadata when ethtool is available.",
     phase: "collector-v1",
   }),
   Object.freeze({
@@ -97,7 +101,8 @@ export const LINUX_COMMON_COMMANDS = Object.freeze([
     command: "dmidecode",
     args: ["-t", "bios", "-t", "baseboard", "-t", "system"],
     parser: "dmidecode-text",
-    purpose: "Privileged enrichment for SMBIOS firmware and board metadata when permissions permit.",
+    purpose:
+      "Privileged enrichment for SMBIOS firmware and board metadata when permissions permit.",
     phase: "planned-enrichment",
     sensitiveFields: ["Serial Number", "UUID"],
   }),
@@ -107,7 +112,8 @@ export const LINUX_COMMON_COMMANDS = Object.freeze([
     command: "lshw",
     args: ["-json"],
     parser: "json",
-    purpose: "Planned enrichment for broader Linux hardware topology using lshw.",
+    purpose:
+      "Planned enrichment for broader Linux hardware topology using lshw.",
     phase: "planned-enrichment",
     sensitiveFields: ["serial"],
   }),

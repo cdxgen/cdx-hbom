@@ -64,7 +64,8 @@ test("parsePmsetBattery extracts battery state", () => {
 });
 
 test("parseIfconfigText extracts live interface state without leaking raw IPs", () => {
-  const parsed = parseIfconfigText(`en0: flags=8863<UP,BROADCAST,SMART,RUNNING,SIMPLEX,MULTICAST> mtu 1500
+  const parsed =
+    parseIfconfigText(`en0: flags=8863<UP,BROADCAST,SMART,RUNNING,SIMPLEX,MULTICAST> mtu 1500
         options=6460<TSO4,TSO6,CHANNEL_IO,PARTIAL_CSUM,ZEROINVERT_CSUM>
         ether e2:45:88:f2:af:d4
         inet6 fe80::4cf:4cd8:1d32:1915%en0 prefixlen 64 secured scopeid 0x12
@@ -312,34 +313,54 @@ test("buildDarwinArm64Hbom returns a redacted, CycloneDX-like shape by default",
   assert.ok(
     hbom.components.some(
       (component) =>
-        getPropertyValue(component, "cdx:hbom:hardwareClass") === "network-interface" &&
-        getPropertyValue(component, "cdx:hbom:macAddress")?.startsWith("redacted:"),
+        getPropertyValue(component, "cdx:hbom:hardwareClass") ===
+          "network-interface" &&
+        getPropertyValue(component, "cdx:hbom:macAddress")?.startsWith(
+          "redacted:",
+        ),
     ),
   );
   assert.equal(
-    hbom.components.find(
-      (component) => getPropertyValue(component, "cdx:hbom:hardwareClass") === "power",
-    )?.properties.find((property) => property.name === "cdx:hbom:cycleCount")?.value,
+    hbom.components
+      .find(
+        (component) =>
+          getPropertyValue(component, "cdx:hbom:hardwareClass") === "power",
+      )
+      ?.properties.find((property) => property.name === "cdx:hbom:cycleCount")
+      ?.value,
     "120",
   );
   assert.equal(
-    hbom.components.find(
-      (component) => getPropertyValue(component, "cdx:hbom:hardwareClass") === "power-adapter",
-    )?.properties.find((property) => property.name === "cdx:hbom:watts")?.value,
+    hbom.components
+      .find(
+        (component) =>
+          getPropertyValue(component, "cdx:hbom:hardwareClass") ===
+          "power-adapter",
+      )
+      ?.properties.find((property) => property.name === "cdx:hbom:watts")
+      ?.value,
     "100",
   );
   assert.equal(
-    hbom.components.find(
-      (component) => getPropertyValue(component, "cdx:hbom:hardwareClass") === "storage",
-    )?.properties.find((property) => property.name === "cdx:hbom:smartStatus")?.value,
+    hbom.components
+      .find(
+        (component) =>
+          getPropertyValue(component, "cdx:hbom:hardwareClass") === "storage",
+      )
+      ?.properties.find((property) => property.name === "cdx:hbom:smartStatus")
+      ?.value,
     "Verified",
   );
   assert.equal(
-    hbom.properties.find((property) => property.name === "cdx:hbom:targetPlatform")?.value,
+    hbom.properties.find(
+      (property) => property.name === "cdx:hbom:targetPlatform",
+    )?.value,
     "darwin",
   );
   assert.ok(
-    hbom.properties.some((property) => property.name === "cdx:hbom:evidence:command"),
+    hbom.properties.some(
+      (property) => property.name === "cdx:hbom:evidence:command",
+    ),
   );
 });
 
@@ -407,7 +428,11 @@ test("buildDarwinArm64Hbom emits native USB, Wi-Fi, and audio components", () =>
                 _name: "en0",
                 spairport_status_information: "spairport_status_connected",
                 spairport_supported_phymodes: "802.11 a/b/g/n/ac/ax",
-                spairport_supported_channels: ["1 (2GHz)", "36 (5GHz)", "149 (5GHz)"],
+                spairport_supported_channels: [
+                  "1 (2GHz)",
+                  "36 (5GHz)",
+                  "149 (5GHz)",
+                ],
                 spairport_wireless_card_type:
                   "spairport_wireless_card_type_wifi (0x14E4, 0x4388)",
                 spairport_wireless_country_code: "GB",
@@ -418,7 +443,8 @@ test("buildDarwinArm64Hbom emits native USB, Wi-Fi, and audio components", () =>
                   spairport_network_country_code: "GB",
                   spairport_network_phymode: "802.11ac",
                   spairport_network_rate: 866,
-                  spairport_security_mode: "spairport_security_mode_wpa2_personal",
+                  spairport_security_mode:
+                    "spairport_security_mode_wpa2_personal",
                 },
               },
               {
@@ -474,27 +500,51 @@ test("buildDarwinArm64Hbom emits native USB, Wi-Fi, and audio components", () =>
   assert.ok(hasHardwareClass(hbom.components, "wireless-adapter"));
   assert.equal(getHardwareClassCount(hbom.components, "audio-device"), 2);
   assert.equal(
-    hbom.components.find(
-      (component) => getPropertyValue(component, "cdx:hbom:hardwareClass") === "wireless-adapter",
-    )?.properties.find((property) => property.name === "cdx:hbom:connected")?.value,
+    hbom.components
+      .find(
+        (component) =>
+          getPropertyValue(component, "cdx:hbom:hardwareClass") ===
+          "wireless-adapter",
+      )
+      ?.properties.find((property) => property.name === "cdx:hbom:connected")
+      ?.value,
     "true",
   );
   assert.equal(
-    hbom.components.find(
-      (component) => getPropertyValue(component, "cdx:hbom:hardwareClass") === "usb-device",
-    )?.properties.find((property) => property.name === "cdx:hbom:deviceSerial")?.value,
+    hbom.components
+      .find(
+        (component) =>
+          getPropertyValue(component, "cdx:hbom:hardwareClass") ===
+          "usb-device",
+      )
+      ?.properties.find((property) => property.name === "cdx:hbom:deviceSerial")
+      ?.value,
     "redacted:3456",
   );
   assert.equal(
-    hbom.components.find(
-      (component) => component.name === "ROG DELTA S" && getPropertyValue(component, "cdx:hbom:hardwareClass") === "audio-device",
-    )?.properties.find((property) => property.name === "cdx:hbom:inputChannels")?.value,
+    hbom.components
+      .find(
+        (component) =>
+          component.name === "ROG DELTA S" &&
+          getPropertyValue(component, "cdx:hbom:hardwareClass") ===
+            "audio-device",
+      )
+      ?.properties.find(
+        (property) => property.name === "cdx:hbom:inputChannels",
+      )?.value,
     "2",
   );
   assert.equal(
-    hbom.components.find(
-      (component) => component.name === "ROG DELTA S" && getPropertyValue(component, "cdx:hbom:hardwareClass") === "audio-device",
-    )?.properties.find((property) => property.name === "cdx:hbom:defaultOutput")?.value,
+    hbom.components
+      .find(
+        (component) =>
+          component.name === "ROG DELTA S" &&
+          getPropertyValue(component, "cdx:hbom:hardwareClass") ===
+            "audio-device",
+      )
+      ?.properties.find(
+        (property) => property.name === "cdx:hbom:defaultOutput",
+      )?.value,
     "true",
   );
 });
@@ -575,34 +625,51 @@ test("buildDarwinArm64Hbom emits camera, ifconfig-enriched network, and APFS top
   assert.ok(hasHardwareClass(hbom.components, "storage-container"));
   assert.ok(hasHardwareClass(hbom.components, "storage-volume"));
   assert.equal(
-    hbom.components.find(
-      (component) => getPropertyValue(component, "cdx:hbom:hardwareClass") === "camera" && component.name === "OBS Virtual Camera",
-    )?.properties.find((property) => property.name === "cdx:hbom:isVirtual")?.value,
+    hbom.components
+      .find(
+        (component) =>
+          getPropertyValue(component, "cdx:hbom:hardwareClass") === "camera" &&
+          component.name === "OBS Virtual Camera",
+      )
+      ?.properties.find((property) => property.name === "cdx:hbom:isVirtual")
+      ?.value,
     "true",
   );
   assert.equal(
-    hbom.components.find(
-      (component) => getPropertyValue(component, "cdx:hbom:hardwareClass") === "network-interface",
-    )?.properties.find((property) => property.name === "cdx:hbom:status")?.value,
+    hbom.components
+      .find(
+        (component) =>
+          getPropertyValue(component, "cdx:hbom:hardwareClass") ===
+          "network-interface",
+      )
+      ?.properties.find((property) => property.name === "cdx:hbom:status")
+      ?.value,
     "active",
   );
   assert.equal(
-    hbom.components.find(
-      (component) => getPropertyValue(component, "cdx:hbom:hardwareClass") === "storage-volume",
-    )?.properties.find((property) => property.name === "cdx:hbom:fileVault")?.value,
+    hbom.components
+      .find(
+        (component) =>
+          getPropertyValue(component, "cdx:hbom:hardwareClass") ===
+          "storage-volume",
+      )
+      ?.properties.find((property) => property.name === "cdx:hbom:fileVault")
+      ?.value,
     "true",
   );
 });
 
 function hasHardwareClass(components, hardwareClass) {
   return components.some(
-    (component) => getPropertyValue(component, "cdx:hbom:hardwareClass") === hardwareClass,
+    (component) =>
+      getPropertyValue(component, "cdx:hbom:hardwareClass") === hardwareClass,
   );
 }
 
 function getHardwareClassCount(components, hardwareClass) {
   return components.filter(
-    (component) => getPropertyValue(component, "cdx:hbom:hardwareClass") === hardwareClass,
+    (component) =>
+      getPropertyValue(component, "cdx:hbom:hardwareClass") === hardwareClass,
   ).length;
 }
 

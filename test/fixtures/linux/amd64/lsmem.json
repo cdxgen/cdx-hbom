@@ -1,11 +1,11 @@
 {
-   "memory": [
-      {
-         "range": "0x0000000000000000-0x00000017ffffffff",
-         "size": "96G",
-         "state": "online",
-         "removable": true,
-         "block": "0-47"
-      }
-   ]
+  "memory": [
+    {
+      "range": "0x0000000000000000-0x00000017ffffffff",
+      "size": "96G",
+      "state": "online",
+      "removable": true,
+      "block": "0-47"
+    }
+  ]
 }

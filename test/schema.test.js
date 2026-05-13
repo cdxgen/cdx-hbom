@@ -39,7 +39,10 @@ test("createHbomDocument wraps data in the versioned HBOM envelope", () => {
 });
 
 test("schema constants target the official CycloneDX 1.7 schema", () => {
-  assert.equal(HBOM_SCHEMA_URL, "http://cyclonedx.org/schema/bom-1.7.schema.json");
+  assert.equal(
+    HBOM_SCHEMA_URL,
+    "http://cyclonedx.org/schema/bom-1.7.schema.json",
+  );
   assert.equal(HBOM_BOM_FORMAT, "CycloneDX");
   assert.equal(HBOM_SPEC_VERSION, "1.7");
 });

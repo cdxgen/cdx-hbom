@@ -18,10 +18,14 @@ test("mini CLI prints help text", () => {
 });
 
 test("mini CLI prints version", () => {
-  const result = spawnSync(process.execPath, ["./bin/cdx-hbom.js", "--version"], {
-    cwd: projectRoot,
-    encoding: "utf8",
-  });
+  const result = spawnSync(
+    process.execPath,
+    ["./bin/cdx-hbom.js", "--version"],
+    {
+      cwd: projectRoot,
+      encoding: "utf8",
+    },
+  );
 
   assert.equal(result.status, 0);
 });

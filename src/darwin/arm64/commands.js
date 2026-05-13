@@ -118,7 +118,11 @@ export const DARWIN_ARM64_COMMANDS = Object.freeze([
     purpose:
       "Planned enrichment for low-level Apple platform model and registry-backed identifiers via plist output.",
     phase: "planned-enrichment",
-    sensitiveFields: ["IOPlatformSerialNumber", "IOPlatformUUID", "serial-number"],
+    sensitiveFields: [
+      "IOPlatformSerialNumber",
+      "IOPlatformUUID",
+      "serial-number",
+    ],
   }),
   Object.freeze({
     id: "storage-plist",
@@ -158,7 +162,8 @@ export const DARWIN_ARM64_COMMANDS = Object.freeze([
     command: "/usr/bin/sw_vers",
     args: [],
     parser: "sw-vers-text",
-    purpose: "Planned metadata enrichment for Darwin version and build context.",
+    purpose:
+      "Planned metadata enrichment for Darwin version and build context.",
     phase: "planned-enrichment",
   }),
 ]);

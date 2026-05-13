@@ -1,6 +1,6 @@
-import { existsSync, mkdirSync, readFileSync, readdirSync } from "node:fs";
-import { basename, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
+import { existsSync, mkdirSync, readdirSync, readFileSync } from "node:fs";
+import { basename, resolve } from "node:path";
 import process from "node:process";
 
 /**
@@ -143,20 +143,33 @@ export function safeSpawnSync(command, args = [], options = {}) {
   const allowedCommands = normalizeAllowedCommands(options.allowedCommands);
   const commandName = basename(command);
 
-  if (allowedCommands && !allowedCommands.has(command) && !allowedCommands.has(commandName)) {
+  if (
+    allowedCommands &&
+    !allowedCommands.has(command) &&
+    !allowedCommands.has(commandName)
+  ) {
     return {
       status: 1,
       stdout: options.encoding === "buffer" ? Buffer.alloc(0) : "",
-      stderr: options.encoding === "buffer" ? Buffer.from("Command blocked by allowlist") : "Command blocked by allowlist",
+      stderr:
+        options.encoding === "buffer"
+          ? Buffer.from("Command blocked by allowlist")
+          : "Command blocked by allowlist",
       error: new Error(`Command blocked by allowlist: ${command}`),
     };
   }
 
-  if (options.shell === true && isWindowsShellHijackRisk(command, options.cwd)) {
+  if (
+    options.shell === true &&
+    isWindowsShellHijackRisk(command, options.cwd)
+  ) {
     return {
       status: 1,
       stdout: options.encoding === "buffer" ? Buffer.alloc(0) : "",
-      stderr: options.encoding === "buffer" ? Buffer.from("Blocked potential Windows shell hijack") : "Blocked potential Windows shell hijack",
+      stderr:
+        options.encoding === "buffer"
+          ? Buffer.from("Blocked potential Windows shell hijack")
+          : "Blocked potential Windows shell hijack",
       error: new Error("Blocked potential Windows shell hijack"),
     };
   }
@@ -184,11 +197,14 @@ export function safeSpawnSync(command, args = [], options = {}) {
  */
 function normalizeAllowedCommands(allowedCommands) {
   if (Array.isArray(allowedCommands) && allowedCommands.length > 0) {
-    return new Set(allowedCommands.map((entry) => entry.trim()).filter(Boolean));
+    return new Set(
+      allowedCommands.map((entry) => entry.trim()).filter(Boolean),
+    );
   }
 
   const envValue =
-    process.env.CDX_HBOM_ALLOWED_COMMANDS ?? process.env.CDXGEN_ALLOWED_COMMANDS;
+    process.env.CDX_HBOM_ALLOWED_COMMANDS ??
+    process.env.CDXGEN_ALLOWED_COMMANDS;
 
   if (!envValue) {
     return null;
@@ -220,7 +236,12 @@ function isWindowsShellHijackRisk(command, cwd) {
     .filter(Boolean)
     .map((extension) => extension.toLowerCase());
   const cwdPath = resolve(cwd);
-  const candidates = [candidateBase, ...pathExt.map((extension) => `${candidateBase}${extension}`)];
+  const candidates = [
+    candidateBase,
+    ...pathExt.map((extension) => `${candidateBase}${extension}`),
+  ];
 
-  return candidates.some((candidate) => safeExistsSync(resolve(cwdPath, candidate)));
+  return candidates.some((candidate) =>
+    safeExistsSync(resolve(cwdPath, candidate)),
+  );
 }

@@ -1,1318 +1,1364 @@
 {
-  "id" : "mini-dev-2",
-  "class" : "system",
-  "claimed" : true,
-  "description" : "Computer",
-  "width" : 64,
-  "capabilities" : {
-    "smp" : "Symmetric Multi-Processing",
-    "vsyscall32" : "32-bit processes"
+  "id": "mini-dev-2",
+  "class": "system",
+  "claimed": true,
+  "description": "Computer",
+  "width": 64,
+  "capabilities": {
+    "smp": "Symmetric Multi-Processing",
+    "vsyscall32": "32-bit processes"
   },
-  "children" : [    {
-      "id" : "core",
-      "class" : "bus",
-      "claimed" : true,
-      "description" : "Motherboard",
-      "physid" : "0",
-      "children" : [        {
-          "id" : "memory",
-          "class" : "memory",
-          "claimed" : true,
-          "description" : "System memory",
-          "physid" : "0",
-          "units" : "bytes",
-          "size" : 103079215104
+  "children": [
+    {
+      "id": "core",
+      "class": "bus",
+      "claimed": true,
+      "description": "Motherboard",
+      "physid": "0",
+      "children": [
+        {
+          "id": "memory",
+          "class": "memory",
+          "claimed": true,
+          "description": "System memory",
+          "physid": "0",
+          "units": "bytes",
+          "size": 103079215104
         },
         {
-          "id" : "cpu",
-          "class" : "processor",
-          "claimed" : true,
-          "product" : "AMD Ryzen 7 8845HS w/ Radeon 780M Graphics",
-          "vendor" : "Advanced Micro Devices [AMD]",
-          "physid" : "1",
-          "businfo" : "cpu@0",
-          "version" : "25.117.2",
-          "units" : "Hz",
-          "size" : 400000000,
-          "capacity" : 5100000000,
-          "width" : 64,
-          "configuration" : {
-            "microcode" : "175133190"
+          "id": "cpu",
+          "class": "processor",
+          "claimed": true,
+          "product": "AMD Ryzen 7 8845HS w/ Radeon 780M Graphics",
+          "vendor": "Advanced Micro Devices [AMD]",
+          "physid": "1",
+          "businfo": "cpu@0",
+          "version": "25.117.2",
+          "units": "Hz",
+          "size": 400000000,
+          "capacity": 5100000000,
+          "width": 64,
+          "configuration": {
+            "microcode": "175133190"
           },
-          "capabilities" : {
-            "fpu" : "mathematical co-processor",
-            "fpu_exception" : "FPU exceptions reporting",
-            "wp" : true,
-            "vme" : "virtual mode extensions",
-            "de" : "debugging extensions",
-            "pse" : "page size extensions",
-            "tsc" : "time stamp counter",
-            "msr" : "model-specific registers",
-            "pae" : "4GB+ memory addressing (Physical Address Extension)",
-            "mce" : "machine check exceptions",
-            "cx8" : "compare and exchange 8-byte",
-            "apic" : "on-chip advanced programmable interrupt controller (APIC)",
-            "sep" : "fast system calls",
-            "mtrr" : "memory type range registers",
-            "pge" : "page global enable",
-            "mca" : "machine check architecture",
-            "cmov" : "conditional move instruction",
-            "pat" : "page attribute table",
-            "pse36" : "36-bit page size extensions",
-            "clflush" : true,
-            "mmx" : "multimedia extensions (MMX)",
-            "fxsr" : "fast floating point save/restore",
-            "sse" : "streaming SIMD extensions (SSE)",
-            "sse2" : "streaming SIMD extensions (SSE2)",
-            "ht" : "HyperThreading",
-            "syscall" : "fast system calls",
-            "nx" : "no-execute bit (NX)",
-            "mmxext" : "multimedia extensions (MMXExt)",
-            "fxsr_opt" : true,
-            "pdpe1gb" : true,
-            "rdtscp" : true,
-            "x86-64" : "64bits extensions (x86-64)",
-            "constant_tsc" : true,
-            "rep_good" : true,
-            "amd_lbr_v2" : true,
-            "nopl" : true,
-            "nonstop_tsc" : true,
-            "cpuid" : true,
-            "extd_apicid" : true,
-            "aperfmperf" : true,
-            "rapl" : true,
-            "pni" : true,
-            "pclmulqdq" : true,
-            "monitor" : true,
-            "ssse3" : true,
-            "fma" : true,
-            "cx16" : true,
-            "sse4_1" : true,
-            "sse4_2" : true,
-            "x2apic" : true,
-            "movbe" : true,
-            "popcnt" : true,
-            "aes" : true,
-            "xsave" : true,
-            "avx" : true,
-            "f16c" : true,
-            "rdrand" : true,
-            "lahf_lm" : true,
-            "cmp_legacy" : true,
-            "svm" : true,
-            "extapic" : true,
-            "cr8_legacy" : true,
-            "abm" : true,
-            "sse4a" : true,
-            "misalignsse" : true,
-            "3dnowprefetch" : true,
-            "osvw" : true,
-            "ibs" : true,
-            "skinit" : true,
-            "wdt" : true,
-            "tce" : true,
-            "topoext" : true,
-            "perfctr_core" : true,
-            "perfctr_nb" : true,
-            "bpext" : true,
-            "perfctr_llc" : true,
-            "mwaitx" : true,
-            "cpb" : true,
-            "cat_l3" : true,
-            "cdp_l3" : true,
-            "hw_pstate" : true,
-            "ssbd" : true,
-            "mba" : true,
-            "perfmon_v2" : true,
-            "ibrs" : true,
-            "ibpb" : true,
-            "stibp" : true,
-            "ibrs_enhanced" : true,
-            "vmmcall" : true,
-            "fsgsbase" : true,
-            "bmi1" : true,
-            "avx2" : true,
-            "smep" : true,
-            "bmi2" : true,
-            "erms" : true,
-            "invpcid" : true,
-            "cqm" : true,
-            "rdt_a" : true,
-            "avx512f" : true,
-            "avx512dq" : true,
-            "rdseed" : true,
-            "adx" : true,
-            "smap" : true,
-            "avx512ifma" : true,
-            "clflushopt" : true,
-            "clwb" : true,
-            "avx512cd" : true,
-            "sha_ni" : true,
-            "avx512bw" : true,
-            "avx512vl" : true,
-            "xsaveopt" : true,
-            "xsavec" : true,
-            "xgetbv1" : true,
-            "xsaves" : true,
-            "cqm_llc" : true,
-            "cqm_occup_llc" : true,
-            "cqm_mbm_total" : true,
-            "cqm_mbm_local" : true,
-            "user_shstk" : true,
-            "avx512_bf16" : true,
-            "clzero" : true,
-            "irperf" : true,
-            "xsaveerptr" : true,
-            "rdpru" : true,
-            "wbnoinvd" : true,
-            "cppc" : true,
-            "arat" : true,
-            "npt" : true,
-            "lbrv" : true,
-            "svm_lock" : true,
-            "nrip_save" : true,
-            "tsc_scale" : true,
-            "vmcb_clean" : true,
-            "flushbyasid" : true,
-            "decodeassists" : true,
-            "pausefilter" : true,
-            "pfthreshold" : true,
-            "vgif" : true,
-            "x2avic" : true,
-            "v_spec_ctrl" : true,
-            "vnmi" : true,
-            "avx512vbmi" : true,
-            "umip" : true,
-            "pku" : true,
-            "ospke" : true,
-            "avx512_vbmi2" : true,
-            "gfni" : true,
-            "vaes" : true,
-            "vpclmulqdq" : true,
-            "avx512_vnni" : true,
-            "avx512_bitalg" : true,
-            "avx512_vpopcntdq" : true,
-            "rdpid" : true,
-            "overflow_recov" : true,
-            "succor" : true,
-            "smca" : true,
-            "fsrm" : true,
-            "flush_l1d" : true,
-            "ibpb_exit_to_user" : true,
-            "cpufreq" : "CPU Frequency scaling"
+          "capabilities": {
+            "fpu": "mathematical co-processor",
+            "fpu_exception": "FPU exceptions reporting",
+            "wp": true,
+            "vme": "virtual mode extensions",
+            "de": "debugging extensions",
+            "pse": "page size extensions",
+            "tsc": "time stamp counter",
+            "msr": "model-specific registers",
+            "pae": "4GB+ memory addressing (Physical Address Extension)",
+            "mce": "machine check exceptions",
+            "cx8": "compare and exchange 8-byte",
+            "apic": "on-chip advanced programmable interrupt controller (APIC)",
+            "sep": "fast system calls",
+            "mtrr": "memory type range registers",
+            "pge": "page global enable",
+            "mca": "machine check architecture",
+            "cmov": "conditional move instruction",
+            "pat": "page attribute table",
+            "pse36": "36-bit page size extensions",
+            "clflush": true,
+            "mmx": "multimedia extensions (MMX)",
+            "fxsr": "fast floating point save/restore",
+            "sse": "streaming SIMD extensions (SSE)",
+            "sse2": "streaming SIMD extensions (SSE2)",
+            "ht": "HyperThreading",
+            "syscall": "fast system calls",
+            "nx": "no-execute bit (NX)",
+            "mmxext": "multimedia extensions (MMXExt)",
+            "fxsr_opt": true,
+            "pdpe1gb": true,
+            "rdtscp": true,
+            "x86-64": "64bits extensions (x86-64)",
+            "constant_tsc": true,
+            "rep_good": true,
+            "amd_lbr_v2": true,
+            "nopl": true,
+            "nonstop_tsc": true,
+            "cpuid": true,
+            "extd_apicid": true,
+            "aperfmperf": true,
+            "rapl": true,
+            "pni": true,
+            "pclmulqdq": true,
+            "monitor": true,
+            "ssse3": true,
+            "fma": true,
+            "cx16": true,
+            "sse4_1": true,
+            "sse4_2": true,
+            "x2apic": true,
+            "movbe": true,
+            "popcnt": true,
+            "aes": true,
+            "xsave": true,
+            "avx": true,
+            "f16c": true,
+            "rdrand": true,
+            "lahf_lm": true,
+            "cmp_legacy": true,
+            "svm": true,
+            "extapic": true,
+            "cr8_legacy": true,
+            "abm": true,
+            "sse4a": true,
+            "misalignsse": true,
+            "3dnowprefetch": true,
+            "osvw": true,
+            "ibs": true,
+            "skinit": true,
+            "wdt": true,
+            "tce": true,
+            "topoext": true,
+            "perfctr_core": true,
+            "perfctr_nb": true,
+            "bpext": true,
+            "perfctr_llc": true,
+            "mwaitx": true,
+            "cpb": true,
+            "cat_l3": true,
+            "cdp_l3": true,
+            "hw_pstate": true,
+            "ssbd": true,
+            "mba": true,
+            "perfmon_v2": true,
+            "ibrs": true,
+            "ibpb": true,
+            "stibp": true,
+            "ibrs_enhanced": true,
+            "vmmcall": true,
+            "fsgsbase": true,
+            "bmi1": true,
+            "avx2": true,
+            "smep": true,
+            "bmi2": true,
+            "erms": true,
+            "invpcid": true,
+            "cqm": true,
+            "rdt_a": true,
+            "avx512f": true,
+            "avx512dq": true,
+            "rdseed": true,
+            "adx": true,
+            "smap": true,
+            "avx512ifma": true,
+            "clflushopt": true,
+            "clwb": true,
+            "avx512cd": true,
+            "sha_ni": true,
+            "avx512bw": true,
+            "avx512vl": true,
+            "xsaveopt": true,
+            "xsavec": true,
+            "xgetbv1": true,
+            "xsaves": true,
+            "cqm_llc": true,
+            "cqm_occup_llc": true,
+            "cqm_mbm_total": true,
+            "cqm_mbm_local": true,
+            "user_shstk": true,
+            "avx512_bf16": true,
+            "clzero": true,
+            "irperf": true,
+            "xsaveerptr": true,
+            "rdpru": true,
+            "wbnoinvd": true,
+            "cppc": true,
+            "arat": true,
+            "npt": true,
+            "lbrv": true,
+            "svm_lock": true,
+            "nrip_save": true,
+            "tsc_scale": true,
+            "vmcb_clean": true,
+            "flushbyasid": true,
+            "decodeassists": true,
+            "pausefilter": true,
+            "pfthreshold": true,
+            "vgif": true,
+            "x2avic": true,
+            "v_spec_ctrl": true,
+            "vnmi": true,
+            "avx512vbmi": true,
+            "umip": true,
+            "pku": true,
+            "ospke": true,
+            "avx512_vbmi2": true,
+            "gfni": true,
+            "vaes": true,
+            "vpclmulqdq": true,
+            "avx512_vnni": true,
+            "avx512_bitalg": true,
+            "avx512_vpopcntdq": true,
+            "rdpid": true,
+            "overflow_recov": true,
+            "succor": true,
+            "smca": true,
+            "fsrm": true,
+            "flush_l1d": true,
+            "ibpb_exit_to_user": true,
+            "cpufreq": "CPU Frequency scaling"
           }
         },
         {
-          "id" : "pci:0",
-          "class" : "bridge",
-          "claimed" : true,
-          "handle" : "PCIBUS:0000:00",
-          "description" : "Host bridge",
-          "product" : "Advanced Micro Devices, Inc. [AMD]",
-          "vendor" : "Advanced Micro Devices, Inc. [AMD]",
-          "physid" : "100",
-          "businfo" : "pci@0000:00:00.0",
-          "version" : "00",
-          "width" : 32,
-          "clock" : 33000000,
-          "children" : [            {
-              "id" : "generic",
-              "class" : "generic",
-              "handle" : "PCI:0000:00:00.2",
-              "description" : "IOMMU",
-              "product" : "Advanced Micro Devices, Inc. [AMD]",
-              "vendor" : "Advanced Micro Devices, Inc. [AMD]",
-              "physid" : "0.2",
-              "businfo" : "pci@0000:00:00.2",
-              "version" : "00",
-              "width" : 32,
-              "clock" : 33000000,
-              "configuration" : {
-                "latency" : "0"
+          "id": "pci:0",
+          "class": "bridge",
+          "claimed": true,
+          "handle": "PCIBUS:0000:00",
+          "description": "Host bridge",
+          "product": "Advanced Micro Devices, Inc. [AMD]",
+          "vendor": "Advanced Micro Devices, Inc. [AMD]",
+          "physid": "100",
+          "businfo": "pci@0000:00:00.0",
+          "version": "00",
+          "width": 32,
+          "clock": 33000000,
+          "children": [
+            {
+              "id": "generic",
+              "class": "generic",
+              "handle": "PCI:0000:00:00.2",
+              "description": "IOMMU",
+              "product": "Advanced Micro Devices, Inc. [AMD]",
+              "vendor": "Advanced Micro Devices, Inc. [AMD]",
+              "physid": "0.2",
+              "businfo": "pci@0000:00:00.2",
+              "version": "00",
+              "width": 32,
+              "clock": 33000000,
+              "configuration": {
+                "latency": "0"
               },
-              "capabilities" : {
-                "bus_master" : "bus mastering",
-                "cap_list" : "PCI capabilities listing"
+              "capabilities": {
+                "bus_master": "bus mastering",
+                "cap_list": "PCI capabilities listing"
               }
             },
             {
-              "id" : "pci:0",
-              "class" : "bridge",
-              "claimed" : true,
-              "handle" : "PCIBUS:0000:01",
-              "description" : "PCI bridge",
-              "product" : "Advanced Micro Devices, Inc. [AMD]",
-              "vendor" : "Advanced Micro Devices, Inc. [AMD]",
-              "physid" : "1.1",
-              "businfo" : "pci@0000:00:01.1",
-              "version" : "00",
-              "width" : 32,
-              "clock" : 33000000,
-              "configuration" : {
-                "driver" : "pcieport"
+              "id": "pci:0",
+              "class": "bridge",
+              "claimed": true,
+              "handle": "PCIBUS:0000:01",
+              "description": "PCI bridge",
+              "product": "Advanced Micro Devices, Inc. [AMD]",
+              "vendor": "Advanced Micro Devices, Inc. [AMD]",
+              "physid": "1.1",
+              "businfo": "pci@0000:00:01.1",
+              "version": "00",
+              "width": 32,
+              "clock": 33000000,
+              "configuration": {
+                "driver": "pcieport"
               },
-              "capabilities" : {
-                "pci" : true,
-                "normal_decode" : true,
-                "bus_master" : "bus mastering",
-                "cap_list" : "PCI capabilities listing"
+              "capabilities": {
+                "pci": true,
+                "normal_decode": true,
+                "bus_master": "bus mastering",
+                "cap_list": "PCI capabilities listing"
               }
             },
             {
-              "id" : "pci:1",
-              "class" : "bridge",
-              "claimed" : true,
-              "handle" : "PCIBUS:0000:02",
-              "description" : "PCI bridge",
-              "product" : "Advanced Micro Devices, Inc. [AMD]",
-              "vendor" : "Advanced Micro Devices, Inc. [AMD]",
-              "physid" : "1.3",
-              "businfo" : "pci@0000:00:01.3",
-              "version" : "00",
-              "width" : 32,
-              "clock" : 33000000,
-              "configuration" : {
-                "driver" : "pcieport"
+              "id": "pci:1",
+              "class": "bridge",
+              "claimed": true,
+              "handle": "PCIBUS:0000:02",
+              "description": "PCI bridge",
+              "product": "Advanced Micro Devices, Inc. [AMD]",
+              "vendor": "Advanced Micro Devices, Inc. [AMD]",
+              "physid": "1.3",
+              "businfo": "pci@0000:00:01.3",
+              "version": "00",
+              "width": 32,
+              "clock": 33000000,
+              "configuration": {
+                "driver": "pcieport"
               },
-              "capabilities" : {
-                "pci" : true,
-                "normal_decode" : true,
-                "bus_master" : "bus mastering",
-                "cap_list" : "PCI capabilities listing"
+              "capabilities": {
+                "pci": true,
+                "normal_decode": true,
+                "bus_master": "bus mastering",
+                "cap_list": "PCI capabilities listing"
               },
-              "children" : [                {
-                  "id" : "network",
-                  "class" : "network",
-                  "claimed" : true,
-                  "handle" : "PCI:0000:02:00.0",
-                  "description" : "Ethernet interface",
-                  "product" : "Ethernet Controller I226-V",
-                  "vendor" : "Intel Corporation",
-                  "physid" : "0",
-                  "businfo" : "pci@0000:02:00.0",
-                  "logicalname" : "eno1",
-                  "version" : "04",
-                  "serial":"redacted-serial",
-                  "units" : "bit/s",
-                  "capacity" : 1000000000,
-                  "width" : 32,
-                  "clock" : 33000000,
-                  "configuration" : {
-                    "autonegotiation" : "on",
-                    "broadcast" : "yes",
-                    "driver" : "igc",
-                    "driverversion" : "6.8.0-111-generic",
-                    "firmware" : "2023:889d",
-                    "latency" : "0",
-                    "link" : "no",
-                    "multicast" : "yes",
-                    "port" : "twisted pair"
+              "children": [
+                {
+                  "id": "network",
+                  "class": "network",
+                  "claimed": true,
+                  "handle": "PCI:0000:02:00.0",
+                  "description": "Ethernet interface",
+                  "product": "Ethernet Controller I226-V",
+                  "vendor": "Intel Corporation",
+                  "physid": "0",
+                  "businfo": "pci@0000:02:00.0",
+                  "logicalname": "eno1",
+                  "version": "04",
+                  "serial": "redacted-serial",
+                  "units": "bit/s",
+                  "capacity": 1000000000,
+                  "width": 32,
+                  "clock": 33000000,
+                  "configuration": {
+                    "autonegotiation": "on",
+                    "broadcast": "yes",
+                    "driver": "igc",
+                    "driverversion": "6.8.0-111-generic",
+                    "firmware": "2023:889d",
+                    "latency": "0",
+                    "link": "no",
+                    "multicast": "yes",
+                    "port": "twisted pair"
                   },
-                  "capabilities" : {
-                    "bus_master" : "bus mastering",
-                    "cap_list" : "PCI capabilities listing",
-                    "rom" : "extension ROM",
-                    "ethernet" : true,
-                    "physical" : "Physical interface",
-                    "tp" : "twisted pair",
-                    "10bt" : "10Mbit/s",
-                    "10bt-fd" : "10Mbit/s (full duplex)",
-                    "100bt" : "100Mbit/s",
-                    "100bt-fd" : "100Mbit/s (full duplex)",
-                    "1000bt-fd" : "1Gbit/s (full duplex)",
-                    "autonegotiation" : "Auto-negotiation"
+                  "capabilities": {
+                    "bus_master": "bus mastering",
+                    "cap_list": "PCI capabilities listing",
+                    "rom": "extension ROM",
+                    "ethernet": true,
+                    "physical": "Physical interface",
+                    "tp": "twisted pair",
+                    "10bt": "10Mbit/s",
+                    "10bt-fd": "10Mbit/s (full duplex)",
+                    "100bt": "100Mbit/s",
+                    "100bt-fd": "100Mbit/s (full duplex)",
+                    "1000bt-fd": "1Gbit/s (full duplex)",
+                    "autonegotiation": "Auto-negotiation"
                   }
-                }]
+                }
+              ]
             },
             {
-              "id" : "pci:2",
-              "class" : "bridge",
-              "claimed" : true,
-              "handle" : "PCIBUS:0000:03",
-              "description" : "PCI bridge",
-              "product" : "Advanced Micro Devices, Inc. [AMD]",
-              "vendor" : "Advanced Micro Devices, Inc. [AMD]",
-              "physid" : "2.1",
-              "businfo" : "pci@0000:00:02.1",
-              "version" : "00",
-              "width" : 32,
-              "clock" : 33000000,
-              "configuration" : {
-                "driver" : "pcieport"
+              "id": "pci:2",
+              "class": "bridge",
+              "claimed": true,
+              "handle": "PCIBUS:0000:03",
+              "description": "PCI bridge",
+              "product": "Advanced Micro Devices, Inc. [AMD]",
+              "vendor": "Advanced Micro Devices, Inc. [AMD]",
+              "physid": "2.1",
+              "businfo": "pci@0000:00:02.1",
+              "version": "00",
+              "width": 32,
+              "clock": 33000000,
+              "configuration": {
+                "driver": "pcieport"
               },
-              "capabilities" : {
-                "pci" : true,
-                "normal_decode" : true,
-                "bus_master" : "bus mastering",
-                "cap_list" : "PCI capabilities listing"
+              "capabilities": {
+                "pci": true,
+                "normal_decode": true,
+                "bus_master": "bus mastering",
+                "cap_list": "PCI capabilities listing"
               },
-              "children" : [                {
-                  "id" : "network",
-                  "class" : "network",
-                  "claimed" : true,
-                  "handle" : "PCI:0000:03:00.0",
-                  "description" : "Ethernet interface",
-                  "product" : "Ethernet Controller I226-V",
-                  "vendor" : "Intel Corporation",
-                  "physid" : "0",
-                  "businfo" : "pci@0000:03:00.0",
-                  "logicalname" : "enp3s0",
-                  "version" : "04",
-                  "serial":"redacted-serial",
-                  "units" : "bit/s",
-                  "size" : 1000000000,
-                  "capacity" : 1000000000,
-                  "width" : 32,
-                  "clock" : 33000000,
-                  "configuration" : {
-                    "autonegotiation" : "on",
-                    "broadcast" : "yes",
-                    "driver" : "igc",
-                    "driverversion" : "6.8.0-111-generic",
-                    "duplex" : "full",
-                    "firmware" : "2023:889d",
-                    "ip" : "192.168.1.51",
-                    "latency" : "0",
-                    "link" : "yes",
-                    "multicast" : "yes",
-                    "port" : "twisted pair",
-                    "speed" : "1Gbit/s"
+              "children": [
+                {
+                  "id": "network",
+                  "class": "network",
+                  "claimed": true,
+                  "handle": "PCI:0000:03:00.0",
+                  "description": "Ethernet interface",
+                  "product": "Ethernet Controller I226-V",
+                  "vendor": "Intel Corporation",
+                  "physid": "0",
+                  "businfo": "pci@0000:03:00.0",
+                  "logicalname": "enp3s0",
+                  "version": "04",
+                  "serial": "redacted-serial",
+                  "units": "bit/s",
+                  "size": 1000000000,
+                  "capacity": 1000000000,
+                  "width": 32,
+                  "clock": 33000000,
+                  "configuration": {
+                    "autonegotiation": "on",
+                    "broadcast": "yes",
+                    "driver": "igc",
+                    "driverversion": "6.8.0-111-generic",
+                    "duplex": "full",
+                    "firmware": "2023:889d",
+                    "ip": "192.168.1.51",
+                    "latency": "0",
+                    "link": "yes",
+                    "multicast": "yes",
+                    "port": "twisted pair",
+                    "speed": "1Gbit/s"
                   },
-                  "capabilities" : {
-                    "bus_master" : "bus mastering",
-                    "cap_list" : "PCI capabilities listing",
-                    "rom" : "extension ROM",
-                    "ethernet" : true,
-                    "physical" : "Physical interface",
-                    "tp" : "twisted pair",
-                    "10bt" : "10Mbit/s",
-                    "10bt-fd" : "10Mbit/s (full duplex)",
-                    "100bt" : "100Mbit/s",
-                    "100bt-fd" : "100Mbit/s (full duplex)",
-                    "1000bt-fd" : "1Gbit/s (full duplex)",
-                    "autonegotiation" : "Auto-negotiation"
+                  "capabilities": {
+                    "bus_master": "bus mastering",
+                    "cap_list": "PCI capabilities listing",
+                    "rom": "extension ROM",
+                    "ethernet": true,
+                    "physical": "Physical interface",
+                    "tp": "twisted pair",
+                    "10bt": "10Mbit/s",
+                    "10bt-fd": "10Mbit/s (full duplex)",
+                    "100bt": "100Mbit/s",
+                    "100bt-fd": "100Mbit/s (full duplex)",
+                    "1000bt-fd": "1Gbit/s (full duplex)",
+                    "autonegotiation": "Auto-negotiation"
                   }
-                }]
+                }
+              ]
             },
             {
-              "id" : "pci:3",
-              "class" : "bridge",
-              "claimed" : true,
-              "handle" : "PCIBUS:0000:04",
-              "description" : "PCI bridge",
-              "product" : "Advanced Micro Devices, Inc. [AMD]",
-              "vendor" : "Advanced Micro Devices, Inc. [AMD]",
-              "physid" : "2.2",
-              "businfo" : "pci@0000:00:02.2",
-              "version" : "00",
-              "width" : 32,
-              "clock" : 33000000,
-              "configuration" : {
-                "driver" : "pcieport"
+              "id": "pci:3",
+              "class": "bridge",
+              "claimed": true,
+              "handle": "PCIBUS:0000:04",
+              "description": "PCI bridge",
+              "product": "Advanced Micro Devices, Inc. [AMD]",
+              "vendor": "Advanced Micro Devices, Inc. [AMD]",
+              "physid": "2.2",
+              "businfo": "pci@0000:00:02.2",
+              "version": "00",
+              "width": 32,
+              "clock": 33000000,
+              "configuration": {
+                "driver": "pcieport"
               },
-              "capabilities" : {
-                "pci" : true,
-                "normal_decode" : true,
-                "bus_master" : "bus mastering",
-                "cap_list" : "PCI capabilities listing"
+              "capabilities": {
+                "pci": true,
+                "normal_decode": true,
+                "bus_master": "bus mastering",
+                "cap_list": "PCI capabilities listing"
               },
-              "children" : [                {
-                  "id" : "network",
-                  "class" : "network",
-                  "claimed" : true,
-                  "handle" : "PCI:0000:04:00.0",
-                  "description" : "Wireless interface",
-                  "product" : "Wi-Fi 6 AX200",
-                  "vendor" : "Intel Corporation",
-                  "physid" : "0",
-                  "businfo" : "pci@0000:04:00.0",
-                  "logicalname" : "wlp4s0",
-                  "version" : "1a",
-                  "serial":"redacted-serial",
-                  "width" : 64,
-                  "clock" : 33000000,
-                  "configuration" : {
-                    "broadcast" : "yes",
-                    "driver" : "iwlwifi",
-                    "driverversion" : "6.8.0-111-generic",
-                    "firmware" : "77.b405f9d4.0 cc-a0-77.ucode",
-                    "ip" : "192.168.0.43",
-                    "latency" : "0",
-                    "link" : "yes",
-                    "multicast" : "yes",
-                    "wireless" : "IEEE 802.11"
+              "children": [
+                {
+                  "id": "network",
+                  "class": "network",
+                  "claimed": true,
+                  "handle": "PCI:0000:04:00.0",
+                  "description": "Wireless interface",
+                  "product": "Wi-Fi 6 AX200",
+                  "vendor": "Intel Corporation",
+                  "physid": "0",
+                  "businfo": "pci@0000:04:00.0",
+                  "logicalname": "wlp4s0",
+                  "version": "1a",
+                  "serial": "redacted-serial",
+                  "width": 64,
+                  "clock": 33000000,
+                  "configuration": {
+                    "broadcast": "yes",
+                    "driver": "iwlwifi",
+                    "driverversion": "6.8.0-111-generic",
+                    "firmware": "77.b405f9d4.0 cc-a0-77.ucode",
+                    "ip": "192.168.0.43",
+                    "latency": "0",
+                    "link": "yes",
+                    "multicast": "yes",
+                    "wireless": "IEEE 802.11"
                   },
-                  "capabilities" : {
-                    "bus_master" : "bus mastering",
-                    "cap_list" : "PCI capabilities listing",
-                    "ethernet" : true,
-                    "physical" : "Physical interface",
-                    "wireless" : "Wireless-LAN"
+                  "capabilities": {
+                    "bus_master": "bus mastering",
+                    "cap_list": "PCI capabilities listing",
+                    "ethernet": true,
+                    "physical": "Physical interface",
+                    "wireless": "Wireless-LAN"
                   }
-                }]
+                }
+              ]
             },
             {
-              "id" : "pci:4",
-              "class" : "bridge",
-              "claimed" : true,
-              "handle" : "PCIBUS:0000:05",
-              "description" : "PCI bridge",
-              "product" : "Advanced Micro Devices, Inc. [AMD]",
-              "vendor" : "Advanced Micro Devices, Inc. [AMD]",
-              "physid" : "2.5",
-              "businfo" : "pci@0000:00:02.5",
-              "version" : "00",
-              "width" : 32,
-              "clock" : 33000000,
-              "configuration" : {
-                "driver" : "pcieport"
+              "id": "pci:4",
+              "class": "bridge",
+              "claimed": true,
+              "handle": "PCIBUS:0000:05",
+              "description": "PCI bridge",
+              "product": "Advanced Micro Devices, Inc. [AMD]",
+              "vendor": "Advanced Micro Devices, Inc. [AMD]",
+              "physid": "2.5",
+              "businfo": "pci@0000:00:02.5",
+              "version": "00",
+              "width": 32,
+              "clock": 33000000,
+              "configuration": {
+                "driver": "pcieport"
               },
-              "capabilities" : {
-                "pci" : true,
-                "normal_decode" : true,
-                "bus_master" : "bus mastering",
-                "cap_list" : "PCI capabilities listing"
+              "capabilities": {
+                "pci": true,
+                "normal_decode": true,
+                "bus_master": "bus mastering",
+                "cap_list": "PCI capabilities listing"
               },
-              "children" : [                {
-                  "id" : "nvme",
-                  "class" : "storage",
-                  "claimed" : true,
-                  "handle" : "PCI:0000:05:00.0",
-                  "description" : "NVMe device",
-                  "product" : "CT2000P310SSD8",
-                  "vendor" : "Micron/Crucial Technology",
-                  "physid" : "0",
-                  "businfo" : "pci@0000:05:00.0",
-                  "logicalname" : "/dev/nvme0",
-                  "version" : "V8CR000",
-                  "serial":"redacted-serial",
-                  "width" : 64,
-                  "clock" : 33000000,
-                  "configuration" : {
-                    "driver" : "nvme",
-                    "latency" : "0",
-                    "nqn" : "nqn.2016-08.com.micron:nvme:nvm-subsystem-sn-25044DB332FB",
-                    "state" : "live"
+              "children": [
+                {
+                  "id": "nvme",
+                  "class": "storage",
+                  "claimed": true,
+                  "handle": "PCI:0000:05:00.0",
+                  "description": "NVMe device",
+                  "product": "CT2000P310SSD8",
+                  "vendor": "Micron/Crucial Technology",
+                  "physid": "0",
+                  "businfo": "pci@0000:05:00.0",
+                  "logicalname": "/dev/nvme0",
+                  "version": "V8CR000",
+                  "serial": "redacted-serial",
+                  "width": 64,
+                  "clock": 33000000,
+                  "configuration": {
+                    "driver": "nvme",
+                    "latency": "0",
+                    "nqn": "nqn.2016-08.com.micron:nvme:nvm-subsystem-sn-25044DB332FB",
+                    "state": "live"
                   },
-                  "capabilities" : {
-                    "nvme" : true,
-                    "nvm_express" : true,
-                    "bus_master" : "bus mastering",
-                    "cap_list" : "PCI capabilities listing"
+                  "capabilities": {
+                    "nvme": true,
+                    "nvm_express": true,
+                    "bus_master": "bus mastering",
+                    "cap_list": "PCI capabilities listing"
                   },
-                  "children" : [                    {
-                      "id" : "namespace:0",
-                      "class" : "disk",
-                      "claimed" : true,
-                      "description" : "NVMe disk",
-                      "physid" : "0",
-                      "logicalname" : "hwmon1"
+                  "children": [
+                    {
+                      "id": "namespace:0",
+                      "class": "disk",
+                      "claimed": true,
+                      "description": "NVMe disk",
+                      "physid": "0",
+                      "logicalname": "hwmon1"
                     },
                     {
-                      "id" : "namespace:1",
-                      "class" : "disk",
-                      "claimed" : true,
-                      "description" : "NVMe disk",
-                      "physid" : "2",
-                      "logicalname" : "/dev/ng0n1"
+                      "id": "namespace:1",
+                      "class": "disk",
+                      "claimed": true,
+                      "description": "NVMe disk",
+                      "physid": "2",
+                      "logicalname": "/dev/ng0n1"
                     },
                     {
-                      "id" : "namespace:2",
-                      "class" : "disk",
-                      "claimed" : true,
-                      "description" : "NVMe disk",
-                      "physid" : "1",
-                      "businfo" : "nvme@0:1",
-                      "logicalname" : "/dev/nvme0n1",
-                      "configuration" : {
-                        "wwid" : "eui.000000000000000100a075254db332fb"
+                      "id": "namespace:2",
+                      "class": "disk",
+                      "claimed": true,
+                      "description": "NVMe disk",
+                      "physid": "1",
+                      "businfo": "nvme@0:1",
+                      "logicalname": "/dev/nvme0n1",
+                      "configuration": {
+                        "wwid": "eui.000000000000000100a075254db332fb"
                       }
-                    }]
-                }]
+                    }
+                  ]
+                }
+              ]
             },
             {
-              "id" : "pci:5",
-              "class" : "bridge",
-              "claimed" : true,
-              "handle" : "PCIBUS:0000:06",
-              "description" : "PCI bridge",
-              "product" : "Family 19h USB4/Thunderbolt PCIe tunnel",
-              "vendor" : "Advanced Micro Devices, Inc. [AMD]",
-              "physid" : "3.1",
-              "businfo" : "pci@0000:00:03.1",
-              "version" : "00",
-              "width" : 32,
-              "clock" : 33000000,
-              "configuration" : {
-                "driver" : "pcieport"
+              "id": "pci:5",
+              "class": "bridge",
+              "claimed": true,
+              "handle": "PCIBUS:0000:06",
+              "description": "PCI bridge",
+              "product": "Family 19h USB4/Thunderbolt PCIe tunnel",
+              "vendor": "Advanced Micro Devices, Inc. [AMD]",
+              "physid": "3.1",
+              "businfo": "pci@0000:00:03.1",
+              "version": "00",
+              "width": 32,
+              "clock": 33000000,
+              "configuration": {
+                "driver": "pcieport"
               },
-              "capabilities" : {
-                "pci" : true,
-                "normal_decode" : true,
-                "bus_master" : "bus mastering",
-                "cap_list" : "PCI capabilities listing"
+              "capabilities": {
+                "pci": true,
+                "normal_decode": true,
+                "bus_master": "bus mastering",
+                "cap_list": "PCI capabilities listing"
               }
             },
             {
-              "id" : "pci:6",
-              "class" : "bridge",
-              "claimed" : true,
-              "handle" : "PCIBUS:0000:66",
-              "description" : "PCI bridge",
-              "product" : "Family 19h USB4/Thunderbolt PCIe tunnel",
-              "vendor" : "Advanced Micro Devices, Inc. [AMD]",
-              "physid" : "4.1",
-              "businfo" : "pci@0000:00:04.1",
-              "version" : "00",
-              "width" : 32,
-              "clock" : 33000000,
-              "configuration" : {
-                "driver" : "pcieport"
+              "id": "pci:6",
+              "class": "bridge",
+              "claimed": true,
+              "handle": "PCIBUS:0000:66",
+              "description": "PCI bridge",
+              "product": "Family 19h USB4/Thunderbolt PCIe tunnel",
+              "vendor": "Advanced Micro Devices, Inc. [AMD]",
+              "physid": "4.1",
+              "businfo": "pci@0000:00:04.1",
+              "version": "00",
+              "width": 32,
+              "clock": 33000000,
+              "configuration": {
+                "driver": "pcieport"
               },
-              "capabilities" : {
-                "pci" : true,
-                "normal_decode" : true,
-                "bus_master" : "bus mastering",
-                "cap_list" : "PCI capabilities listing"
+              "capabilities": {
+                "pci": true,
+                "normal_decode": true,
+                "bus_master": "bus mastering",
+                "cap_list": "PCI capabilities listing"
               }
             },
             {
-              "id" : "pci:7",
-              "class" : "bridge",
-              "claimed" : true,
-              "handle" : "PCIBUS:0000:c6",
-              "description" : "PCI bridge",
-              "product" : "Advanced Micro Devices, Inc. [AMD]",
-              "vendor" : "Advanced Micro Devices, Inc. [AMD]",
-              "physid" : "8.1",
-              "businfo" : "pci@0000:00:08.1",
-              "version" : "00",
-              "width" : 32,
-              "clock" : 33000000,
-              "configuration" : {
-                "driver" : "pcieport"
+              "id": "pci:7",
+              "class": "bridge",
+              "claimed": true,
+              "handle": "PCIBUS:0000:c6",
+              "description": "PCI bridge",
+              "product": "Advanced Micro Devices, Inc. [AMD]",
+              "vendor": "Advanced Micro Devices, Inc. [AMD]",
+              "physid": "8.1",
+              "businfo": "pci@0000:00:08.1",
+              "version": "00",
+              "width": 32,
+              "clock": 33000000,
+              "configuration": {
+                "driver": "pcieport"
               },
-              "capabilities" : {
-                "pci" : true,
-                "normal_decode" : true,
-                "bus_master" : "bus mastering",
-                "cap_list" : "PCI capabilities listing"
+              "capabilities": {
+                "pci": true,
+                "normal_decode": true,
+                "bus_master": "bus mastering",
+                "cap_list": "PCI capabilities listing"
               },
-              "children" : [                {
-                  "id" : "display",
-                  "class" : "display",
-                  "claimed" : true,
-                  "handle" : "PCI:0000:c6:00.0",
-                  "description" : "VGA compatible controller",
-                  "product" : "Phoenix3",
-                  "vendor" : "Advanced Micro Devices, Inc. [AMD/ATI]",
-                  "physid" : "0",
-                  "businfo" : "pci@0000:c6:00.0",
-                  "version" : "c5",
-                  "width" : 64,
-                  "clock" : 33000000,
-                  "configuration" : {
-                    "driver" : "amdgpu",
-                    "latency" : "0"
+              "children": [
+                {
+                  "id": "display",
+                  "class": "display",
+                  "claimed": true,
+                  "handle": "PCI:0000:c6:00.0",
+                  "description": "VGA compatible controller",
+                  "product": "Phoenix3",
+                  "vendor": "Advanced Micro Devices, Inc. [AMD/ATI]",
+                  "physid": "0",
+                  "businfo": "pci@0000:c6:00.0",
+                  "version": "c5",
+                  "width": 64,
+                  "clock": 33000000,
+                  "configuration": {
+                    "driver": "amdgpu",
+                    "latency": "0"
                   },
-                  "capabilities" : {
-                    "vga_controller" : true,
-                    "bus_master" : "bus mastering",
-                    "cap_list" : "PCI capabilities listing"
+                  "capabilities": {
+                    "vga_controller": true,
+                    "bus_master": "bus mastering",
+                    "cap_list": "PCI capabilities listing"
                   }
                 },
                 {
-                  "id" : "multimedia:0",
-                  "class" : "multimedia",
-                  "claimed" : true,
-                  "handle" : "PCI:0000:c6:00.1",
-                  "description" : "Audio device",
-                  "product" : "Rembrandt Radeon High Definition Audio Controller",
-                  "vendor" : "Advanced Micro Devices, Inc. [AMD/ATI]",
-                  "physid" : "0.1",
-                  "businfo" : "pci@0000:c6:00.1",
-                  "logicalname" : ["card0", "/dev/snd/controlC0", "/dev/snd/hwC0D0", "/dev/snd/pcmC0D3p", "/dev/snd/pcmC0D7p", "/dev/snd/pcmC0D8p", "/dev/snd/pcmC0D9p"],
-                  "version" : "00",
-                  "width" : 32,
-                  "clock" : 33000000,
-                  "configuration" : {
-                    "driver" : "snd_hda_intel",
-                    "latency" : "0"
+                  "id": "multimedia:0",
+                  "class": "multimedia",
+                  "claimed": true,
+                  "handle": "PCI:0000:c6:00.1",
+                  "description": "Audio device",
+                  "product": "Rembrandt Radeon High Definition Audio Controller",
+                  "vendor": "Advanced Micro Devices, Inc. [AMD/ATI]",
+                  "physid": "0.1",
+                  "businfo": "pci@0000:c6:00.1",
+                  "logicalname": [
+                    "card0",
+                    "/dev/snd/controlC0",
+                    "/dev/snd/hwC0D0",
+                    "/dev/snd/pcmC0D3p",
+                    "/dev/snd/pcmC0D7p",
+                    "/dev/snd/pcmC0D8p",
+                    "/dev/snd/pcmC0D9p"
+                  ],
+                  "version": "00",
+                  "width": 32,
+                  "clock": 33000000,
+                  "configuration": {
+                    "driver": "snd_hda_intel",
+                    "latency": "0"
                   },
-                  "capabilities" : {
-                    "bus_master" : "bus mastering",
-                    "cap_list" : "PCI capabilities listing"
+                  "capabilities": {
+                    "bus_master": "bus mastering",
+                    "cap_list": "PCI capabilities listing"
                   },
-                  "children" : [                    {
-                      "id" : "input:0",
-                      "class" : "input",
-                      "claimed" : true,
-                      "product" : "HD-Audio Generic HDMI/DP,pcm=3",
-                      "physid" : "0",
-                      "logicalname" : ["input2", "/dev/input/event2"]
+                  "children": [
+                    {
+                      "id": "input:0",
+                      "class": "input",
+                      "claimed": true,
+                      "product": "HD-Audio Generic HDMI/DP,pcm=3",
+                      "physid": "0",
+                      "logicalname": ["input2", "/dev/input/event2"]
                     },
                     {
-                      "id" : "input:1",
-                      "class" : "input",
-                      "claimed" : true,
-                      "product" : "HD-Audio Generic HDMI/DP,pcm=7",
-                      "physid" : "1",
-                      "logicalname" : ["input3", "/dev/input/event3"]
+                      "id": "input:1",
+                      "class": "input",
+                      "claimed": true,
+                      "product": "HD-Audio Generic HDMI/DP,pcm=7",
+                      "physid": "1",
+                      "logicalname": ["input3", "/dev/input/event3"]
                     },
                     {
-                      "id" : "input:2",
-                      "class" : "input",
-                      "claimed" : true,
-                      "product" : "HD-Audio Generic HDMI/DP,pcm=8",
-                      "physid" : "2",
-                      "logicalname" : ["input4", "/dev/input/event4"]
+                      "id": "input:2",
+                      "class": "input",
+                      "claimed": true,
+                      "product": "HD-Audio Generic HDMI/DP,pcm=8",
+                      "physid": "2",
+                      "logicalname": ["input4", "/dev/input/event4"]
                     },
                     {
-                      "id" : "input:3",
-                      "class" : "input",
-                      "claimed" : true,
-                      "product" : "HD-Audio Generic HDMI/DP,pcm=9",
-                      "physid" : "3",
-                      "logicalname" : ["input5", "/dev/input/event5"]
-                    }]
+                      "id": "input:3",
+                      "class": "input",
+                      "claimed": true,
+                      "product": "HD-Audio Generic HDMI/DP,pcm=9",
+                      "physid": "3",
+                      "logicalname": ["input5", "/dev/input/event5"]
+                    }
+                  ]
                 },
                 {
-                  "id" : "generic",
-                  "class" : "generic",
-                  "claimed" : true,
-                  "handle" : "PCI:0000:c6:00.2",
-                  "description" : "Encryption controller",
-                  "product" : "Family 19h (Model 74h) CCP/PSP 3.0 Device",
-                  "vendor" : "Advanced Micro Devices, Inc. [AMD]",
-                  "physid" : "0.2",
-                  "businfo" : "pci@0000:c6:00.2",
-                  "version" : "00",
-                  "width" : 32,
-                  "clock" : 33000000,
-                  "configuration" : {
-                    "driver" : "ccp",
-                    "latency" : "0"
+                  "id": "generic",
+                  "class": "generic",
+                  "claimed": true,
+                  "handle": "PCI:0000:c6:00.2",
+                  "description": "Encryption controller",
+                  "product": "Family 19h (Model 74h) CCP/PSP 3.0 Device",
+                  "vendor": "Advanced Micro Devices, Inc. [AMD]",
+                  "physid": "0.2",
+                  "businfo": "pci@0000:c6:00.2",
+                  "version": "00",
+                  "width": 32,
+                  "clock": 33000000,
+                  "configuration": {
+                    "driver": "ccp",
+                    "latency": "0"
                   },
-                  "capabilities" : {
-                    "bus_master" : "bus mastering",
-                    "cap_list" : "PCI capabilities listing"
+                  "capabilities": {
+                    "bus_master": "bus mastering",
+                    "cap_list": "PCI capabilities listing"
                   }
                 },
                 {
-                  "id" : "usb:0",
-                  "class" : "bus",
-                  "claimed" : true,
-                  "handle" : "PCI:0000:c6:00.3",
-                  "description" : "USB controller",
-                  "product" : "Advanced Micro Devices, Inc. [AMD]",
-                  "vendor" : "Advanced Micro Devices, Inc. [AMD]",
-                  "physid" : "0.3",
-                  "businfo" : "pci@0000:c6:00.3",
-                  "version" : "00",
-                  "width" : 64,
-                  "clock" : 33000000,
-                  "configuration" : {
-                    "driver" : "xhci_hcd",
-                    "latency" : "0"
+                  "id": "usb:0",
+                  "class": "bus",
+                  "claimed": true,
+                  "handle": "PCI:0000:c6:00.3",
+                  "description": "USB controller",
+                  "product": "Advanced Micro Devices, Inc. [AMD]",
+                  "vendor": "Advanced Micro Devices, Inc. [AMD]",
+                  "physid": "0.3",
+                  "businfo": "pci@0000:c6:00.3",
+                  "version": "00",
+                  "width": 64,
+                  "clock": 33000000,
+                  "configuration": {
+                    "driver": "xhci_hcd",
+                    "latency": "0"
                   },
-                  "capabilities" : {
-                    "xhci" : true,
-                    "bus_master" : "bus mastering",
-                    "cap_list" : "PCI capabilities listing"
+                  "capabilities": {
+                    "xhci": true,
+                    "bus_master": "bus mastering",
+                    "cap_list": "PCI capabilities listing"
                   }
                 },
                 {
-                  "id" : "usb:1",
-                  "class" : "bus",
-                  "claimed" : true,
-                  "handle" : "PCI:0000:c6:00.4",
-                  "description" : "USB controller",
-                  "product" : "Advanced Micro Devices, Inc. [AMD]",
-                  "vendor" : "Advanced Micro Devices, Inc. [AMD]",
-                  "physid" : "0.4",
-                  "businfo" : "pci@0000:c6:00.4",
-                  "version" : "00",
-                  "width" : 64,
-                  "clock" : 33000000,
-                  "configuration" : {
-                    "driver" : "xhci_hcd",
-                    "latency" : "0"
+                  "id": "usb:1",
+                  "class": "bus",
+                  "claimed": true,
+                  "handle": "PCI:0000:c6:00.4",
+                  "description": "USB controller",
+                  "product": "Advanced Micro Devices, Inc. [AMD]",
+                  "vendor": "Advanced Micro Devices, Inc. [AMD]",
+                  "physid": "0.4",
+                  "businfo": "pci@0000:c6:00.4",
+                  "version": "00",
+                  "width": 64,
+                  "clock": 33000000,
+                  "configuration": {
+                    "driver": "xhci_hcd",
+                    "latency": "0"
                   },
-                  "capabilities" : {
-                    "xhci" : true,
-                    "bus_master" : "bus mastering",
-                    "cap_list" : "PCI capabilities listing"
+                  "capabilities": {
+                    "xhci": true,
+                    "bus_master": "bus mastering",
+                    "cap_list": "PCI capabilities listing"
                   }
                 },
                 {
-                  "id" : "multimedia:1",
-                  "class" : "multimedia",
-                  "claimed" : true,
-                  "handle" : "PCI:0000:c6:00.5",
-                  "description" : "Multimedia controller",
-                  "product" : "ACP/ACP3X/ACP6x Audio Coprocessor",
-                  "vendor" : "Advanced Micro Devices, Inc. [AMD]",
-                  "physid" : "0.5",
-                  "businfo" : "pci@0000:c6:00.5",
-                  "logicalname" : ["card2", "/dev/snd/controlC2", "/dev/snd/pcmC2D0c"],
-                  "version" : "63",
-                  "width" : 64,
-                  "clock" : 33000000,
-                  "configuration" : {
-                    "driver" : "snd_pci_ps",
-                    "latency" : "0"
+                  "id": "multimedia:1",
+                  "class": "multimedia",
+                  "claimed": true,
+                  "handle": "PCI:0000:c6:00.5",
+                  "description": "Multimedia controller",
+                  "product": "ACP/ACP3X/ACP6x Audio Coprocessor",
+                  "vendor": "Advanced Micro Devices, Inc. [AMD]",
+                  "physid": "0.5",
+                  "businfo": "pci@0000:c6:00.5",
+                  "logicalname": [
+                    "card2",
+                    "/dev/snd/controlC2",
+                    "/dev/snd/pcmC2D0c"
+                  ],
+                  "version": "63",
+                  "width": 64,
+                  "clock": 33000000,
+                  "configuration": {
+                    "driver": "snd_pci_ps",
+                    "latency": "0"
                   },
-                  "capabilities" : {
-                    "bus_master" : "bus mastering",
-                    "cap_list" : "PCI capabilities listing"
+                  "capabilities": {
+                    "bus_master": "bus mastering",
+                    "cap_list": "PCI capabilities listing"
                   }
                 },
                 {
-                  "id" : "multimedia:2",
-                  "class" : "multimedia",
-                  "claimed" : true,
-                  "handle" : "PCI:0000:c6:00.6",
-                  "description" : "Audio device",
-                  "product" : "Family 17h/19h HD Audio Controller",
-                  "vendor" : "Advanced Micro Devices, Inc. [AMD]",
-                  "physid" : "0.6",
-                  "businfo" : "pci@0000:c6:00.6",
-                  "logicalname" : ["card1", "/dev/snd/controlC1", "/dev/snd/hwC1D0", "/dev/snd/pcmC1D0c", "/dev/snd/pcmC1D0p"],
-                  "version" : "00",
-                  "width" : 32,
-                  "clock" : 33000000,
-                  "configuration" : {
-                    "driver" : "snd_hda_intel",
-                    "latency" : "0"
+                  "id": "multimedia:2",
+                  "class": "multimedia",
+                  "claimed": true,
+                  "handle": "PCI:0000:c6:00.6",
+                  "description": "Audio device",
+                  "product": "Family 17h/19h HD Audio Controller",
+                  "vendor": "Advanced Micro Devices, Inc. [AMD]",
+                  "physid": "0.6",
+                  "businfo": "pci@0000:c6:00.6",
+                  "logicalname": [
+                    "card1",
+                    "/dev/snd/controlC1",
+                    "/dev/snd/hwC1D0",
+                    "/dev/snd/pcmC1D0c",
+                    "/dev/snd/pcmC1D0p"
+                  ],
+                  "version": "00",
+                  "width": 32,
+                  "clock": 33000000,
+                  "configuration": {
+                    "driver": "snd_hda_intel",
+                    "latency": "0"
                   },
-                  "capabilities" : {
-                    "bus_master" : "bus mastering",
-                    "cap_list" : "PCI capabilities listing"
+                  "capabilities": {
+                    "bus_master": "bus mastering",
+                    "cap_list": "PCI capabilities listing"
                   },
-                  "children" : [                    {
-                      "id" : "input:0",
-                      "class" : "input",
-                      "claimed" : true,
-                      "product" : "HD-Audio Generic Mic",
-                      "physid" : "0",
-                      "logicalname" : ["input6", "/dev/input/event6"]
+                  "children": [
+                    {
+                      "id": "input:0",
+                      "class": "input",
+                      "claimed": true,
+                      "product": "HD-Audio Generic Mic",
+                      "physid": "0",
+                      "logicalname": ["input6", "/dev/input/event6"]
                     },
                     {
-                      "id" : "input:1",
-                      "class" : "input",
-                      "claimed" : true,
-                      "product" : "HD-Audio Generic Headphone",
-                      "physid" : "1",
-                      "logicalname" : ["input7", "/dev/input/event7"]
-                    }]
-                }]
+                      "id": "input:1",
+                      "class": "input",
+                      "claimed": true,
+                      "product": "HD-Audio Generic Headphone",
+                      "physid": "1",
+                      "logicalname": ["input7", "/dev/input/event7"]
+                    }
+                  ]
+                }
+              ]
             },
             {
-              "id" : "pci:8",
-              "class" : "bridge",
-              "claimed" : true,
-              "handle" : "PCIBUS:0000:c7",
-              "description" : "PCI bridge",
-              "product" : "Advanced Micro Devices, Inc. [AMD]",
-              "vendor" : "Advanced Micro Devices, Inc. [AMD]",
-              "physid" : "8.2",
-              "businfo" : "pci@0000:00:08.2",
-              "version" : "00",
-              "width" : 32,
-              "clock" : 33000000,
-              "configuration" : {
-                "driver" : "pcieport"
+              "id": "pci:8",
+              "class": "bridge",
+              "claimed": true,
+              "handle": "PCIBUS:0000:c7",
+              "description": "PCI bridge",
+              "product": "Advanced Micro Devices, Inc. [AMD]",
+              "vendor": "Advanced Micro Devices, Inc. [AMD]",
+              "physid": "8.2",
+              "businfo": "pci@0000:00:08.2",
+              "version": "00",
+              "width": 32,
+              "clock": 33000000,
+              "configuration": {
+                "driver": "pcieport"
               },
-              "capabilities" : {
-                "pci" : true,
-                "normal_decode" : true,
-                "bus_master" : "bus mastering",
-                "cap_list" : "PCI capabilities listing"
+              "capabilities": {
+                "pci": true,
+                "normal_decode": true,
+                "bus_master": "bus mastering",
+                "cap_list": "PCI capabilities listing"
               },
-              "children" : [                {
-                  "id" : "generic:0",
-                  "class" : "generic",
-                  "handle" : "PCI:0000:c7:00.0",
-                  "description" : "Non-Essential Instrumentation",
-                  "product" : "Advanced Micro Devices, Inc. [AMD]",
-                  "vendor" : "Advanced Micro Devices, Inc. [AMD]",
-                  "physid" : "0",
-                  "businfo" : "pci@0000:c7:00.0",
-                  "version" : "00",
-                  "width" : 32,
-                  "clock" : 33000000,
-                  "configuration" : {
-                    "latency" : "0"
+              "children": [
+                {
+                  "id": "generic:0",
+                  "class": "generic",
+                  "handle": "PCI:0000:c7:00.0",
+                  "description": "Non-Essential Instrumentation",
+                  "product": "Advanced Micro Devices, Inc. [AMD]",
+                  "vendor": "Advanced Micro Devices, Inc. [AMD]",
+                  "physid": "0",
+                  "businfo": "pci@0000:c7:00.0",
+                  "version": "00",
+                  "width": 32,
+                  "clock": 33000000,
+                  "configuration": {
+                    "latency": "0"
                   },
-                  "capabilities" : {
-                    "cap_list" : "PCI capabilities listing"
+                  "capabilities": {
+                    "cap_list": "PCI capabilities listing"
                   }
                 },
                 {
-                  "id" : "generic:1",
-                  "class" : "generic",
-                  "handle" : "PCI:0000:c7:00.1",
-                  "description" : "Signal processing controller",
-                  "product" : "AMD IPU Device",
-                  "vendor" : "Advanced Micro Devices, Inc. [AMD]",
-                  "physid" : "0.1",
-                  "businfo" : "pci@0000:c7:00.1",
-                  "version" : "00",
-                  "width" : 64,
-                  "clock" : 33000000,
-                  "configuration" : {
-                    "latency" : "0"
+                  "id": "generic:1",
+                  "class": "generic",
+                  "handle": "PCI:0000:c7:00.1",
+                  "description": "Signal processing controller",
+                  "product": "AMD IPU Device",
+                  "vendor": "Advanced Micro Devices, Inc. [AMD]",
+                  "physid": "0.1",
+                  "businfo": "pci@0000:c7:00.1",
+                  "version": "00",
+                  "width": 64,
+                  "clock": 33000000,
+                  "configuration": {
+                    "latency": "0"
                   },
-                  "capabilities" : {
-                    "cap_list" : "PCI capabilities listing"
+                  "capabilities": {
+                    "cap_list": "PCI capabilities listing"
                   }
-                }]
+                }
+              ]
             },
             {
-              "id" : "pci:9",
-              "class" : "bridge",
-              "claimed" : true,
-              "handle" : "PCIBUS:0000:c8",
-              "description" : "PCI bridge",
-              "product" : "Advanced Micro Devices, Inc. [AMD]",
-              "vendor" : "Advanced Micro Devices, Inc. [AMD]",
-              "physid" : "8.3",
-              "businfo" : "pci@0000:00:08.3",
-              "version" : "00",
-              "width" : 32,
-              "clock" : 33000000,
-              "configuration" : {
-                "driver" : "pcieport"
+              "id": "pci:9",
+              "class": "bridge",
+              "claimed": true,
+              "handle": "PCIBUS:0000:c8",
+              "description": "PCI bridge",
+              "product": "Advanced Micro Devices, Inc. [AMD]",
+              "vendor": "Advanced Micro Devices, Inc. [AMD]",
+              "physid": "8.3",
+              "businfo": "pci@0000:00:08.3",
+              "version": "00",
+              "width": 32,
+              "clock": 33000000,
+              "configuration": {
+                "driver": "pcieport"
               },
-              "capabilities" : {
-                "pci" : true,
-                "normal_decode" : true,
-                "bus_master" : "bus mastering",
-                "cap_list" : "PCI capabilities listing"
+              "capabilities": {
+                "pci": true,
+                "normal_decode": true,
+                "bus_master": "bus mastering",
+                "cap_list": "PCI capabilities listing"
               },
-              "children" : [                {
-                  "id" : "generic",
-                  "class" : "generic",
-                  "handle" : "PCI:0000:c8:00.0",
-                  "description" : "Non-Essential Instrumentation",
-                  "product" : "Advanced Micro Devices, Inc. [AMD]",
-                  "vendor" : "Advanced Micro Devices, Inc. [AMD]",
-                  "physid" : "0",
-                  "businfo" : "pci@0000:c8:00.0",
-                  "version" : "00",
-                  "width" : 32,
-                  "clock" : 33000000,
-                  "configuration" : {
-                    "latency" : "0"
+              "children": [
+                {
+                  "id": "generic",
+                  "class": "generic",
+                  "handle": "PCI:0000:c8:00.0",
+                  "description": "Non-Essential Instrumentation",
+                  "product": "Advanced Micro Devices, Inc. [AMD]",
+                  "vendor": "Advanced Micro Devices, Inc. [AMD]",
+                  "physid": "0",
+                  "businfo": "pci@0000:c8:00.0",
+                  "version": "00",
+                  "width": 32,
+                  "clock": 33000000,
+                  "configuration": {
+                    "latency": "0"
                   },
-                  "capabilities" : {
-                    "cap_list" : "PCI capabilities listing"
+                  "capabilities": {
+                    "cap_list": "PCI capabilities listing"
                   }
                 },
                 {
-                  "id" : "usb:0",
-                  "class" : "bus",
-                  "claimed" : true,
-                  "handle" : "PCI:0000:c8:00.3",
-                  "description" : "USB controller",
-                  "product" : "Advanced Micro Devices, Inc. [AMD]",
-                  "vendor" : "Advanced Micro Devices, Inc. [AMD]",
-                  "physid" : "0.3",
-                  "businfo" : "pci@0000:c8:00.3",
-                  "version" : "00",
-                  "width" : 64,
-                  "clock" : 33000000,
-                  "configuration" : {
-                    "driver" : "xhci_hcd",
-                    "latency" : "0"
+                  "id": "usb:0",
+                  "class": "bus",
+                  "claimed": true,
+                  "handle": "PCI:0000:c8:00.3",
+                  "description": "USB controller",
+                  "product": "Advanced Micro Devices, Inc. [AMD]",
+                  "vendor": "Advanced Micro Devices, Inc. [AMD]",
+                  "physid": "0.3",
+                  "businfo": "pci@0000:c8:00.3",
+                  "version": "00",
+                  "width": 64,
+                  "clock": 33000000,
+                  "configuration": {
+                    "driver": "xhci_hcd",
+                    "latency": "0"
                   },
-                  "capabilities" : {
-                    "xhci" : true,
-                    "bus_master" : "bus mastering",
-                    "cap_list" : "PCI capabilities listing"
+                  "capabilities": {
+                    "xhci": true,
+                    "bus_master": "bus mastering",
+                    "cap_list": "PCI capabilities listing"
                   }
                 },
                 {
-                  "id" : "usb:1",
-                  "class" : "bus",
-                  "claimed" : true,
-                  "handle" : "PCI:0000:c8:00.4",
-                  "description" : "USB controller",
-                  "product" : "Advanced Micro Devices, Inc. [AMD]",
-                  "vendor" : "Advanced Micro Devices, Inc. [AMD]",
-                  "physid" : "0.4",
-                  "businfo" : "pci@0000:c8:00.4",
-                  "version" : "00",
-                  "width" : 64,
-                  "clock" : 33000000,
-                  "configuration" : {
-                    "driver" : "xhci_hcd",
-                    "latency" : "0"
+                  "id": "usb:1",
+                  "class": "bus",
+                  "claimed": true,
+                  "handle": "PCI:0000:c8:00.4",
+                  "description": "USB controller",
+                  "product": "Advanced Micro Devices, Inc. [AMD]",
+                  "vendor": "Advanced Micro Devices, Inc. [AMD]",
+                  "physid": "0.4",
+                  "businfo": "pci@0000:c8:00.4",
+                  "version": "00",
+                  "width": 64,
+                  "clock": 33000000,
+                  "configuration": {
+                    "driver": "xhci_hcd",
+                    "latency": "0"
                   },
-                  "capabilities" : {
-                    "xhci" : true,
-                    "bus_master" : "bus mastering",
-                    "cap_list" : "PCI capabilities listing"
+                  "capabilities": {
+                    "xhci": true,
+                    "bus_master": "bus mastering",
+                    "cap_list": "PCI capabilities listing"
                   }
                 },
                 {
-                  "id" : "usb:2",
-                  "class" : "bus",
-                  "claimed" : true,
-                  "handle" : "PCI:0000:c8:00.5",
-                  "description" : "USB controller",
-                  "product" : "Pink Sardine USB4/Thunderbolt NHI controller #1",
-                  "vendor" : "Advanced Micro Devices, Inc. [AMD]",
-                  "physid" : "0.5",
-                  "businfo" : "pci@0000:c8:00.5",
-                  "version" : "00",
-                  "width" : 64,
-                  "clock" : 33000000,
-                  "configuration" : {
-                    "driver" : "thunderbolt",
-                    "latency" : "0"
+                  "id": "usb:2",
+                  "class": "bus",
+                  "claimed": true,
+                  "handle": "PCI:0000:c8:00.5",
+                  "description": "USB controller",
+                  "product": "Pink Sardine USB4/Thunderbolt NHI controller #1",
+                  "vendor": "Advanced Micro Devices, Inc. [AMD]",
+                  "physid": "0.5",
+                  "businfo": "pci@0000:c8:00.5",
+                  "version": "00",
+                  "width": 64,
+                  "clock": 33000000,
+                  "configuration": {
+                    "driver": "thunderbolt",
+                    "latency": "0"
                   },
-                  "capabilities" : {
-                    "usb4_host_interface" : true,
-                    "bus_master" : "bus mastering",
-                    "cap_list" : "PCI capabilities listing"
+                  "capabilities": {
+                    "usb4_host_interface": true,
+                    "bus_master": "bus mastering",
+                    "cap_list": "PCI capabilities listing"
                   }
                 },
                 {
-                  "id" : "usb:3",
-                  "class" : "bus",
-                  "claimed" : true,
-                  "handle" : "PCI:0000:c8:00.6",
-                  "description" : "USB controller",
-                  "product" : "Pink Sardine USB4/Thunderbolt NHI controller #2",
-                  "vendor" : "Advanced Micro Devices, Inc. [AMD]",
-                  "physid" : "0.6",
-                  "businfo" : "pci@0000:c8:00.6",
-                  "version" : "00",
-                  "width" : 64,
-                  "clock" : 33000000,
-                  "configuration" : {
-                    "driver" : "thunderbolt",
-                    "latency" : "0"
+                  "id": "usb:3",
+                  "class": "bus",
+                  "claimed": true,
+                  "handle": "PCI:0000:c8:00.6",
+                  "description": "USB controller",
+                  "product": "Pink Sardine USB4/Thunderbolt NHI controller #2",
+                  "vendor": "Advanced Micro Devices, Inc. [AMD]",
+                  "physid": "0.6",
+                  "businfo": "pci@0000:c8:00.6",
+                  "version": "00",
+                  "width": 64,
+                  "clock": 33000000,
+                  "configuration": {
+                    "driver": "thunderbolt",
+                    "latency": "0"
                   },
-                  "capabilities" : {
-                    "usb4_host_interface" : true,
-                    "bus_master" : "bus mastering",
-                    "cap_list" : "PCI capabilities listing"
+                  "capabilities": {
+                    "usb4_host_interface": true,
+                    "bus_master": "bus mastering",
+                    "cap_list": "PCI capabilities listing"
                   }
-                }]
+                }
+              ]
             },
             {
-              "id" : "serial",
-              "class" : "bus",
-              "claimed" : true,
-              "handle" : "PCI:0000:00:14.0",
-              "description" : "SMBus",
-              "product" : "FCH SMBus Controller",
-              "vendor" : "Advanced Micro Devices, Inc. [AMD]",
-              "physid" : "14",
-              "businfo" : "pci@0000:00:14.0",
-              "version" : "71",
-              "width" : 32,
-              "clock" : 66000000,
-              "configuration" : {
-                "driver" : "piix4_smbus",
-                "latency" : "0"
+              "id": "serial",
+              "class": "bus",
+              "claimed": true,
+              "handle": "PCI:0000:00:14.0",
+              "description": "SMBus",
+              "product": "FCH SMBus Controller",
+              "vendor": "Advanced Micro Devices, Inc. [AMD]",
+              "physid": "14",
+              "businfo": "pci@0000:00:14.0",
+              "version": "71",
+              "width": 32,
+              "clock": 66000000,
+              "configuration": {
+                "driver": "piix4_smbus",
+                "latency": "0"
               }
             },
             {
-              "id" : "isa",
-              "class" : "bridge",
-              "claimed" : true,
-              "handle" : "PCI:0000:00:14.3",
-              "description" : "ISA bridge",
-              "product" : "FCH LPC Bridge",
-              "vendor" : "Advanced Micro Devices, Inc. [AMD]",
-              "physid" : "14.3",
-              "businfo" : "pci@0000:00:14.3",
-              "version" : "51",
-              "width" : 32,
-              "clock" : 66000000,
-              "configuration" : {
-                "latency" : "0"
+              "id": "isa",
+              "class": "bridge",
+              "claimed": true,
+              "handle": "PCI:0000:00:14.3",
+              "description": "ISA bridge",
+              "product": "FCH LPC Bridge",
+              "vendor": "Advanced Micro Devices, Inc. [AMD]",
+              "physid": "14.3",
+              "businfo": "pci@0000:00:14.3",
+              "version": "51",
+              "width": 32,
+              "clock": 66000000,
+              "configuration": {
+                "latency": "0"
               },
-              "capabilities" : {
-                "isa" : true,
-                "bus_master" : "bus mastering"
+              "capabilities": {
+                "isa": true,
+                "bus_master": "bus mastering"
               },
-              "children" : [                {
-                  "id" : "pnp00:00",
-                  "class" : "system",
-                  "claimed" : true,
-                  "product" : "PnP device PNP0c01",
-                  "physid" : "0",
-                  "configuration" : {
-                    "driver" : "system"
+              "children": [
+                {
+                  "id": "pnp00:00",
+                  "class": "system",
+                  "claimed": true,
+                  "product": "PnP device PNP0c01",
+                  "physid": "0",
+                  "configuration": {
+                    "driver": "system"
                   },
-                  "capabilities" : {
-                    "pnp" : true
+                  "capabilities": {
+                    "pnp": true
                   }
                 },
                 {
-                  "id" : "pnp00:01",
-                  "class" : "system",
-                  "claimed" : true,
-                  "product" : "PnP device PNP0b00",
-                  "physid" : "1",
-                  "configuration" : {
-                    "driver" : "rtc_cmos"
+                  "id": "pnp00:01",
+                  "class": "system",
+                  "claimed": true,
+                  "product": "PnP device PNP0b00",
+                  "physid": "1",
+                  "configuration": {
+                    "driver": "rtc_cmos"
                   },
-                  "capabilities" : {
-                    "pnp" : true
+                  "capabilities": {
+                    "pnp": true
                   }
                 },
                 {
-                  "id" : "pnp00:02",
-                  "class" : "system",
-                  "claimed" : true,
-                  "product" : "PnP device PNP0c02",
-                  "physid" : "2",
-                  "configuration" : {
-                    "driver" : "system"
+                  "id": "pnp00:02",
+                  "class": "system",
+                  "claimed": true,
+                  "product": "PnP device PNP0c02",
+                  "physid": "2",
+                  "configuration": {
+                    "driver": "system"
                   },
-                  "capabilities" : {
-                    "pnp" : true
+                  "capabilities": {
+                    "pnp": true
                   }
                 },
                 {
-                  "id" : "pnp00:03",
-                  "class" : "system",
-                  "claimed" : true,
-                  "product" : "PnP device PNP0c02",
-                  "physid" : "3",
-                  "configuration" : {
-                    "driver" : "system"
+                  "id": "pnp00:03",
+                  "class": "system",
+                  "claimed": true,
+                  "product": "PnP device PNP0c02",
+                  "physid": "3",
+                  "configuration": {
+                    "driver": "system"
                   },
-                  "capabilities" : {
-                    "pnp" : true
+                  "capabilities": {
+                    "pnp": true
                   }
                 },
                 {
-                  "id" : "pnp00:04",
-                  "class" : "communication",
-                  "claimed" : true,
-                  "product" : "PnP device PNP0500",
-                  "physid" : "4",
-                  "configuration" : {
-                    "driver" : "serial"
+                  "id": "pnp00:04",
+                  "class": "communication",
+                  "claimed": true,
+                  "product": "PnP device PNP0500",
+                  "physid": "4",
+                  "configuration": {
+                    "driver": "serial"
                   },
-                  "capabilities" : {
-                    "pnp" : true
+                  "capabilities": {
+                    "pnp": true
                   }
-                }]
-            }]
+                }
+              ]
+            }
+          ]
         },
         {
-          "id" : "pci:1",
-          "class" : "bridge",
-          "claimed" : true,
-          "handle" : "PCIBUS:0000:00",
-          "description" : "Host bridge",
-          "product" : "Advanced Micro Devices, Inc. [AMD]",
-          "vendor" : "Advanced Micro Devices, Inc. [AMD]",
-          "physid" : "101",
-          "businfo" : "pci@0000:00:01.0",
-          "version" : "00",
-          "width" : 32,
-          "clock" : 33000000
+          "id": "pci:1",
+          "class": "bridge",
+          "claimed": true,
+          "handle": "PCIBUS:0000:00",
+          "description": "Host bridge",
+          "product": "Advanced Micro Devices, Inc. [AMD]",
+          "vendor": "Advanced Micro Devices, Inc. [AMD]",
+          "physid": "101",
+          "businfo": "pci@0000:00:01.0",
+          "version": "00",
+          "width": 32,
+          "clock": 33000000
         },
         {
-          "id" : "pci:2",
-          "class" : "bridge",
-          "claimed" : true,
-          "handle" : "PCIBUS:0000:00",
-          "description" : "Host bridge",
-          "product" : "Advanced Micro Devices, Inc. [AMD]",
-          "vendor" : "Advanced Micro Devices, Inc. [AMD]",
-          "physid" : "102",
-          "businfo" : "pci@0000:00:02.0",
-          "version" : "00",
-          "width" : 32,
-          "clock" : 33000000
+          "id": "pci:2",
+          "class": "bridge",
+          "claimed": true,
+          "handle": "PCIBUS:0000:00",
+          "description": "Host bridge",
+          "product": "Advanced Micro Devices, Inc. [AMD]",
+          "vendor": "Advanced Micro Devices, Inc. [AMD]",
+          "physid": "102",
+          "businfo": "pci@0000:00:02.0",
+          "version": "00",
+          "width": 32,
+          "clock": 33000000
         },
         {
-          "id" : "pci:3",
-          "class" : "bridge",
-          "claimed" : true,
-          "handle" : "PCIBUS:0000:00",
-          "description" : "Host bridge",
-          "product" : "Advanced Micro Devices, Inc. [AMD]",
-          "vendor" : "Advanced Micro Devices, Inc. [AMD]",
-          "physid" : "103",
-          "businfo" : "pci@0000:00:03.0",
-          "version" : "00",
-          "width" : 32,
-          "clock" : 33000000
+          "id": "pci:3",
+          "class": "bridge",
+          "claimed": true,
+          "handle": "PCIBUS:0000:00",
+          "description": "Host bridge",
+          "product": "Advanced Micro Devices, Inc. [AMD]",
+          "vendor": "Advanced Micro Devices, Inc. [AMD]",
+          "physid": "103",
+          "businfo": "pci@0000:00:03.0",
+          "version": "00",
+          "width": 32,
+          "clock": 33000000
         },
         {
-          "id" : "pci:4",
-          "class" : "bridge",
-          "claimed" : true,
-          "handle" : "PCIBUS:0000:00",
-          "description" : "Host bridge",
-          "product" : "Advanced Micro Devices, Inc. [AMD]",
-          "vendor" : "Advanced Micro Devices, Inc. [AMD]",
-          "physid" : "104",
-          "businfo" : "pci@0000:00:04.0",
-          "version" : "00",
-          "width" : 32,
-          "clock" : 33000000
+          "id": "pci:4",
+          "class": "bridge",
+          "claimed": true,
+          "handle": "PCIBUS:0000:00",
+          "description": "Host bridge",
+          "product": "Advanced Micro Devices, Inc. [AMD]",
+          "vendor": "Advanced Micro Devices, Inc. [AMD]",
+          "physid": "104",
+          "businfo": "pci@0000:00:04.0",
+          "version": "00",
+          "width": 32,
+          "clock": 33000000
         },
         {
-          "id" : "pci:5",
-          "class" : "bridge",
-          "claimed" : true,
-          "handle" : "PCIBUS:0000:00",
-          "description" : "Host bridge",
-          "product" : "Advanced Micro Devices, Inc. [AMD]",
-          "vendor" : "Advanced Micro Devices, Inc. [AMD]",
-          "physid" : "105",
-          "businfo" : "pci@0000:00:08.0",
-          "version" : "00",
-          "width" : 32,
-          "clock" : 33000000
+          "id": "pci:5",
+          "class": "bridge",
+          "claimed": true,
+          "handle": "PCIBUS:0000:00",
+          "description": "Host bridge",
+          "product": "Advanced Micro Devices, Inc. [AMD]",
+          "vendor": "Advanced Micro Devices, Inc. [AMD]",
+          "physid": "105",
+          "businfo": "pci@0000:00:08.0",
+          "version": "00",
+          "width": 32,
+          "clock": 33000000
         },
         {
-          "id" : "pci:6",
-          "class" : "bridge",
-          "claimed" : true,
-          "handle" : "PCIBUS:0000:00",
-          "description" : "Host bridge",
-          "product" : "Advanced Micro Devices, Inc. [AMD]",
-          "vendor" : "Advanced Micro Devices, Inc. [AMD]",
-          "physid" : "106",
-          "businfo" : "pci@0000:00:18.0",
-          "version" : "00",
-          "width" : 32,
-          "clock" : 33000000
+          "id": "pci:6",
+          "class": "bridge",
+          "claimed": true,
+          "handle": "PCIBUS:0000:00",
+          "description": "Host bridge",
+          "product": "Advanced Micro Devices, Inc. [AMD]",
+          "vendor": "Advanced Micro Devices, Inc. [AMD]",
+          "physid": "106",
+          "businfo": "pci@0000:00:18.0",
+          "version": "00",
+          "width": 32,
+          "clock": 33000000
         },
         {
-          "id" : "pci:7",
-          "class" : "bridge",
-          "claimed" : true,
-          "handle" : "PCIBUS:0000:00",
-          "description" : "Host bridge",
-          "product" : "Advanced Micro Devices, Inc. [AMD]",
-          "vendor" : "Advanced Micro Devices, Inc. [AMD]",
-          "physid" : "107",
-          "businfo" : "pci@0000:00:18.1",
-          "version" : "00",
-          "width" : 32,
-          "clock" : 33000000
+          "id": "pci:7",
+          "class": "bridge",
+          "claimed": true,
+          "handle": "PCIBUS:0000:00",
+          "description": "Host bridge",
+          "product": "Advanced Micro Devices, Inc. [AMD]",
+          "vendor": "Advanced Micro Devices, Inc. [AMD]",
+          "physid": "107",
+          "businfo": "pci@0000:00:18.1",
+          "version": "00",
+          "width": 32,
+          "clock": 33000000
         },
         {
-          "id" : "pci:8",
-          "class" : "bridge",
-          "claimed" : true,
-          "handle" : "PCIBUS:0000:00",
-          "description" : "Host bridge",
-          "product" : "Advanced Micro Devices, Inc. [AMD]",
-          "vendor" : "Advanced Micro Devices, Inc. [AMD]",
-          "physid" : "108",
-          "businfo" : "pci@0000:00:18.2",
-          "version" : "00",
-          "width" : 32,
-          "clock" : 33000000
+          "id": "pci:8",
+          "class": "bridge",
+          "claimed": true,
+          "handle": "PCIBUS:0000:00",
+          "description": "Host bridge",
+          "product": "Advanced Micro Devices, Inc. [AMD]",
+          "vendor": "Advanced Micro Devices, Inc. [AMD]",
+          "physid": "108",
+          "businfo": "pci@0000:00:18.2",
+          "version": "00",
+          "width": 32,
+          "clock": 33000000
         },
         {
-          "id" : "pci:9",
-          "class" : "bridge",
-          "claimed" : true,
-          "handle" : "PCIBUS:0000:00",
-          "description" : "Host bridge",
-          "product" : "Advanced Micro Devices, Inc. [AMD]",
-          "vendor" : "Advanced Micro Devices, Inc. [AMD]",
-          "physid" : "109",
-          "businfo" : "pci@0000:00:18.3",
-          "version" : "00",
-          "width" : 32,
-          "clock" : 33000000,
-          "configuration" : {
-            "driver" : "k10temp"
+          "id": "pci:9",
+          "class": "bridge",
+          "claimed": true,
+          "handle": "PCIBUS:0000:00",
+          "description": "Host bridge",
+          "product": "Advanced Micro Devices, Inc. [AMD]",
+          "vendor": "Advanced Micro Devices, Inc. [AMD]",
+          "physid": "109",
+          "businfo": "pci@0000:00:18.3",
+          "version": "00",
+          "width": 32,
+          "clock": 33000000,
+          "configuration": {
+            "driver": "k10temp"
           }
         },
         {
-          "id" : "pci:10",
-          "class" : "bridge",
-          "claimed" : true,
-          "handle" : "PCIBUS:0000:00",
-          "description" : "Host bridge",
-          "product" : "Advanced Micro Devices, Inc. [AMD]",
-          "vendor" : "Advanced Micro Devices, Inc. [AMD]",
-          "physid" : "10a",
-          "businfo" : "pci@0000:00:18.4",
-          "version" : "00",
-          "width" : 32,
-          "clock" : 33000000
+          "id": "pci:10",
+          "class": "bridge",
+          "claimed": true,
+          "handle": "PCIBUS:0000:00",
+          "description": "Host bridge",
+          "product": "Advanced Micro Devices, Inc. [AMD]",
+          "vendor": "Advanced Micro Devices, Inc. [AMD]",
+          "physid": "10a",
+          "businfo": "pci@0000:00:18.4",
+          "version": "00",
+          "width": 32,
+          "clock": 33000000
         },
         {
-          "id" : "pci:11",
-          "class" : "bridge",
-          "claimed" : true,
-          "handle" : "PCIBUS:0000:00",
-          "description" : "Host bridge",
-          "product" : "Advanced Micro Devices, Inc. [AMD]",
-          "vendor" : "Advanced Micro Devices, Inc. [AMD]",
-          "physid" : "10b",
-          "businfo" : "pci@0000:00:18.5",
-          "version" : "00",
-          "width" : 32,
-          "clock" : 33000000
+          "id": "pci:11",
+          "class": "bridge",
+          "claimed": true,
+          "handle": "PCIBUS:0000:00",
+          "description": "Host bridge",
+          "product": "Advanced Micro Devices, Inc. [AMD]",
+          "vendor": "Advanced Micro Devices, Inc. [AMD]",
+          "physid": "10b",
+          "businfo": "pci@0000:00:18.5",
+          "version": "00",
+          "width": 32,
+          "clock": 33000000
         },
         {
-          "id" : "pci:12",
-          "class" : "bridge",
-          "claimed" : true,
-          "handle" : "PCIBUS:0000:00",
-          "description" : "Host bridge",
-          "product" : "Advanced Micro Devices, Inc. [AMD]",
-          "vendor" : "Advanced Micro Devices, Inc. [AMD]",
-          "physid" : "10c",
-          "businfo" : "pci@0000:00:18.6",
-          "version" : "00",
-          "width" : 32,
-          "clock" : 33000000
+          "id": "pci:12",
+          "class": "bridge",
+          "claimed": true,
+          "handle": "PCIBUS:0000:00",
+          "description": "Host bridge",
+          "product": "Advanced Micro Devices, Inc. [AMD]",
+          "vendor": "Advanced Micro Devices, Inc. [AMD]",
+          "physid": "10c",
+          "businfo": "pci@0000:00:18.6",
+          "version": "00",
+          "width": 32,
+          "clock": 33000000
         },
         {
-          "id" : "pci:13",
-          "class" : "bridge",
-          "claimed" : true,
-          "handle" : "PCIBUS:0000:00",
-          "description" : "Host bridge",
-          "product" : "Advanced Micro Devices, Inc. [AMD]",
-          "vendor" : "Advanced Micro Devices, Inc. [AMD]",
-          "physid" : "10d",
-          "businfo" : "pci@0000:00:18.7",
-          "version" : "00",
-          "width" : 32,
-          "clock" : 33000000
-        }]
+          "id": "pci:13",
+          "class": "bridge",
+          "claimed": true,
+          "handle": "PCIBUS:0000:00",
+          "description": "Host bridge",
+          "product": "Advanced Micro Devices, Inc. [AMD]",
+          "vendor": "Advanced Micro Devices, Inc. [AMD]",
+          "physid": "10d",
+          "businfo": "pci@0000:00:18.7",
+          "version": "00",
+          "width": 32,
+          "clock": 33000000
+        }
+      ]
     },
     {
-      "id" : "input:0",
-      "class" : "input",
-      "claimed" : true,
-      "product" : "Power Button",
-      "physid" : "1",
-      "logicalname" : ["input0", "/dev/input/event0"],
-      "capabilities" : {
-        "platform" : true
+      "id": "input:0",
+      "class": "input",
+      "claimed": true,
+      "product": "Power Button",
+      "physid": "1",
+      "logicalname": ["input0", "/dev/input/event0"],
+      "capabilities": {
+        "platform": true
       }
     },
     {
-      "id" : "input:1",
-      "class" : "input",
-      "claimed" : true,
-      "product" : "Video Bus",
-      "physid" : "2",
-      "logicalname" : ["input1", "/dev/input/event1"],
-      "capabilities" : {
-        "platform" : true
+      "id": "input:1",
+      "class": "input",
+      "claimed": true,
+      "product": "Video Bus",
+      "physid": "2",
+      "logicalname": ["input1", "/dev/input/event1"],
+      "capabilities": {
+        "platform": true
       }
-    }]
+    }
+  ]
 }

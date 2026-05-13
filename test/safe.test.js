@@ -15,7 +15,10 @@ import {
 
 test("safeExistsSync reports existing and missing paths without throwing", () => {
   assert.equal(safeExistsSync(process.cwd()), true);
-  assert.equal(safeExistsSync(join(process.cwd(), "definitely-missing-path")), false);
+  assert.equal(
+    safeExistsSync(join(process.cwd(), "definitely-missing-path")),
+    false,
+  );
 });
 
 test("safeMkdirSync creates a directory and treats EEXIST as success", () => {
@@ -45,13 +48,9 @@ test("safeReadFileSync returns a Buffer when encoding null is requested", () => 
 
 test("safeSpawnSync executes allowed commands and tracks them", () => {
   commandsExecuted.clear();
-  const result = safeSpawnSync(
-    process.execPath,
-    ["-e", "console.log('ok')"],
-    {
-      allowedCommands: [basename(process.execPath)],
-    },
-  );
+  const result = safeSpawnSync(process.execPath, ["-e", "console.log('ok')"], {
+    allowedCommands: [basename(process.execPath)],
+  });
 
   assert.equal(result.status, 0);
   assert.match(String(result.stdout), /ok/u);
@@ -59,9 +58,13 @@ test("safeSpawnSync executes allowed commands and tracks them", () => {
 });
 
 test("safeSpawnSync blocks commands outside the allowlist", () => {
-  const result = safeSpawnSync(process.execPath, ["-e", "console.log('blocked')"], {
-    allowedCommands: ["echo"],
-  });
+  const result = safeSpawnSync(
+    process.execPath,
+    ["-e", "console.log('blocked')"],
+    {
+      allowedCommands: ["echo"],
+    },
+  );
 
   assert.equal(result.status, 1);
   assert.match(String(result.error?.message), /allowlist/u);

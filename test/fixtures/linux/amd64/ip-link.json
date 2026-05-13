@@ -1,1 +1,84 @@
-[{"ifindex":1,"ifname":"lo","flags":["LOOPBACK","UP","LOWER_UP"],"mtu":65536,"qdisc":"noqueue","operstate":"UNKNOWN","linkmode":"DEFAULT","group":"default","txqlen":1000,"link_type":"loopback","address":"redacted:mac","broadcast":"redacted:mac"},{"ifindex":2,"ifname":"eno1","flags":["NO-CARRIER","BROADCAST","MULTICAST","UP"],"mtu":1500,"qdisc":"mq","operstate":"DOWN","linkmode":"DEFAULT","group":"default","txqlen":1000,"link_type":"ether","address":"redacted:mac","broadcast":"redacted:mac","altnames":["enp2s0"]},{"ifindex":3,"ifname":"enp3s0","flags":["BROADCAST","MULTICAST","UP","LOWER_UP"],"mtu":1500,"qdisc":"mq","operstate":"UP","linkmode":"DEFAULT","group":"default","txqlen":1000,"link_type":"ether","address":"redacted:mac","broadcast":"redacted:mac"},{"ifindex":4,"ifname":"wlp4s0","flags":["BROADCAST","MULTICAST","UP","LOWER_UP"],"mtu":1500,"qdisc":"noqueue","operstate":"UP","linkmode":"DORMANT","group":"default","txqlen":1000,"link_type":"ether","address":"redacted:mac","broadcast":"redacted:mac"},{"ifindex":5,"ifname":"tailscale0","flags":["POINTOPOINT","MULTICAST","NOARP","UP","LOWER_UP"],"mtu":1280,"qdisc":"fq_codel","operstate":"UNKNOWN","linkmode":"DEFAULT","group":"default","txqlen":500,"link_type":"none"},{"ifindex":6,"ifname":"docker0","flags":["NO-CARRIER","BROADCAST","MULTICAST","UP"],"mtu":1500,"qdisc":"noqueue","operstate":"DOWN","linkmode":"DEFAULT","group":"default","link_type":"ether","address":"redacted:mac","broadcast":"redacted:mac"}]
+[
+  {
+    "ifindex": 1,
+    "ifname": "lo",
+    "flags": ["LOOPBACK", "UP", "LOWER_UP"],
+    "mtu": 65536,
+    "qdisc": "noqueue",
+    "operstate": "UNKNOWN",
+    "linkmode": "DEFAULT",
+    "group": "default",
+    "txqlen": 1000,
+    "link_type": "loopback",
+    "address": "redacted:mac",
+    "broadcast": "redacted:mac"
+  },
+  {
+    "ifindex": 2,
+    "ifname": "eno1",
+    "flags": ["NO-CARRIER", "BROADCAST", "MULTICAST", "UP"],
+    "mtu": 1500,
+    "qdisc": "mq",
+    "operstate": "DOWN",
+    "linkmode": "DEFAULT",
+    "group": "default",
+    "txqlen": 1000,
+    "link_type": "ether",
+    "address": "redacted:mac",
+    "broadcast": "redacted:mac",
+    "altnames": ["enp2s0"]
+  },
+  {
+    "ifindex": 3,
+    "ifname": "enp3s0",
+    "flags": ["BROADCAST", "MULTICAST", "UP", "LOWER_UP"],
+    "mtu": 1500,
+    "qdisc": "mq",
+    "operstate": "UP",
+    "linkmode": "DEFAULT",
+    "group": "default",
+    "txqlen": 1000,
+    "link_type": "ether",
+    "address": "redacted:mac",
+    "broadcast": "redacted:mac"
+  },
+  {
+    "ifindex": 4,
+    "ifname": "wlp4s0",
+    "flags": ["BROADCAST", "MULTICAST", "UP", "LOWER_UP"],
+    "mtu": 1500,
+    "qdisc": "noqueue",
+    "operstate": "UP",
+    "linkmode": "DORMANT",
+    "group": "default",
+    "txqlen": 1000,
+    "link_type": "ether",
+    "address": "redacted:mac",
+    "broadcast": "redacted:mac"
+  },
+  {
+    "ifindex": 5,
+    "ifname": "tailscale0",
+    "flags": ["POINTOPOINT", "MULTICAST", "NOARP", "UP", "LOWER_UP"],
+    "mtu": 1280,
+    "qdisc": "fq_codel",
+    "operstate": "UNKNOWN",
+    "linkmode": "DEFAULT",
+    "group": "default",
+    "txqlen": 500,
+    "link_type": "none"
+  },
+  {
+    "ifindex": 6,
+    "ifname": "docker0",
+    "flags": ["NO-CARRIER", "BROADCAST", "MULTICAST", "UP"],
+    "mtu": 1500,
+    "qdisc": "noqueue",
+    "operstate": "DOWN",
+    "linkmode": "DEFAULT",
+    "group": "default",
+    "link_type": "ether",
+    "address": "redacted:mac",
+    "broadcast": "redacted:mac"
+  }
+]

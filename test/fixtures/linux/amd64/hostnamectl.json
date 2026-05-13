@@ -1,1 +1,26 @@
-{"Hostname":"mini-dev-2","StaticHostname":"mini-dev-2","PrettyHostname":null,"DefaultHostname":"localhost","HostnameSource":"static","IconName":"computer-desktop","Chassis":"desktop","Deployment":null,"Location":null,"KernelName":"Linux","KernelRelease":"6.8.0-111-generic","KernelVersion":"#111-Ubuntu SMP PREEMPT_DYNAMIC Sat Apr 11 23:16:02 UTC 2026","OperatingSystemPrettyName":"Ubuntu 24.04.4 LTS","OperatingSystemCPEName":null,"OperatingSystemHomeURL":"https://www.ubuntu.com/","HardwareVendor":"GMKtec","HardwareModel":"NucBox K8 Plus","HardwareSerial":null,"FirmwareVersion":"NucBox K8 Plus 1.01","FirmwareVendor":"American Megatrends International, LLC.","FirmwareDate":1739923200000000,"MachineID":"redacted-machine-id","BootID":"redacted-boot-id","ProductUUID":null}
+{
+  "Hostname": "mini-dev-2",
+  "StaticHostname": "mini-dev-2",
+  "PrettyHostname": null,
+  "DefaultHostname": "localhost",
+  "HostnameSource": "static",
+  "IconName": "computer-desktop",
+  "Chassis": "desktop",
+  "Deployment": null,
+  "Location": null,
+  "KernelName": "Linux",
+  "KernelRelease": "6.8.0-111-generic",
+  "KernelVersion": "#111-Ubuntu SMP PREEMPT_DYNAMIC Sat Apr 11 23:16:02 UTC 2026",
+  "OperatingSystemPrettyName": "Ubuntu 24.04.4 LTS",
+  "OperatingSystemCPEName": null,
+  "OperatingSystemHomeURL": "https://www.ubuntu.com/",
+  "HardwareVendor": "GMKtec",
+  "HardwareModel": "NucBox K8 Plus",
+  "HardwareSerial": null,
+  "FirmwareVersion": "NucBox K8 Plus 1.01",
+  "FirmwareVendor": "American Megatrends International, LLC.",
+  "FirmwareDate": 1739923200000000,
+  "MachineID": "redacted-machine-id",
+  "BootID": "redacted-boot-id",
+  "ProductUUID": null
+}

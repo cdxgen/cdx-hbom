@@ -2,7 +2,8 @@ import { randomUUID } from "node:crypto";
 
 export const HBOM_BOM_FORMAT = "CycloneDX";
 export const HBOM_SPEC_VERSION = "1.7";
-export const HBOM_SCHEMA_URL = "http://cyclonedx.org/schema/bom-1.7.schema.json";
+export const HBOM_SCHEMA_URL =
+  "http://cyclonedx.org/schema/bom-1.7.schema.json";
 
 /**
  * Create a CycloneDX 1.7 BOM envelope for hardware inventory.

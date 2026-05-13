@@ -1,486 +1,500 @@
 {
-  "id" : "pi5",
-  "class" : "system",
-  "claimed" : true,
-  "description" : "Computer",
-  "product" : "Raspberry Pi 5 Model B Rev 1.1",
-  "serial":"redacted-serial",
-  "width" : 64,
-  "capabilities" : {
-    "smp" : "Symmetric Multi-Processing",
-    "cp15_barrier" : true,
-    "setend" : true,
-    "swp" : true,
-    "tagged_addr_disabled" : true
+  "id": "pi5",
+  "class": "system",
+  "claimed": true,
+  "description": "Computer",
+  "product": "Raspberry Pi 5 Model B Rev 1.1",
+  "serial": "redacted-serial",
+  "width": 64,
+  "capabilities": {
+    "smp": "Symmetric Multi-Processing",
+    "cp15_barrier": true,
+    "setend": true,
+    "swp": true,
+    "tagged_addr_disabled": true
   },
-  "children" : [    {
-      "id" : "core",
-      "class" : "bus",
-      "claimed" : true,
-      "description" : "Motherboard",
-      "physid" : "0",
-      "children" : [        {
-          "id" : "cpu:0",
-          "class" : "processor",
-          "claimed" : true,
-          "description" : "CPU",
-          "product" : "cpu",
-          "physid" : "0",
-          "businfo" : "cpu@0",
-          "units" : "Hz",
-          "size" : 2400000000,
-          "capacity" : 2400000000,
-          "capabilities" : {
-            "fp" : "Floating point instructions",
-            "asimd" : "Advanced SIMD",
-            "evtstrm" : "Event stream",
-            "aes" : "AES instructions",
-            "pmull" : "PMULL instruction",
-            "sha1" : "SHA1 instructions",
-            "sha2" : "SHA2 instructions",
-            "crc32" : "CRC extension",
-            "atomics" : true,
-            "fphp" : true,
-            "asimdhp" : true,
-            "cpuid" : true,
-            "asimdrdm" : true,
-            "lrcpc" : true,
-            "dcpop" : true,
-            "asimddp" : true,
-            "cpufreq" : "CPU Frequency scaling"
+  "children": [
+    {
+      "id": "core",
+      "class": "bus",
+      "claimed": true,
+      "description": "Motherboard",
+      "physid": "0",
+      "children": [
+        {
+          "id": "cpu:0",
+          "class": "processor",
+          "claimed": true,
+          "description": "CPU",
+          "product": "cpu",
+          "physid": "0",
+          "businfo": "cpu@0",
+          "units": "Hz",
+          "size": 2400000000,
+          "capacity": 2400000000,
+          "capabilities": {
+            "fp": "Floating point instructions",
+            "asimd": "Advanced SIMD",
+            "evtstrm": "Event stream",
+            "aes": "AES instructions",
+            "pmull": "PMULL instruction",
+            "sha1": "SHA1 instructions",
+            "sha2": "SHA2 instructions",
+            "crc32": "CRC extension",
+            "atomics": true,
+            "fphp": true,
+            "asimdhp": true,
+            "cpuid": true,
+            "asimdrdm": true,
+            "lrcpc": true,
+            "dcpop": true,
+            "asimddp": true,
+            "cpufreq": "CPU Frequency scaling"
           }
         },
         {
-          "id" : "cpu:1",
-          "class" : "processor",
-          "claimed" : true,
-          "description" : "CPU",
-          "product" : "cpu",
-          "physid" : "1",
-          "businfo" : "cpu@1",
-          "units" : "Hz",
-          "size" : 2400000000,
-          "capacity" : 2400000000,
-          "capabilities" : {
-            "fp" : "Floating point instructions",
-            "asimd" : "Advanced SIMD",
-            "evtstrm" : "Event stream",
-            "aes" : "AES instructions",
-            "pmull" : "PMULL instruction",
-            "sha1" : "SHA1 instructions",
-            "sha2" : "SHA2 instructions",
-            "crc32" : "CRC extension",
-            "atomics" : true,
-            "fphp" : true,
-            "asimdhp" : true,
-            "cpuid" : true,
-            "asimdrdm" : true,
-            "lrcpc" : true,
-            "dcpop" : true,
-            "asimddp" : true,
-            "cpufreq" : "CPU Frequency scaling"
+          "id": "cpu:1",
+          "class": "processor",
+          "claimed": true,
+          "description": "CPU",
+          "product": "cpu",
+          "physid": "1",
+          "businfo": "cpu@1",
+          "units": "Hz",
+          "size": 2400000000,
+          "capacity": 2400000000,
+          "capabilities": {
+            "fp": "Floating point instructions",
+            "asimd": "Advanced SIMD",
+            "evtstrm": "Event stream",
+            "aes": "AES instructions",
+            "pmull": "PMULL instruction",
+            "sha1": "SHA1 instructions",
+            "sha2": "SHA2 instructions",
+            "crc32": "CRC extension",
+            "atomics": true,
+            "fphp": true,
+            "asimdhp": true,
+            "cpuid": true,
+            "asimdrdm": true,
+            "lrcpc": true,
+            "dcpop": true,
+            "asimddp": true,
+            "cpufreq": "CPU Frequency scaling"
           }
         },
         {
-          "id" : "cpu:2",
-          "class" : "processor",
-          "claimed" : true,
-          "description" : "CPU",
-          "product" : "cpu",
-          "physid" : "2",
-          "businfo" : "cpu@2",
-          "units" : "Hz",
-          "size" : 2400000000,
-          "capacity" : 2400000000,
-          "capabilities" : {
-            "fp" : "Floating point instructions",
-            "asimd" : "Advanced SIMD",
-            "evtstrm" : "Event stream",
-            "aes" : "AES instructions",
-            "pmull" : "PMULL instruction",
-            "sha1" : "SHA1 instructions",
-            "sha2" : "SHA2 instructions",
-            "crc32" : "CRC extension",
-            "atomics" : true,
-            "fphp" : true,
-            "asimdhp" : true,
-            "cpuid" : true,
-            "asimdrdm" : true,
-            "lrcpc" : true,
-            "dcpop" : true,
-            "asimddp" : true,
-            "cpufreq" : "CPU Frequency scaling"
+          "id": "cpu:2",
+          "class": "processor",
+          "claimed": true,
+          "description": "CPU",
+          "product": "cpu",
+          "physid": "2",
+          "businfo": "cpu@2",
+          "units": "Hz",
+          "size": 2400000000,
+          "capacity": 2400000000,
+          "capabilities": {
+            "fp": "Floating point instructions",
+            "asimd": "Advanced SIMD",
+            "evtstrm": "Event stream",
+            "aes": "AES instructions",
+            "pmull": "PMULL instruction",
+            "sha1": "SHA1 instructions",
+            "sha2": "SHA2 instructions",
+            "crc32": "CRC extension",
+            "atomics": true,
+            "fphp": true,
+            "asimdhp": true,
+            "cpuid": true,
+            "asimdrdm": true,
+            "lrcpc": true,
+            "dcpop": true,
+            "asimddp": true,
+            "cpufreq": "CPU Frequency scaling"
           }
         },
         {
-          "id" : "cpu:3",
-          "class" : "processor",
-          "claimed" : true,
-          "description" : "CPU",
-          "product" : "cpu",
-          "physid" : "3",
-          "businfo" : "cpu@3",
-          "units" : "Hz",
-          "size" : 2400000000,
-          "capacity" : 2400000000,
-          "capabilities" : {
-            "fp" : "Floating point instructions",
-            "asimd" : "Advanced SIMD",
-            "evtstrm" : "Event stream",
-            "aes" : "AES instructions",
-            "pmull" : "PMULL instruction",
-            "sha1" : "SHA1 instructions",
-            "sha2" : "SHA2 instructions",
-            "crc32" : "CRC extension",
-            "atomics" : true,
-            "fphp" : true,
-            "asimdhp" : true,
-            "cpuid" : true,
-            "asimdrdm" : true,
-            "lrcpc" : true,
-            "dcpop" : true,
-            "asimddp" : true,
-            "cpufreq" : "CPU Frequency scaling"
+          "id": "cpu:3",
+          "class": "processor",
+          "claimed": true,
+          "description": "CPU",
+          "product": "cpu",
+          "physid": "3",
+          "businfo": "cpu@3",
+          "units": "Hz",
+          "size": 2400000000,
+          "capacity": 2400000000,
+          "capabilities": {
+            "fp": "Floating point instructions",
+            "asimd": "Advanced SIMD",
+            "evtstrm": "Event stream",
+            "aes": "AES instructions",
+            "pmull": "PMULL instruction",
+            "sha1": "SHA1 instructions",
+            "sha2": "SHA2 instructions",
+            "crc32": "CRC extension",
+            "atomics": true,
+            "fphp": true,
+            "asimdhp": true,
+            "cpuid": true,
+            "asimdrdm": true,
+            "lrcpc": true,
+            "dcpop": true,
+            "asimddp": true,
+            "cpufreq": "CPU Frequency scaling"
           }
         },
         {
-          "id" : "cpu:4",
-          "class" : "processor",
-          "disabled" : true,
-          "claimed" : true,
-          "description" : "CPU",
-          "product" : "l2-cache",
-          "physid" : "4",
-          "businfo" : "cpu@4"
+          "id": "cpu:4",
+          "class": "processor",
+          "disabled": true,
+          "claimed": true,
+          "description": "CPU",
+          "product": "l2-cache",
+          "physid": "4",
+          "businfo": "cpu@4"
         },
         {
-          "id" : "cpu:5",
-          "class" : "processor",
-          "disabled" : true,
-          "claimed" : true,
-          "description" : "CPU",
-          "product" : "l3-cache",
-          "physid" : "5",
-          "businfo" : "cpu@5"
+          "id": "cpu:5",
+          "class": "processor",
+          "disabled": true,
+          "claimed": true,
+          "description": "CPU",
+          "product": "l3-cache",
+          "physid": "5",
+          "businfo": "cpu@5"
         },
         {
-          "id" : "memory",
-          "class" : "memory",
-          "claimed" : true,
-          "description" : "System memory",
-          "physid" : "6",
-          "units" : "bytes",
-          "size" : 16749199360
+          "id": "memory",
+          "class": "memory",
+          "claimed": true,
+          "description": "System memory",
+          "physid": "6",
+          "units": "bytes",
+          "size": 16749199360
         },
         {
-          "id" : "pci:0",
-          "class" : "bridge",
-          "claimed" : true,
-          "handle" : "PCIBUS:0000:01",
-          "description" : "PCI bridge",
-          "product" : "BCM2712 PCIe Bridge",
-          "vendor" : "Broadcom Inc. and subsidiaries",
-          "physid" : "100",
-          "businfo" : "pci@0000:00:00.0",
-          "version" : "30",
-          "width" : 32,
-          "clock" : 33000000,
-          "configuration" : {
-            "driver" : "pcieport"
+          "id": "pci:0",
+          "class": "bridge",
+          "claimed": true,
+          "handle": "PCIBUS:0000:01",
+          "description": "PCI bridge",
+          "product": "BCM2712 PCIe Bridge",
+          "vendor": "Broadcom Inc. and subsidiaries",
+          "physid": "100",
+          "businfo": "pci@0000:00:00.0",
+          "version": "30",
+          "width": 32,
+          "clock": 33000000,
+          "configuration": {
+            "driver": "pcieport"
           },
-          "capabilities" : {
-            "pci" : true,
-            "normal_decode" : true,
-            "bus_master" : "bus mastering",
-            "cap_list" : "PCI capabilities listing"
+          "capabilities": {
+            "pci": true,
+            "normal_decode": true,
+            "bus_master": "bus mastering",
+            "cap_list": "PCI capabilities listing"
           },
-          "children" : [            {
-              "id" : "nvme",
-              "class" : "storage",
-              "claimed" : true,
-              "handle" : "PCI:0000:01:00.0",
-              "description" : "NVMe device",
-              "product" : "Acer SSD FA100 256GB",
-              "vendor" : "Biwin Storage Technology Co., Ltd.",
-              "physid" : "0",
-              "businfo" : "pci@0000:01:00.0",
-              "logicalname" : "/dev/nvme0",
-              "version" : "1.4.6.57",
-              "serial":"redacted-serial",
-              "width" : 64,
-              "clock" : 33000000,
-              "configuration" : {
-                "driver" : "nvme",
-                "latency" : "0",
-                "nqn" : "nqn.2014.08.org.nvmexpress:1dee1deeASBD24480100146     Acer SSD FA100 256GB",
-                "state" : "live"
+          "children": [
+            {
+              "id": "nvme",
+              "class": "storage",
+              "claimed": true,
+              "handle": "PCI:0000:01:00.0",
+              "description": "NVMe device",
+              "product": "Acer SSD FA100 256GB",
+              "vendor": "Biwin Storage Technology Co., Ltd.",
+              "physid": "0",
+              "businfo": "pci@0000:01:00.0",
+              "logicalname": "/dev/nvme0",
+              "version": "1.4.6.57",
+              "serial": "redacted-serial",
+              "width": 64,
+              "clock": 33000000,
+              "configuration": {
+                "driver": "nvme",
+                "latency": "0",
+                "nqn": "nqn.2014.08.org.nvmexpress:1dee1deeASBD24480100146     Acer SSD FA100 256GB",
+                "state": "live"
               },
-              "capabilities" : {
-                "nvme" : true,
-                "nvm_express" : true,
-                "bus_master" : "bus mastering",
-                "cap_list" : "PCI capabilities listing",
-                "rom" : "extension ROM"
+              "capabilities": {
+                "nvme": true,
+                "nvm_express": true,
+                "bus_master": "bus mastering",
+                "cap_list": "PCI capabilities listing",
+                "rom": "extension ROM"
               },
-              "children" : [                {
-                  "id" : "namespace:0",
-                  "class" : "disk",
-                  "claimed" : true,
-                  "description" : "NVMe disk",
-                  "physid" : "0",
-                  "logicalname" : "hwmon1"
+              "children": [
+                {
+                  "id": "namespace:0",
+                  "class": "disk",
+                  "claimed": true,
+                  "description": "NVMe disk",
+                  "physid": "0",
+                  "logicalname": "hwmon1"
                 },
                 {
-                  "id" : "namespace:1",
-                  "class" : "disk",
-                  "claimed" : true,
-                  "description" : "NVMe disk",
-                  "physid" : "2",
-                  "logicalname" : "/dev/ng0n1"
+                  "id": "namespace:1",
+                  "class": "disk",
+                  "claimed": true,
+                  "description": "NVMe disk",
+                  "physid": "2",
+                  "logicalname": "/dev/ng0n1"
                 },
                 {
-                  "id" : "namespace:2",
-                  "class" : "disk",
-                  "claimed" : true,
-                  "description" : "NVMe disk",
-                  "physid" : "1",
-                  "businfo" : "nvme@0:1",
-                  "logicalname" : "/dev/nvme0n1",
-                  "configuration" : {
-                    "wwid" : "uuid.df8e86d6-8a47-9916-2e43-8e8b6efdb7cd"
+                  "id": "namespace:2",
+                  "class": "disk",
+                  "claimed": true,
+                  "description": "NVMe disk",
+                  "physid": "1",
+                  "businfo": "nvme@0:1",
+                  "logicalname": "/dev/nvme0n1",
+                  "configuration": {
+                    "wwid": "uuid.df8e86d6-8a47-9916-2e43-8e8b6efdb7cd"
                   }
-                }]
-            }]
+                }
+              ]
+            }
+          ]
         },
         {
-          "id" : "pci:1",
-          "class" : "bridge",
-          "claimed" : true,
-          "handle" : "PCIBUS:0001:01",
-          "description" : "PCI bridge",
-          "product" : "BCM2712 PCIe Bridge",
-          "vendor" : "Broadcom Inc. and subsidiaries",
-          "physid" : "101",
-          "businfo" : "pci@0001:00:00.0",
-          "version" : "30",
-          "width" : 32,
-          "clock" : 33000000,
-          "configuration" : {
-            "driver" : "pcieport"
+          "id": "pci:1",
+          "class": "bridge",
+          "claimed": true,
+          "handle": "PCIBUS:0001:01",
+          "description": "PCI bridge",
+          "product": "BCM2712 PCIe Bridge",
+          "vendor": "Broadcom Inc. and subsidiaries",
+          "physid": "101",
+          "businfo": "pci@0001:00:00.0",
+          "version": "30",
+          "width": 32,
+          "clock": 33000000,
+          "configuration": {
+            "driver": "pcieport"
           },
-          "capabilities" : {
-            "pci" : true,
-            "normal_decode" : true,
-            "bus_master" : "bus mastering",
-            "cap_list" : "PCI capabilities listing"
+          "capabilities": {
+            "pci": true,
+            "normal_decode": true,
+            "bus_master": "bus mastering",
+            "cap_list": "PCI capabilities listing"
           },
-          "children" : [            {
-              "id" : "network",
-              "class" : "network",
-              "claimed" : true,
-              "handle" : "PCI:0001:01:00.0",
-              "description" : "Ethernet controller",
-              "product" : "RP1 PCIe 2.0 South Bridge",
-              "vendor" : "Raspberry Pi Ltd",
-              "physid" : "0",
-              "businfo" : "pci@0001:01:00.0",
-              "version" : "00",
-              "width" : 32,
-              "clock" : 33000000,
-              "configuration" : {
-                "driver" : "rp1",
-                "latency" : "0"
+          "children": [
+            {
+              "id": "network",
+              "class": "network",
+              "claimed": true,
+              "handle": "PCI:0001:01:00.0",
+              "description": "Ethernet controller",
+              "product": "RP1 PCIe 2.0 South Bridge",
+              "vendor": "Raspberry Pi Ltd",
+              "physid": "0",
+              "businfo": "pci@0001:01:00.0",
+              "version": "00",
+              "width": 32,
+              "clock": 33000000,
+              "configuration": {
+                "driver": "rp1",
+                "latency": "0"
               },
-              "capabilities" : {
-                "bus_master" : "bus mastering",
-                "cap_list" : "PCI capabilities listing"
+              "capabilities": {
+                "bus_master": "bus mastering",
+                "cap_list": "PCI capabilities listing"
               }
-            }]
-        }]
+            }
+          ]
+        }
+      ]
     },
     {
-      "id" : "mmc0",
-      "class" : "bus",
-      "claimed" : true,
-      "description" : "MMC Host",
-      "physid" : "1",
-      "logicalname" : "mmc0"
+      "id": "mmc0",
+      "class": "bus",
+      "claimed": true,
+      "description": "MMC Host",
+      "physid": "1",
+      "logicalname": "mmc0"
     },
     {
-      "id" : "mmc1",
-      "class" : "bus",
-      "claimed" : true,
-      "description" : "MMC Host",
-      "physid" : "2",
-      "logicalname" : "mmc1",
-      "children" : [        {
-          "id" : "device",
-          "class" : "generic",
-          "claimed" : true,
-          "description" : "SDIO Device",
-          "physid" : "1",
-          "businfo" : "mmc@1:0001",
-          "serial":"redacted-serial",
-          "capabilities" : {
-            "sdio" : true
+      "id": "mmc1",
+      "class": "bus",
+      "claimed": true,
+      "description": "MMC Host",
+      "physid": "2",
+      "logicalname": "mmc1",
+      "children": [
+        {
+          "id": "device",
+          "class": "generic",
+          "claimed": true,
+          "description": "SDIO Device",
+          "physid": "1",
+          "businfo": "mmc@1:0001",
+          "serial": "redacted-serial",
+          "capabilities": {
+            "sdio": true
           },
-          "children" : [            {
-              "id" : "interface:0",
-              "class" : "network",
-              "claimed" : true,
-              "description" : "Wireless interface",
-              "product" : "4345",
-              "vendor" : "Broadcom",
-              "physid" : "1",
-              "businfo" : "mmc@1:0001:1",
-              "logicalname" : ["mmc1:0001:1", "wlan0"],
-              "serial":"redacted-serial",
-              "configuration" : {
-                "broadcast" : "yes",
-                "driver" : "brcmfmac",
-                "driverversion" : "7.45.234",
-                "firmware" : "01-996384e2",
-                "ip" : "192.168.0.44",
-                "multicast" : "yes",
-                "wireless" : "IEEE 802.11"
+          "children": [
+            {
+              "id": "interface:0",
+              "class": "network",
+              "claimed": true,
+              "description": "Wireless interface",
+              "product": "4345",
+              "vendor": "Broadcom",
+              "physid": "1",
+              "businfo": "mmc@1:0001:1",
+              "logicalname": ["mmc1:0001:1", "wlan0"],
+              "serial": "redacted-serial",
+              "configuration": {
+                "broadcast": "yes",
+                "driver": "brcmfmac",
+                "driverversion": "7.45.234",
+                "firmware": "01-996384e2",
+                "ip": "192.168.0.44",
+                "multicast": "yes",
+                "wireless": "IEEE 802.11"
               },
-              "capabilities" : {
-                "ethernet" : true,
-                "physical" : "Physical interface",
-                "wireless" : "Wireless-LAN"
+              "capabilities": {
+                "ethernet": true,
+                "physical": "Physical interface",
+                "wireless": "Wireless-LAN"
               }
             },
             {
-              "id" : "interface:1",
-              "class" : "generic",
-              "claimed" : true,
-              "product" : "4345",
-              "vendor" : "Broadcom",
-              "physid" : "2",
-              "businfo" : "mmc@1:0001:2",
-              "logicalname" : "mmc1:0001:2"
+              "id": "interface:1",
+              "class": "generic",
+              "claimed": true,
+              "product": "4345",
+              "vendor": "Broadcom",
+              "physid": "2",
+              "businfo": "mmc@1:0001:2",
+              "logicalname": "mmc1:0001:2"
             },
             {
-              "id" : "bt",
-              "class" : "communication",
-              "claimed" : true,
-              "description" : "BlueTooth interface",
-              "product" : "4345",
-              "vendor" : "Broadcom",
-              "physid" : "3",
-              "businfo" : "mmc@1:0001:3",
-              "logicalname" : "mmc1:0001:3",
-              "configuration" : {
-                "wireless" : "BlueTooth"
+              "id": "bt",
+              "class": "communication",
+              "claimed": true,
+              "description": "BlueTooth interface",
+              "product": "4345",
+              "vendor": "Broadcom",
+              "physid": "3",
+              "businfo": "mmc@1:0001:3",
+              "logicalname": "mmc1:0001:3",
+              "configuration": {
+                "wireless": "BlueTooth"
               },
-              "capabilities" : {
-                "wireless" : true,
-                "bluetooth" : true
+              "capabilities": {
+                "wireless": true,
+                "bluetooth": true
               }
-            }]
-        }]
+            }
+          ]
+        }
+      ]
     },
     {
-      "id" : "sound:0",
-      "class" : "multimedia",
-      "claimed" : true,
-      "description" : "vc4hdmi0",
-      "physid" : "3",
-      "logicalname" : ["card0", "/dev/snd/controlC0", "/dev/snd/pcmC0D0p"]
+      "id": "sound:0",
+      "class": "multimedia",
+      "claimed": true,
+      "description": "vc4hdmi0",
+      "physid": "3",
+      "logicalname": ["card0", "/dev/snd/controlC0", "/dev/snd/pcmC0D0p"]
     },
     {
-      "id" : "sound:1",
-      "class" : "multimedia",
-      "claimed" : true,
-      "description" : "vc4hdmi1",
-      "physid" : "4",
-      "logicalname" : ["card1", "/dev/snd/controlC1", "/dev/snd/pcmC1D0p"]
+      "id": "sound:1",
+      "class": "multimedia",
+      "claimed": true,
+      "description": "vc4hdmi1",
+      "physid": "4",
+      "logicalname": ["card1", "/dev/snd/controlC1", "/dev/snd/pcmC1D0p"]
     },
     {
-      "id" : "input:0",
-      "class" : "input",
-      "claimed" : true,
-      "product" : "pwr_button",
-      "physid" : "5",
-      "logicalname" : ["input3", "/dev/input/event0"],
-      "capabilities" : {
-        "platform" : true
+      "id": "input:0",
+      "class": "input",
+      "claimed": true,
+      "product": "pwr_button",
+      "physid": "5",
+      "logicalname": ["input3", "/dev/input/event0"],
+      "capabilities": {
+        "platform": true
       }
     },
     {
-      "id" : "input:1",
-      "class" : "input",
-      "claimed" : true,
-      "product" : "vc4-hdmi-0",
-      "physid" : "6",
-      "logicalname" : ["input4", "/dev/input/event1"],
-      "capabilities" : {
-        "cec" : "CEC"
+      "id": "input:1",
+      "class": "input",
+      "claimed": true,
+      "product": "vc4-hdmi-0",
+      "physid": "6",
+      "logicalname": ["input4", "/dev/input/event1"],
+      "capabilities": {
+        "cec": "CEC"
       }
     },
     {
-      "id" : "input:2",
-      "class" : "input",
-      "claimed" : true,
-      "product" : "vc4-hdmi-0 HDMI Jack",
-      "physid" : "7",
-      "logicalname" : ["input5", "/dev/input/event2"]
+      "id": "input:2",
+      "class": "input",
+      "claimed": true,
+      "product": "vc4-hdmi-0 HDMI Jack",
+      "physid": "7",
+      "logicalname": ["input5", "/dev/input/event2"]
     },
     {
-      "id" : "input:3",
-      "class" : "input",
-      "claimed" : true,
-      "product" : "vc4-hdmi-1",
-      "physid" : "8",
-      "logicalname" : ["input6", "/dev/input/event3"],
-      "capabilities" : {
-        "cec" : "CEC"
+      "id": "input:3",
+      "class": "input",
+      "claimed": true,
+      "product": "vc4-hdmi-1",
+      "physid": "8",
+      "logicalname": ["input6", "/dev/input/event3"],
+      "capabilities": {
+        "cec": "CEC"
       }
     },
     {
-      "id" : "input:4",
-      "class" : "input",
-      "claimed" : true,
-      "product" : "vc4-hdmi-1 HDMI Jack",
-      "physid" : "9",
-      "logicalname" : ["input7", "/dev/input/event4"]
+      "id": "input:4",
+      "class": "input",
+      "claimed": true,
+      "product": "vc4-hdmi-1 HDMI Jack",
+      "physid": "9",
+      "logicalname": ["input7", "/dev/input/event4"]
     },
     {
-      "id" : "network",
-      "class" : "network",
-      "disabled" : true,
-      "claimed" : true,
-      "description" : "Ethernet interface",
-      "physid" : "a",
-      "logicalname" : "eth0",
-      "serial":"redacted-serial",
-      "units" : "bit/s",
-      "capacity" : 1000000000,
-      "configuration" : {
-        "autonegotiation" : "off",
-        "broadcast" : "yes",
-        "driver" : "macb",
-        "driverversion" : "6.8.0-1053-raspi",
-        "duplex" : "half",
-        "link" : "no",
-        "multicast" : "yes",
-        "port" : "MII"
+      "id": "network",
+      "class": "network",
+      "disabled": true,
+      "claimed": true,
+      "description": "Ethernet interface",
+      "physid": "a",
+      "logicalname": "eth0",
+      "serial": "redacted-serial",
+      "units": "bit/s",
+      "capacity": 1000000000,
+      "configuration": {
+        "autonegotiation": "off",
+        "broadcast": "yes",
+        "driver": "macb",
+        "driverversion": "6.8.0-1053-raspi",
+        "duplex": "half",
+        "link": "no",
+        "multicast": "yes",
+        "port": "MII"
       },
-      "capabilities" : {
-        "ethernet" : true,
-        "physical" : "Physical interface",
-        "tp" : "twisted pair",
-        "aui" : "AUI",
-        "bnc" : "BNC",
-        "mii" : "Media Independent Interface",
-        "fibre" : "optical fibre",
-        "10bt" : "10Mbit/s",
-        "10bt-fd" : "10Mbit/s (full duplex)",
-        "100bt" : "100Mbit/s",
-        "100bt-fd" : "100Mbit/s (full duplex)",
-        "1000bt" : "1Gbit/s",
-        "1000bt-fd" : "1Gbit/s (full duplex)",
-        "autonegotiation" : "Auto-negotiation"
+      "capabilities": {
+        "ethernet": true,
+        "physical": "Physical interface",
+        "tp": "twisted pair",
+        "aui": "AUI",
+        "bnc": "BNC",
+        "mii": "Media Independent Interface",
+        "fibre": "optical fibre",
+        "10bt": "10Mbit/s",
+        "10bt-fd": "10Mbit/s (full duplex)",
+        "100bt": "100Mbit/s",
+        "100bt-fd": "100Mbit/s (full duplex)",
+        "1000bt": "1Gbit/s",
+        "1000bt-fd": "1Gbit/s (full duplex)",
+        "autonegotiation": "Auto-negotiation"
       }
-    }]
+    }
+  ]
 }

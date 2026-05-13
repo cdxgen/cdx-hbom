@@ -9,8 +9,8 @@ export {
   commandsExecuted,
   safeExistsSync,
   safeMkdirSync,
-  safeReadFileSync,
   safeReaddirSync,
+  safeReadFileSync,
   safeSpawnSync,
 } from "./src/common/safe.js";
 export {
@@ -64,7 +64,9 @@ export const SUPPORTED_TARGETS = Object.freeze([
  */
 export function getCommandPlan(options = {}) {
   const platform = normalizePlatform(options.platform ?? process.platform);
-  const architecture = normalizeArchitecture(options.architecture ?? process.arch);
+  const architecture = normalizeArchitecture(
+    options.architecture ?? process.arch,
+  );
 
   if (platform === "darwin" && architecture === "arm64") {
     return getDarwinArm64CommandPlan();
@@ -99,7 +101,9 @@ export function getCommandPlan(options = {}) {
  */
 export async function collectHardware(options = {}) {
   const platform = normalizePlatform(options.platform ?? process.platform);
-  const architecture = normalizeArchitecture(options.architecture ?? process.arch);
+  const architecture = normalizeArchitecture(
+    options.architecture ?? process.arch,
+  );
 
   if (platform === "darwin" && architecture === "arm64") {
     return collectDarwinArm64Hardware(options);
@@ -176,7 +180,9 @@ export async function collectHardware(options = {}) {
  */
 export function buildHardwareFromSources(options) {
   const platform = normalizePlatform(options?.platform ?? process.platform);
-  const architecture = normalizeArchitecture(options?.architecture ?? process.arch);
+  const architecture = normalizeArchitecture(
+    options?.architecture ?? process.arch,
+  );
 
   if (platform === "darwin" && architecture === "arm64") {
     return buildDarwinArm64Hbom(options);
