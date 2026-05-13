@@ -50,6 +50,11 @@ test("getCommandPlan rejects unsupported targets", () => {
   assert.ok(linuxAmd64Plan.some((spec) => spec.id === "lsblk-json"));
   assert.ok(linuxArm64Plan.some((spec) => spec.id === "ip-link-json"));
   assert.ok(linuxAarch64Plan.some((spec) => spec.id === "ip-link-json"));
+  assert.ok(linuxAmd64Plan.some((spec) => spec.id === "lsusb-verbose"));
+  assert.ok(
+    linuxAmd64Plan.some((spec) => spec.id === "cpupower-frequency-info"),
+  );
+  assert.ok(linuxArm64Plan.some((spec) => spec.id === "cpupower-idle-info"));
 
   assert.throws(
     () =>

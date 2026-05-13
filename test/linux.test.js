@@ -7,6 +7,8 @@ import {
   parseAsoundCards,
   parseAsoundPcm,
   parseCpuInfo,
+  parseCpupowerFrequencyInfo,
+  parseCpupowerIdleInfo,
   parseDmidecodeText,
   parseEdidBuffer,
   parseEthtoolDriverInfo,
@@ -19,6 +21,7 @@ import {
   parseLsmemJson,
   parseLspciVmmnn,
   parseLsusbText,
+  parseLsusbVerboseText,
   parseMemInfo,
   parseOsRelease,
 } from "../src/linux/common/index.js";
@@ -194,6 +197,154 @@ Bus 001 Device 004: ID 05ac:8514 Apple, Inc. FaceTime HD Camera
       description: "Apple, Inc. FaceTime HD Camera",
     },
   ]);
+});
+
+test("parseLsusbVerboseText extracts richer USB descriptor metadata", () => {
+  const parsed =
+    parseLsusbVerboseText(`Bus 001 Device 002: ID 8087:0029 Intel Corp. AX200 Bluetooth
+Device Descriptor:
+  bcdUSB               2.01
+  bDeviceClass          224 Wireless
+  bDeviceSubClass         1 Radio Frequency
+  bDeviceProtocol         1 Bluetooth
+  idVendor           0x8087 Intel Corp.
+  idProduct          0x0029 AX200 Bluetooth
+  iManufacturer           1 Intel Corp.
+  iProduct                2 AX200 Bluetooth
+  iSerial                 3 BT-123456
+  bNumConfigurations      1
+  Configuration Descriptor:
+    bNumInterfaces          2
+    bmAttributes         0xe0
+      Self Powered
+      Remote Wakeup
+    MaxPower              100mA
+    Interface Descriptor:
+      bInterfaceClass       224 Wireless
+    Interface Descriptor:
+      bInterfaceClass       224 Wireless
+`);
+
+  assert.deepEqual(parsed, [
+    {
+      bus: "001",
+      device: "002",
+      vendorId: "8087",
+      productId: "0029",
+      description: "Intel Corp. AX200 Bluetooth",
+      version: "2.01",
+      deviceClassName: "Wireless",
+      deviceSubclassName: "Radio Frequency",
+      deviceProtocolName: "Bluetooth",
+      manufacturer: "Intel Corp.",
+      productName: "AX200 Bluetooth",
+      serial: "BT-123456",
+      configurationCount: 1,
+      interfaceCount: 2,
+      maxPowerMilliAmps: 100,
+      selfPowered: true,
+      remoteWakeup: true,
+      interfaceClassNames: ["Wireless"],
+    },
+  ]);
+});
+
+test("parseCpupowerFrequencyInfo parses driver, governor, and boost metadata", () => {
+  const parsed = parseCpupowerFrequencyInfo(`analyzing CPU 13:
+  driver: amd-pstate-epp
+  hardware limits: 400 MHz - 5.10 GHz
+  available cpufreq governors: performance powersave
+  current policy: frequency should be within 400 MHz and 5.10 GHz.
+                  The governor "performance" may decide which speed to use
+                  within this range.
+  current CPU frequency: Unable to call hardware
+  current CPU frequency: 4.09 GHz (asserted by call to kernel)
+  boost state support:
+    Supported: yes
+    Active: yes
+    AMD PSTATE Highest Performance: 196. Maximum Frequency: 5.10 GHz.
+    AMD PSTATE Nominal Performance: 146. Nominal Frequency: 3.80 GHz.
+    AMD PSTATE Lowest Non-linear Performance: 42. Lowest Non-linear Frequency: 1.09 GHz.
+    AMD PSTATE Lowest Performance: 16. Lowest Frequency: 400 MHz.
+`);
+
+  assert.deepEqual(parsed, {
+    driver: "amd-pstate-epp",
+    hardwareMin: "400 MHz",
+    hardwareMax: "5.10 GHz",
+    availableGovernors: ["performance", "powersave"],
+    policyMin: "400 MHz",
+    policyMax: "5.10 GHz",
+    governor: "performance",
+    currentFrequencies: [
+      "Unable to call hardware",
+      "4.09 GHz (asserted by call to kernel)",
+    ],
+    boostSupported: true,
+    boostActive: true,
+    highestPerformance: 196,
+    maximumFrequency: "5.10 GHz",
+    nominalPerformance: 146,
+    nominalFrequency: "3.80 GHz",
+    lowestNonLinearPerformance: 42,
+    lowestNonLinearFrequency: "1.09 GHz",
+    lowestPerformance: 16,
+    lowestFrequency: "400 MHz",
+  });
+});
+
+test("parseCpupowerIdleInfo parses idle driver, governor, and states", () => {
+  const parsed = parseCpupowerIdleInfo(`CPUidle driver: acpi_idle
+CPUidle governor: menu
+
+Number of idle states: 3
+Available idle states: POLL C1 C2
+POLL:
+Flags/Description: CPUIDLE CORE POLL IDLE
+Latency: 0
+Usage: 10
+Duration: 11
+C1:
+Flags/Description: ACPI FFH MWAIT 0x0
+Latency: 1
+Usage: 20
+Duration: 22
+C2:
+Flags/Description: ACPI IOPORT 0x414
+Latency: 18
+Usage: 30
+Duration: 33
+`);
+
+  assert.deepEqual(parsed, {
+    driver: "acpi_idle",
+    governor: "menu",
+    idleStateCount: 3,
+    availableIdleStates: ["POLL", "C1", "C2"],
+    idleStates: [
+      {
+        name: "POLL",
+        description: "CPUIDLE CORE POLL IDLE",
+        latency: 0,
+        usage: 10,
+        duration: 11,
+      },
+      {
+        name: "C1",
+        description: "ACPI FFH MWAIT 0x0",
+        latency: 1,
+        usage: 20,
+        duration: 22,
+      },
+      {
+        name: "C2",
+        description: "ACPI IOPORT 0x414",
+        latency: 18,
+        usage: 30,
+        duration: 33,
+      },
+    ],
+  });
 });
 
 test("parseDmidecodeText parses BIOS, system, and baseboard sections", () => {
@@ -1240,17 +1391,17 @@ test("linux build enriches CPU, network, and storage components from lshw", () =
       "storage-controller",
   );
 
-  assert.match(getPropertyValue(processor, "cdx:hbom:cpuFeatures"), /\bavx2\b/u);
+  assert.match(
+    getPropertyValue(processor, "cdx:hbom:cpuFeatures"),
+    /\bavx2\b/u,
+  );
   assert.equal(
     getPropertyValue(processor, "cdx:hbom:microcodeVersion"),
     "175133190",
   );
   assert.equal(wireless?.name, "Wi-Fi 6 AX200");
   assert.equal(wireless?.manufacturer?.name, "Intel Corporation");
-  assert.equal(
-    getPropertyValue(wireless, "cdx:hbom:linkDetected"),
-    "true",
-  );
+  assert.equal(getPropertyValue(wireless, "cdx:hbom:linkDetected"), "true");
   assert.equal(storage?.name, "CT2000P310SSD8");
   assert.equal(storage?.manufacturer?.name, "Micron/Crucial Technology");
   assert.equal(
@@ -1261,11 +1412,160 @@ test("linux build enriches CPU, network, and storage components from lshw", () =
     getPropertyValue(storage, "cdx:hbom:wwid"),
     "eui.000000000000000100a075254db332fb",
   );
-  assert.equal(storageController?.manufacturer?.name, "Micron/Crucial Technology");
+  assert.equal(
+    storageController?.manufacturer?.name,
+    "Micron/Crucial Technology",
+  );
   assert.equal(
     getPropertyValue(storageController, "cdx:hbom:nqn"),
     "nqn.2016-08.com.micron:nvme:nvm-subsystem-sn-25044DB332FB",
   );
+});
+
+test("linux build emits richer USB, cpupower, and battery properties", () => {
+  const bom = buildLinuxHbom({
+    architecture: "amd64",
+    sources: {
+      osRelease: { NAME: "Ubuntu" },
+      cpuInfo: [
+        {
+          processor: "0",
+          vendor_id: "AuthenticAMD",
+          "model name": "AMD Ryzen 7 8845HS w/ Radeon 780M Graphics",
+        },
+      ],
+      memInfo: { MemTotal: { value: 32768000, unit: "kB" } },
+      dmiInfo: { sys_vendor: "GMKtec", product_name: "NucBox K8 Plus" },
+      lscpu: {
+        Architecture: "x86_64",
+        "CPU(s)": "16",
+        "Socket(s)": "1",
+        "Thread(s) per core": "2",
+        "Core(s) per socket": "8",
+        "CPU min MHz": "400.0000",
+        "CPU max MHz": "5100.0000",
+        "On-line CPU(s) list": "0-15",
+      },
+      cpupowerFrequency: {
+        driver: "amd-pstate-epp",
+        availableGovernors: ["performance", "powersave"],
+        governor: "performance",
+        hardwareMin: "400 MHz",
+        hardwareMax: "5.10 GHz",
+        boostSupported: true,
+        boostActive: true,
+        currentFrequencies: ["4.09 GHz (asserted by call to kernel)"],
+      },
+      cpupowerIdle: {
+        driver: "acpi_idle",
+        governor: "menu",
+        idleStateCount: 4,
+        availableIdleStates: ["POLL", "C1", "C2", "C3"],
+        idleStates: [
+          { name: "POLL", latency: 0, usage: 10 },
+          { name: "C1", latency: 1, usage: 20 },
+        ],
+      },
+      usbDevices: [
+        {
+          bus: "001",
+          device: "002",
+          vendorId: "8087",
+          productId: "0029",
+          description: "Intel Corp. AX200 Bluetooth",
+        },
+      ],
+      usbVerboseDevices: [
+        {
+          bus: "001",
+          device: "002",
+          vendorId: "8087",
+          productId: "0029",
+          productName: "AX200 Bluetooth",
+          manufacturer: "Intel Corp.",
+          serial: "BT-123456",
+          version: "2.01",
+          deviceClassName: "Wireless",
+          deviceSubclassName: "Radio Frequency",
+          deviceProtocolName: "Bluetooth",
+          interfaceClassNames: ["Wireless"],
+          configurationCount: 1,
+          interfaceCount: 2,
+          maxPowerMilliAmps: 100,
+          selfPowered: true,
+          remoteWakeup: true,
+        },
+      ],
+      powerSupplies: [
+        {
+          name: "BAT0",
+          type: "Battery",
+          status: "Discharging",
+          capacity: 84,
+          cycleCount: 42,
+          manufacturer: "SMP",
+          modelName: "DELL M59JH45",
+          serialNumber: "BATT-12345",
+          technology: "Li-ion",
+          scope: "System",
+          voltageNow: 15234000,
+          voltageMinDesign: 15000000,
+          currentNow: 2450000,
+          powerNow: 37000000,
+          energyNow: 62100000,
+          energyFull: 74000000,
+          energyFullDesign: 82000000,
+        },
+      ],
+    },
+  });
+
+  const processor = bom.components.find(
+    (component) =>
+      getPropertyValue(component, "cdx:hbom:hardwareClass") === "processor",
+  );
+  const usbDevice = bom.components.find(
+    (component) =>
+      getPropertyValue(component, "cdx:hbom:hardwareClass") === "usb-device",
+  );
+  const battery = bom.components.find(
+    (component) =>
+      getPropertyValue(component, "cdx:hbom:hardwareClass") === "power",
+  );
+
+  assert.equal(
+    getPropertyValue(processor, "cdx:hbom:frequencyDriver"),
+    "amd-pstate-epp",
+  );
+  assert.equal(
+    getPropertyValue(processor, "cdx:hbom:availableGovernors"),
+    "performance, powersave",
+  );
+  assert.equal(getPropertyValue(processor, "cdx:hbom:idleDriver"), "acpi_idle");
+  assert.match(
+    getPropertyValue(processor, "cdx:hbom:idleStateSummary"),
+    /POLL/u,
+  );
+  assert.equal(usbDevice?.name, "AX200 Bluetooth");
+  assert.equal(usbDevice?.manufacturer?.name, "Intel Corp.");
+  assert.equal(
+    getPropertyValue(usbDevice, "cdx:hbom:usbClassName"),
+    "Wireless",
+  );
+  assert.equal(
+    getPropertyValue(usbDevice, "cdx:hbom:maxPowerMilliAmps"),
+    "100",
+  );
+  assert.equal(
+    getPropertyValue(usbDevice, "cdx:hbom:deviceSerial"),
+    "redacted:3456",
+  );
+  assert.equal(getPropertyValue(battery, "cdx:hbom:scope"), "System");
+  assert.equal(
+    getPropertyValue(battery, "cdx:hbom:designCapacityPercent"),
+    "90",
+  );
+  assert.equal(getPropertyValue(battery, "cdx:hbom:powerNow"), "37000000");
 });
 
 test("linux build enriches PCI, display, and Bluetooth components from lshw", () => {
@@ -1275,7 +1575,10 @@ test("linux build enriches PCI, display, and Bluetooth components from lshw", ()
       osRelease: { NAME: "Ubuntu" },
       cpuInfo: [{ processor: "0", Processor: "ARMv8 Processor rev 1 (v8l)" }],
       memInfo: { MemTotal: { value: 8192000, unit: "kB" } },
-      dmiInfo: { sys_vendor: "Raspberry Pi Ltd", product_name: "Raspberry Pi 5" },
+      dmiInfo: {
+        sys_vendor: "Raspberry Pi Ltd",
+        product_name: "Raspberry Pi 5",
+      },
       pciDevices: [
         {
           Slot: "0000:00:01.0",
@@ -1318,7 +1621,10 @@ test("linux build enriches PCI, display, and Bluetooth components from lshw", ()
               businfo: "pci@0000:c6:00.0",
               version: "c5",
               configuration: { driver: "amdgpu" },
-              capabilities: { vga_controller: true, bus_master: "bus mastering" },
+              capabilities: {
+                vga_controller: true,
+                bus_master: "bus mastering",
+              },
             },
             {
               id: "bt0",

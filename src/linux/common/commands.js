@@ -86,6 +86,17 @@ export const LINUX_COMMON_COMMANDS = Object.freeze([
     phase: "collector-v1",
   }),
   Object.freeze({
+    id: "lsusb-verbose",
+    category: "bus",
+    command: "lsusb",
+    args: ["-v"],
+    parser: "lsusb-verbose-text",
+    purpose:
+      "Collect richer USB descriptor metadata including class, power, and interface details when lsusb is available.",
+    phase: "collector-v1",
+    sensitiveFields: ["iSerial"],
+  }),
+  Object.freeze({
     id: "ethtool-driver-info",
     category: "network",
     command: "ethtool",
@@ -93,6 +104,26 @@ export const LINUX_COMMON_COMMANDS = Object.freeze([
     parser: "ethtool-driver-info",
     purpose:
       "Collect per-interface network driver and firmware metadata when ethtool is available.",
+    phase: "collector-v1",
+  }),
+  Object.freeze({
+    id: "cpupower-frequency-info",
+    category: "cpu-memory",
+    command: "cpupower",
+    args: ["frequency-info"],
+    parser: "cpupower-frequency-info-text",
+    purpose:
+      "Collect CPU frequency driver, governor, and boost policy metadata when cpupower is available.",
+    phase: "collector-v1",
+  }),
+  Object.freeze({
+    id: "cpupower-idle-info",
+    category: "cpu-memory",
+    command: "cpupower",
+    args: ["idle-info"],
+    parser: "cpupower-idle-info-text",
+    purpose:
+      "Collect CPU idle driver, governor, and idle-state topology when cpupower is available.",
     phase: "collector-v1",
   }),
   Object.freeze({
