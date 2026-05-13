@@ -30,7 +30,7 @@ After a fix is available, we may publish a GitHub Security Advisory (GHSA) and r
 The following are generally considered genuine security issues in `cdx-hbom`:
 
 - **Command injection or unintended shell execution**: attacker-controlled input reaches `safeSpawnSync` or other process-execution paths in a way that escapes intended command boundaries.
-- **Allowlist bypass in integrated deployments**: bypassing an upstream wrapper or integrator command policy such as `CDXGEN_ALLOWED_COMMANDS` so that non-approved commands execute in a deployment that documents such a safeguard.
+- **Allowlist bypass**: bypassing a documented command policy so that non-approved commands execute, whether that policy is enforced by an upstream wrapper or integrator or by `cdx-hbom`'s opt-in environment-variable allowlist (`CDX_HBOM_ALLOWED_COMMANDS` / `CDXGEN_ALLOWED_COMMANDS`).
 - **Unsafe privileged enrichment**: `--privileged` / `includePrivilegedEnrichment: true` triggers behavior beyond the documented SMBIOS and permission-sensitive enrichment flow or unexpectedly broadens host access.
 - **Unexpected identifier disclosure in default mode**: serial numbers, UUIDs, MAC-like addresses, storage identifiers, or similar unique host identifiers are emitted raw when redaction should have applied.
 - **Unsafe filesystem behavior**: collector logic reads or writes outside its intended discovery scope because of a package defect rather than because the user explicitly called the low-level helper APIs with arbitrary paths.
