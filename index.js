@@ -11,6 +11,7 @@ export {
   safeMkdirSync,
   safeReaddirSync,
   safeReadFileSync,
+  safeReadlinkSync,
   safeSpawnSync,
 } from "./src/common/safe.js";
 export {
@@ -19,7 +20,17 @@ export {
   HBOM_SCHEMA_URL,
   HBOM_SPEC_VERSION,
 } from "./src/common/schema.js";
+export {
+  createCollectorTrace,
+  getCollectorTrace,
+  HBOM_TRACE_SYMBOL,
+} from "./src/common/trace.js";
 
+import {
+  attachCollectorTrace,
+  createCollectorTrace,
+  withCollectorTrace,
+} from "./src/common/trace.js";
 import {
   buildDarwinArm64Hbom,
   collectDarwinArm64Hardware,
@@ -104,18 +115,32 @@ export async function collectHardware(options = {}) {
   const architecture = normalizeArchitecture(
     options.architecture ?? process.arch,
   );
+  const trace = options.trace ?? createCollectorTrace();
 
-  if (platform === "darwin" && architecture === "arm64") {
-    return collectDarwinArm64Hardware(options);
-  }
-  if (platform === "linux" && architecture === "amd64") {
-    return collectLinuxAmd64Hardware(options);
-  }
-  if (platform === "linux" && architecture === "arm64") {
-    return collectLinuxArm64Hardware(options);
-  }
+  return withCollectorTrace(trace, async () => {
+    let bom;
 
-  throw new Error(`Unsupported HBOM target: ${platform}/${architecture}`);
+    if (platform === "darwin" && architecture === "arm64") {
+      bom = await collectDarwinArm64Hardware({
+        ...options,
+        trace,
+      });
+    } else if (platform === "linux" && architecture === "amd64") {
+      bom = await collectLinuxAmd64Hardware({
+        ...options,
+        trace,
+      });
+    } else if (platform === "linux" && architecture === "arm64") {
+      bom = await collectLinuxArm64Hardware({
+        ...options,
+        trace,
+      });
+    } else {
+      throw new Error(`Unsupported HBOM target: ${platform}/${architecture}`);
+    }
+
+    return attachCollectorTrace(bom, trace);
+  });
 }
 
 /**
@@ -183,18 +208,19 @@ export function buildHardwareFromSources(options) {
   const architecture = normalizeArchitecture(
     options?.architecture ?? process.arch,
   );
+  let bom;
 
   if (platform === "darwin" && architecture === "arm64") {
-    return buildDarwinArm64Hbom(options);
-  }
-  if (platform === "linux" && architecture === "amd64") {
-    return buildLinuxAmd64Hbom(options);
-  }
-  if (platform === "linux" && architecture === "arm64") {
-    return buildLinuxArm64Hbom(options);
+    bom = buildDarwinArm64Hbom(options);
+  } else if (platform === "linux" && architecture === "amd64") {
+    bom = buildLinuxAmd64Hbom(options);
+  } else if (platform === "linux" && architecture === "arm64") {
+    bom = buildLinuxArm64Hbom(options);
+  } else {
+    throw new Error(`Unsupported HBOM target: ${platform}/${architecture}`);
   }
 
-  throw new Error(`Unsupported HBOM target: ${platform}/${architecture}`);
+  return attachCollectorTrace(bom, options?.trace);
 }
 
 /**

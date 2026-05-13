@@ -33,6 +33,7 @@ npx @cdxgen/cdx-hbom --pretty > host-hbom.json
 Common options:
 
 - `--pretty` pretty-print the JSON output
+- `--dry-run` block command execution and trace planned collection activity
 - `--platform <value>` override platform detection
 - `--arch <value>` override architecture detection
 - `--sensitive` include raw identifiers instead of redacted defaults
@@ -55,13 +56,22 @@ npx @cdxgen/cdx-hbom --plist-enrichment --pretty > mac-hbom.json
 ```js
 import {
   collectHardware,
+  createCollectorTrace,
   buildHardwareFromSources,
+  getCollectorTrace,
   getCommandPlan,
 } from "@cdxgen/cdx-hbom";
 
+const trace = createCollectorTrace();
+
 const bom = await collectHardware({
+  dryRun: true,
   includePlistEnrichment: true,
+  trace,
 });
+
+const collectedTrace = getCollectorTrace(bom) ?? trace;
+console.log(collectedTrace.activities);
 
 const plan = getCommandPlan({ platform: "linux", architecture: "amd64" });
 
@@ -76,6 +86,13 @@ const rebuilt = buildHardwareFromSources({
 ```
 
 ## Native enrichment currently covered
+
+## Dry-run and trace support
+
+- `dryRun: true` blocks command execution inside `cdx-hbom` itself instead of relying on a caller-side fallback.
+- Successful file reads and directory discovery, plus completed/blocked/failed command attempts, are recorded in the collector trace.
+- Pass `trace: createCollectorTrace()` to collect activity into a caller-owned ledger, or read it later via `getCollectorTrace(bom)`.
+- The attached trace is non-enumerable, so `JSON.stringify(bom)` still emits a normal CycloneDX document.
 
 ### Linux
 

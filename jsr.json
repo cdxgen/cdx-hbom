@@ -1,6 +1,6 @@
 {
   "name": "@cdxgen/cdx-hbom",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "license": "MIT",
   "exports": "./index.js",
   "include": ["index.js", "src/", "README.md"],

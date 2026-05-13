@@ -16,6 +16,7 @@ Usage:
 
 Options:
   --pretty                     Pretty-print JSON output
+  --dry-run                    Block command execution and trace planned collection
   --platform <value>           Override platform selection
   --arch <value>               Override architecture selection
   --sensitive                  Include raw identifiers
@@ -48,6 +49,7 @@ async function main(argv) {
   const bom = await collectHardware({
     allowPartial: !options.strict,
     architecture: options.arch,
+    dryRun: options.dryRun,
     includeCommandEnrichment: !options.noCommandEnrichment,
     includePlistEnrichment: options.plistEnrichment,
     includePrivilegedEnrichment: options.privileged,
@@ -67,6 +69,7 @@ async function main(argv) {
  * @param {string[]} argv Argument vector without node/script entries.
  * @returns {{
  *   arch?: string,
+ *   dryRun?: boolean,
  *   help?: boolean,
  *   noCommandEnrichment?: boolean,
  *   platform?: string,
@@ -95,6 +98,10 @@ function parseArgs(argv) {
     }
     if (arg === "--pretty") {
       result.pretty = true;
+      continue;
+    }
+    if (arg === "--dry-run") {
+      result.dryRun = true;
       continue;
     }
     if (arg === "--sensitive") {
