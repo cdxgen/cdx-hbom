@@ -153,6 +153,8 @@ You can also read serialized command diagnostics from the BOM root by inspecting
 - optional command enrichment via `lscpu`, `lsblk`, `ip`, `lsmem`, `hostnamectl`, `lspci`, `lsusb`, `ethtool`, `cpupower`, `drm_info`, `upower`, `fwupdmgr`, `boltctl`, `mmcli`, and `edid-decode`
 - command diagnostics for missing utilities, partial support, and permission-sensitive enrichments
 
+If you want to improve Linux enrichment coverage by installing the optional host tools, see [`linux-troubleshooting.md`](linux-troubleshooting.md).
+
 ### Darwin arm64
 
 - `system_profiler` hardware, storage, display, Wi-Fi, USB, audio, camera, Bluetooth, Thunderbolt, and power data
