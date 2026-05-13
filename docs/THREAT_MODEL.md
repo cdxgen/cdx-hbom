@@ -12,7 +12,7 @@ Unlike the main `cdxgen` project, `cdx-hbom` does **not** include an HTTP server
 2. **Library** (`index.js`): exposes:
    - `collectHardware(options)` for live collection on supported hosts
    - `buildHardwareFromSources(options)` for building a BOM from pre-collected data
-   - `getCommandPlan(options)` for enumerating planned local command usage
+   - `getCommandPlan(options)` for enumerating planned local command usage, including template entries whose concrete arguments are resolved per device or interface at runtime
 
 Current supported live-collection targets:
 
@@ -125,7 +125,7 @@ Trust boundary 4: published package / CI/CD pipeline ←→ registries and relea
 - privileged enrichment is off by default
 - Linux privileged mode is explicit through `--privileged` / `includePrivilegedEnrichment: true`
 - non-interactive `sudo -n` retry is limited to documented permission-sensitive commands instead of every optional command
-- the command plan exposes which commands are expected and which ones may need privilege
+- the command plan exposes which commands are expected and which ones may need privilege, including template entries that expand to concrete per-device or per-interface arguments during live collection
 - failures in privileged enrichment can be isolated through `allowPartial`
 - the CLI and BOM can surface install and privilege diagnostics without corrupting JSON output
 

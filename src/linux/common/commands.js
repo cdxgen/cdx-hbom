@@ -101,10 +101,10 @@ export const LINUX_COMMON_COMMANDS = Object.freeze([
     id: "ethtool-driver-info",
     category: "network",
     command: "ethtool",
-    args: ["-i", "eth0"],
+    args: ["-i", "<interface>"],
     parser: "ethtool-driver-info",
     purpose:
-      "Collect per-interface network driver and firmware metadata when ethtool is available.",
+      "Collect per-interface network driver and firmware metadata when ethtool is available. The collector substitutes the interface name at runtime.",
     phase: "collector-v1",
   }),
   Object.freeze({
@@ -195,9 +195,10 @@ export const LINUX_COMMON_COMMANDS = Object.freeze([
     id: "mmcli-modem-json",
     category: "network",
     command: "mmcli",
-    args: ["-m", "0", "-J"],
+    args: ["-m", "<modem-path>", "-J"],
     parser: "mmcli-json",
-    purpose: "Collect per-modem detail from ModemManager when available.",
+    purpose:
+      "Collect per-modem detail from ModemManager when available. The collector substitutes the modem object path at runtime.",
     phase: "collector-v1",
     sensitiveFields: ["equipment-id", "imei", "own-numbers"],
   }),
@@ -205,10 +206,10 @@ export const LINUX_COMMON_COMMANDS = Object.freeze([
     id: "edid-decode",
     category: "graphics",
     command: "edid-decode",
-    args: ["/sys/class/drm/card0-HDMI-A-1/edid"],
+    args: ["<edid-path>"],
     parser: "edid-decode-text",
     purpose:
-      "Collect richer display capability metadata from decoded EDID text when edid-decode is available.",
+      "Collect richer display capability metadata from decoded EDID text when edid-decode is available. The collector substitutes the per-connector EDID sysfs path at runtime.",
     phase: "collector-v1",
   }),
   Object.freeze({

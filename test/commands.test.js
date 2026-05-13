@@ -60,7 +60,21 @@ test("getCommandPlan rejects unsupported targets", () => {
   assert.ok(linuxArm64Plan.some((spec) => spec.id === "fwupdmgr-devices-json"));
   assert.ok(linuxArm64Plan.some((spec) => spec.id === "boltctl-list-all"));
   assert.ok(linuxArm64Plan.some((spec) => spec.id === "mmcli-list-json"));
+  assert.ok(linuxAmd64Plan.some((spec) => spec.id === "ethtool-driver-info"));
+  assert.ok(linuxArm64Plan.some((spec) => spec.id === "mmcli-modem-json"));
+  assert.deepEqual(
+    linuxAmd64Plan.find((spec) => spec.id === "ethtool-driver-info")?.args,
+    ["-i", "<interface>"],
+  );
+  assert.deepEqual(
+    linuxArm64Plan.find((spec) => spec.id === "mmcli-modem-json")?.args,
+    ["-m", "<modem-path>", "-J"],
+  );
   assert.ok(linuxAmd64Plan.some((spec) => spec.id === "edid-decode"));
+  assert.deepEqual(
+    linuxAmd64Plan.find((spec) => spec.id === "edid-decode")?.args,
+    ["<edid-path>"],
+  );
 
   assert.throws(
     () =>

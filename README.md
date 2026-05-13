@@ -75,6 +75,9 @@ console.log(collectedTrace.activities);
 
 const plan = getCommandPlan({ platform: "linux", architecture: "amd64" });
 
+// Some plan entries are templates; their final arguments are resolved per
+// device or interface at runtime when live collection expands the plan.
+
 const rebuilt = buildHardwareFromSources({
   platform: "linux",
   architecture: "amd64",
@@ -135,6 +138,7 @@ You can also read serialized command diagnostics from the BOM root by inspecting
 ### Dry-run and trace support
 
 - `dryRun: true` blocks command execution inside `cdx-hbom` itself instead of relying on a caller-side fallback.
+- `getCommandPlan()` exposes the static command registry, including template entries whose concrete arguments are resolved per device or interface at runtime.
 - Successful file reads and directory discovery, plus completed/blocked/failed command attempts, are recorded in the collector trace.
 - Pass `trace: createCollectorTrace()` to collect activity into a caller-owned ledger, or read it later via `getCollectorTrace(bom)`.
 - The attached trace is non-enumerable, so `JSON.stringify(bom)` still emits a normal CycloneDX document.

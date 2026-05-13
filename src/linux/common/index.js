@@ -4508,10 +4508,7 @@ function createEdidDecodeCommand(device) {
   return {
     ...getRequiredLinuxCommand("edid-decode"),
     id: `edid-decode:${getStringValue(device.name) ?? "display"}`,
-    args: [
-      getStringValue(device.edidPath) ??
-        getRequiredLinuxCommand("edid-decode").args[0],
-    ],
+    args: [getStringValue(device.edidPath) ?? "<edid-path>"],
   };
 }
 
