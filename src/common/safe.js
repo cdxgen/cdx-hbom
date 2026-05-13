@@ -12,6 +12,66 @@ import process from "node:process";
 import { recordCollectorTrace } from "./trace.js";
 
 /**
+ * @typedef {{ activities: object[] }} CollectorTrace
+ */
+
+/**
+ * @typedef {{
+ *   recursive?: boolean,
+ *   mode?: number,
+ *   suppressErrors?: boolean,
+ *   dryRun?: boolean,
+ *   trace?: CollectorTrace,
+ * }} SafeMkdirOptions
+ */
+
+/**
+ * @typedef {{
+ *   encoding?: string | null,
+ *   suppressErrors?: boolean,
+ *   trace?: CollectorTrace,
+ * }} SafeReadFileOptions
+ */
+
+/**
+ * @typedef {{
+ *   suppressErrors?: boolean,
+ *   trace?: CollectorTrace,
+ * }} SafeReaddirOptions
+ */
+
+/**
+ * @typedef {{
+ *   suppressErrors?: boolean,
+ *   trace?: CollectorTrace,
+ * }} SafeReadlinkOptions
+ */
+
+/**
+ * @typedef {{
+ *   dryRunReason?: string,
+ *   [key: string]: unknown,
+ * }} CommandTraceActivity
+ */
+
+/**
+ * @typedef {{
+ *   cwd?: string,
+ *   env?: Record<string, string | undefined>,
+ *   encoding?: string | "buffer",
+ *   input?: string | Uint8Array,
+ *   maxBuffer?: number,
+ *   shell?: boolean,
+ *   timeout?: number,
+ *   windowsHide?: boolean,
+ *   allowedCommands?: string[],
+ *   dryRun?: boolean,
+ *   trace?: CollectorTrace,
+ *   traceActivity?: CommandTraceActivity,
+ * }} SafeSpawnOptions
+ */
+
+/**
  * Commands executed through the safe child-process wrapper.
  *
  * @type {Set<string>}
@@ -45,7 +105,7 @@ export function safeExistsSync(filePath) {
  * `suppressErrors` is enabled.
  *
  * @param {string} filePath Directory path.
- * @param {{ recursive?: boolean, mode?: number, suppressErrors?: boolean }} [options={}] mkdir options.
+ * @param {SafeMkdirOptions} [options={}] mkdir options.
  * @returns {string | undefined} The input path when created or already present.
  */
 export function safeMkdirSync(filePath, options = {}) {
@@ -100,8 +160,8 @@ export function safeMkdirSync(filePath, options = {}) {
  * `false`.
  *
  * @param {string} filePath File path.
- * @param {{ encoding?: BufferEncoding | null, suppressErrors?: boolean }} [options={}] Read options.
- * @returns {string | Buffer | undefined} File contents or undefined when suppressed.
+ * @param {SafeReadFileOptions} [options={}] Read options.
+ * @returns {string | Uint8Array | undefined} File contents or undefined when suppressed.
  */
 export function safeReadFileSync(filePath, options = {}) {
   try {
@@ -141,7 +201,7 @@ export function safeReadFileSync(filePath, options = {}) {
  * `false`.
  *
  * @param {string} directoryPath Directory path.
- * @param {{ suppressErrors?: boolean }} [options={}] Read options.
+ * @param {SafeReaddirOptions} [options={}] Read options.
  * @returns {string[]} Directory entries or an empty array when suppressed.
  */
 export function safeReaddirSync(directoryPath, options = {}) {
@@ -174,7 +234,7 @@ export function safeReaddirSync(directoryPath, options = {}) {
  * Safely resolve a symlink target.
  *
  * @param {string} linkPath Symlink path.
- * @param {{ suppressErrors?: boolean, trace?: { activities: object[] } }} [options={}] Read options.
+ * @param {SafeReadlinkOptions} [options={}] Read options.
  * @returns {string | undefined} Resolved target when available.
  */
 export function safeReadlinkSync(linkPath, options = {}) {
@@ -220,24 +280,14 @@ export function safeReadlinkSync(linkPath, options = {}) {
  *
  * @param {string} command Executable path or name.
  * @param {string[]} [args=[]] Command arguments.
- * @param {{
- *   cwd?: string,
- *   env?: NodeJS.ProcessEnv,
- *   encoding?: BufferEncoding | "buffer",
- *   input?: string | Buffer,
- *   maxBuffer?: number,
- *   shell?: boolean,
- *   timeout?: number,
- *   windowsHide?: boolean,
- *   allowedCommands?: string[]
- * }} [options={}] Execution options.
+ * @param {SafeSpawnOptions} [options={}] Execution options.
  * @returns {{
  *   pid?: number,
- *   output?: Array<string | Buffer | null | undefined>,
- *   stdout?: string | Buffer,
- *   stderr?: string | Buffer,
+ *   output?: Array<string | Uint8Array | null | undefined>,
+ *   stdout?: string | Uint8Array,
+ *   stderr?: string | Uint8Array,
  *   status: number | null,
- *   signal?: NodeJS.Signals | null,
+ *   signal?: string | null,
  *   error?: Error
  * }} Spawn result object.
  */

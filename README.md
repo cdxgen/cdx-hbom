@@ -87,7 +87,7 @@ const rebuilt = buildHardwareFromSources({
 
 ## Native enrichment currently covered
 
-## Dry-run and trace support
+### Dry-run and trace support
 
 - `dryRun: true` blocks command execution inside `cdx-hbom` itself instead of relying on a caller-side fallback.
 - Successful file reads and directory discovery, plus completed/blocked/failed command attempts, are recorded in the collector trace.
