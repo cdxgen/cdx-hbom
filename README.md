@@ -38,7 +38,7 @@ Common options:
 - `--arch <value>` override architecture detection
 - `--sensitive` include raw identifiers instead of redacted defaults
 - `--no-command-enrichment` disable optional command-based enrichment on Linux
-- `--privileged` enable privileged Linux enrichment and non-interactive `sudo -n` retries for documented permission-sensitive commands
+- `--privileged` enable privileged Linux enrichment and explicit non-interactive `sudo -n` retries for documented permission-sensitive commands that opt in (currently `drm_info`)
 - `--plist-enrichment` enable additional Darwin plist-based enrichment
 - `--strict` fail instead of returning partial results when enrichment fails
 - `--timeout <ms>` set per-command timeout
@@ -135,6 +135,8 @@ You can also read serialized command diagnostics from the BOM root by inspecting
 
 ## Native enrichment currently covered
 
+`cdx-hbom` uses a fixed command registry and array-based process spawning, but upstream wrappers and integrators are responsible for any stricter command allowlisting, `PATH` hardening, or execution policy controls around the collector process.
+
 ### Dry-run and trace support
 
 - `dryRun: true` blocks command execution inside `cdx-hbom` itself instead of relying on a caller-side fallback.
@@ -150,6 +152,8 @@ You can also read serialized command diagnostics from the BOM root by inspecting
 - `hwmon`, thermal zones, TPM, and NVMe controller enrichment
 - optional command enrichment via `lscpu`, `lsblk`, `ip`, `lsmem`, `hostnamectl`, `lspci`, `lsusb`, `ethtool`, `cpupower`, `drm_info`, `upower`, `fwupdmgr`, `boltctl`, `mmcli`, and `edid-decode`
 - command diagnostics for missing utilities, partial support, and permission-sensitive enrichments
+
+If you want to improve Linux enrichment coverage by installing the optional host tools, see [`linux-troubleshooting.md`](linux-troubleshooting.md).
 
 ### Darwin arm64
 

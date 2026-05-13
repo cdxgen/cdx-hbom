@@ -1,5 +1,5 @@
 import { Buffer } from "node:buffer";
-import { join } from "node:path";
+import { basename, join, resolve } from "node:path";
 import process from "node:process";
 
 import { getInstallHint, runCommand } from "../../common/command.js";
@@ -18,7 +18,10 @@ import {
   createProperty,
   redactIdentifier,
 } from "../../common/shape.js";
-import { attachCollectorTrace } from "../../common/trace.js";
+import {
+  attachCollectorTrace,
+  recordCollectorTrace,
+} from "../../common/trace.js";
 import { LINUX_COMMON_COMMANDS } from "./commands.js";
 
 /**
@@ -2048,7 +2051,9 @@ export async function collectLinuxHardware(options) {
 
           await attemptCollection(
             async () => {
-              const spec = createMmcliModemCommand(modemPath);
+              const spec = createMmcliModemCommand(modemPath, {
+                trace: options.trace,
+              });
               sources.modems.push({
                 modemPath,
                 ...parseMmcliJson(await runCommand(spec, options)),
@@ -2072,13 +2077,16 @@ export async function collectLinuxHardware(options) {
       )
     ) {
       for (const device of sources.drmDevices ?? []) {
-        if (device.kind !== "connector" || !getStringValue(device.edidPath)) {
+        if (!shouldDecodeDrmEdid(device)) {
+          maybeRecordSkippedEdidDecode(device, options.trace);
           continue;
         }
 
         await attemptCollection(
           async () => {
-            const spec = createEdidDecodeCommand(device);
+            const spec = createEdidDecodeCommand(device, {
+              trace: options.trace,
+            });
             sources.edidDecoded.push({
               name: getStringValue(device.name),
               ...parseEdidDecodeText(await runCommand(spec, options)),
@@ -2106,7 +2114,9 @@ export async function collectLinuxHardware(options) {
     for (const interfaceName of interfaceNames) {
       await attemptCollection(
         async () => {
-          const spec = createEthtoolCommand(interfaceName);
+          const spec = createEthtoolCommand(interfaceName, {
+            trace: options.trace,
+          });
           sources.ethtool[interfaceName] = parseEthtoolDriverInfo(
             await runCommand(spec, options),
           );
@@ -2455,6 +2465,9 @@ function readDrmDevices(observedFiles) {
       sysfsPath: basePath,
       edidPath: safeExistsSync(join(basePath, "edid"))
         ? join(basePath, "edid")
+        : undefined,
+      edidByteLength: Buffer.isBuffer(edidBuffer)
+        ? edidBuffer.length
         : undefined,
       kind: /^card\d+$/u.test(name)
         ? "card"
@@ -4488,28 +4501,235 @@ function createFirmwareManagedComponents(devices, options = {}) {
   );
 }
 
-function createEthtoolCommand(interfaceName) {
+export function isValidLinuxInterfaceName(value) {
+  const normalized = getStringValue(value);
+
+  return Boolean(
+    normalized &&
+      normalized !== "." &&
+      normalized !== ".." &&
+      /^[A-Za-z0-9_][A-Za-z0-9_.:@-]{0,14}$/u.test(normalized),
+  );
+}
+
+export function isValidLinuxModemPath(value) {
+  return /^\/org\/freedesktop\/ModemManager1\/Modem\/\d+$/u.test(
+    getStringValue(value) ?? "",
+  );
+}
+
+export function isValidLinuxEdidPath(value) {
+  const normalized = getStringValue(value);
+  if (!normalized?.startsWith("/")) {
+    return false;
+  }
+
+  const resolvedPath = resolve(normalized);
+  return (
+    basename(resolvedPath) === "edid" &&
+    /^\/sys\/class\/drm\/[^/]+\/edid$/u.test(resolvedPath)
+  );
+}
+
+export function shouldDecodeDrmEdid(device) {
+  if (
+    getStringValue(device?.kind) !== "connector" ||
+    !isValidLinuxEdidPath(device?.edidPath)
+  ) {
+    return false;
+  }
+
+  const edidByteLength = getNumberValue(device?.edidByteLength);
+  if (edidByteLength !== undefined) {
+    return edidByteLength > 0;
+  }
+
+  if (device?.edid && typeof device.edid === "object") {
+    return true;
+  }
+
+  const status = getStringValue(device?.status)?.toLowerCase();
+  if (status && status !== "connected") {
+    return false;
+  }
+
+  const enabled = getStringValue(device?.enabled)?.toLowerCase();
+  if (enabled === "disabled") {
+    return false;
+  }
+
+  return true;
+}
+
+export function createEthtoolCommand(interfaceName, options = {}) {
+  const baseSpec = getRequiredLinuxCommand("ethtool-driver-info");
+  const normalized = getStringValue(interfaceName);
+
+  if (!isValidLinuxInterfaceName(normalized)) {
+    throw createInvalidLinuxCommandArgumentError(
+      baseSpec,
+      {
+        args: ["-i", normalized ?? String(interfaceName ?? "")],
+        argumentName: "interfaceName",
+        id: `ethtool-driver-info:${summarizeRejectedArgumentValue(interfaceName)}`,
+        reason:
+          "expected a Linux interface name without leading dashes, whitespace, path separators, or traversal markers",
+        value: interfaceName,
+      },
+      options,
+    );
+  }
+
   return {
-    ...getRequiredLinuxCommand("ethtool-driver-info"),
-    id: `ethtool-driver-info:${interfaceName}`,
-    args: ["-i", interfaceName],
+    ...baseSpec,
+    id: `ethtool-driver-info:${normalized}`,
+    args: ["-i", normalized],
   };
 }
 
-function createMmcliModemCommand(modemPath) {
+export function createMmcliModemCommand(modemPath, options = {}) {
+  const baseSpec = getRequiredLinuxCommand("mmcli-modem-json");
+  const normalized = getStringValue(modemPath);
+
+  if (!isValidLinuxModemPath(normalized)) {
+    throw createInvalidLinuxCommandArgumentError(
+      baseSpec,
+      {
+        args: ["-m", normalized ?? String(modemPath ?? ""), "-J"],
+        argumentName: "modemPath",
+        id: `mmcli-modem-json:${summarizeRejectedArgumentValue(modemPath)}`,
+        reason:
+          "expected a canonical ModemManager modem D-Bus object path such as /org/freedesktop/ModemManager1/Modem/0",
+        value: modemPath,
+      },
+      options,
+    );
+  }
+
   return {
-    ...getRequiredLinuxCommand("mmcli-modem-json"),
-    id: `mmcli-modem-json:${modemPath}`,
-    args: ["-m", modemPath, "-J"],
+    ...baseSpec,
+    id: `mmcli-modem-json:${normalized}`,
+    args: ["-m", normalized, "-J"],
   };
 }
 
-function createEdidDecodeCommand(device) {
+export function createEdidDecodeCommand(device, options = {}) {
+  const baseSpec = getRequiredLinuxCommand("edid-decode");
+  const displayName = getStringValue(device?.name) ?? "display";
+  const edidPath = getStringValue(device?.edidPath);
+
+  if (!isValidLinuxEdidPath(edidPath)) {
+    throw createInvalidLinuxCommandArgumentError(
+      baseSpec,
+      {
+        args: [edidPath ?? "<edid-path>"],
+        argumentName: "edidPath",
+        id: `edid-decode:${displayName}`,
+        reason:
+          "expected an absolute /sys/class/drm/<connector>/edid path after normalization",
+        value: edidPath,
+      },
+      options,
+    );
+  }
+
   return {
-    ...getRequiredLinuxCommand("edid-decode"),
-    id: `edid-decode:${getStringValue(device.name) ?? "display"}`,
-    args: [getStringValue(device.edidPath) ?? "<edid-path>"],
+    ...baseSpec,
+    id: `edid-decode:${displayName}`,
+    args: [edidPath],
   };
+}
+
+function createInvalidLinuxCommandArgumentError(spec, details, options = {}) {
+  const args = Array.isArray(details.args)
+    ? details.args.map((entry) => String(entry ?? ""))
+    : [];
+  const commandId = getStringValue(details.id) ?? spec.id;
+  const argumentName = getStringValue(details.argumentName) ?? "argument";
+  const argumentValue = summarizeRejectedArgumentValue(details.value);
+  const reason =
+    getStringValue(details.reason) ?? "invalid runtime command argument";
+  const error = new Error(
+    `${commandId} blocked invalid ${argumentName}: ${reason}`,
+  );
+
+  error.code = "CDX_HBOM_INVALID_COMMAND_ARGUMENT";
+  error.commandId = commandId;
+  error.command = spec.command;
+  error.args = args;
+  error.category = spec.category;
+  error.phase = spec.phase;
+  error.issue = "invalid-command-argument";
+  error.argumentName = argumentName;
+  error.argumentValue = argumentValue;
+  error.suppressedDiagnostic = false;
+
+  recordCollectorTrace(options.trace, {
+    args,
+    argumentName,
+    argumentValue,
+    category: spec.category,
+    command: spec.command,
+    id: commandId,
+    issue: error.issue,
+    kind: "command-input-rejected",
+    reason,
+    status: "blocked",
+    target: `${spec.command}${args.length ? ` ${args.join(" ")}` : ""}`,
+  });
+
+  return error;
+}
+
+function summarizeRejectedArgumentValue(value) {
+  const normalized = String(value ?? "")
+    .replace(/\s+/gu, " ")
+    .trim();
+
+  if (!normalized) {
+    return "<empty>";
+  }
+
+  return normalized.length > 64 ? `${normalized.slice(0, 61)}...` : normalized;
+}
+
+function maybeRecordSkippedEdidDecode(device, trace) {
+  const edidPath = getStringValue(device?.edidPath);
+  if (getStringValue(device?.kind) !== "connector" || !edidPath) {
+    return;
+  }
+
+  const spec = getRequiredLinuxCommand("edid-decode");
+  recordCollectorTrace(trace, {
+    args: [edidPath],
+    category: spec.category,
+    command: spec.command,
+    id: `edid-decode:${getStringValue(device?.name) ?? "display"}`,
+    issue: "empty-edid",
+    kind: "command-skipped",
+    reason: summarizeSkippedEdidReason(device),
+    status: "skipped",
+    target: `${spec.command} ${edidPath}`,
+  });
+}
+
+function summarizeSkippedEdidReason(device) {
+  const edidByteLength = getNumberValue(device?.edidByteLength);
+  if (edidByteLength === 0) {
+    return "Skipped edid-decode because the sysfs EDID file is empty.";
+  }
+
+  const status = getStringValue(device?.status)?.toLowerCase();
+  if (status && status !== "connected") {
+    return `Skipped edid-decode because the DRM connector status is '${status}'.`;
+  }
+
+  const enabled = getStringValue(device?.enabled)?.toLowerCase();
+  if (enabled === "disabled") {
+    return "Skipped edid-decode because the DRM connector is disabled.";
+  }
+
+  return "Skipped edid-decode because the DRM connector does not expose usable EDID data.";
 }
 
 async function probeOptionalLinuxCommand(id, options, onError = undefined) {
@@ -4642,6 +4862,8 @@ function toCommandDiagnostic(error) {
     category: getStringValue(error.category),
     command: getStringValue(error.command),
     args: Array.isArray(error.args) ? error.args.join(" ") : undefined,
+    argumentName: getStringValue(error.argumentName),
+    argumentValue: getStringValue(error.argumentValue),
     issue: getStringValue(error.issue),
     code: getStringValue(error.code),
     exitCode: getNumberValue(error.exitCode),

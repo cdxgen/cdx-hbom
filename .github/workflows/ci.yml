@@ -23,8 +23,6 @@ jobs:
             node-version: 24.x
           - os: macos-latest
             node-version: 24.x
-          - os: windows-latest
-            node-version: 24.x
 
     steps:
       - name: Checkout

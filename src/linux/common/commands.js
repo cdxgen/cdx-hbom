@@ -13,7 +13,8 @@
  *   purpose: string,
  *   phase: string,
  *   sensitiveFields?: string[],
- *   privilege?: "none" | "optional" | "required"
+ *   privilege?: "none" | "optional" | "required",
+ *   sudoRetryOnPermissionDenied?: boolean
  * }>}
  */
 export const LINUX_COMMON_COMMANDS = Object.freeze([
@@ -137,6 +138,7 @@ export const LINUX_COMMON_COMMANDS = Object.freeze([
       "Collect richer DRM/KMS graphics adapter and connector metadata when drm_info is available.",
     phase: "collector-v1",
     privilege: "optional",
+    sudoRetryOnPermissionDenied: true,
   }),
   Object.freeze({
     id: "upower-dump",

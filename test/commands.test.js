@@ -66,6 +66,11 @@ test("getCommandPlan rejects unsupported targets", () => {
     linuxAmd64Plan.find((spec) => spec.id === "ethtool-driver-info")?.args,
     ["-i", "<interface>"],
   );
+  assert.equal(
+    linuxAmd64Plan.find((spec) => spec.id === "drm-info-json")
+      ?.sudoRetryOnPermissionDenied,
+    true,
+  );
   assert.deepEqual(
     linuxArm64Plan.find((spec) => spec.id === "mmcli-modem-json")?.args,
     ["-m", "<modem-path>", "-J"],
