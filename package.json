@@ -12,6 +12,9 @@
   },
   "type": "module",
   "main": "./index.js",
+  "bin": {
+    "cdx-hbom": "bin/cdx-hbom.js"
+  },
   "exports": {
     ".": {
       "default": "./index.js"
