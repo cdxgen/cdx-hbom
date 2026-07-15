@@ -149,6 +149,9 @@ You can also read serialized command diagnostics from the BOM root by inspecting
 
 - `/proc` and `/sys` baseline discovery
 - CPU, memory, storage, PCI, USB, DRM display, audio, MMC/SDIO, and network inventory
+- USB device topology showing the hub hierarchy, with per-device driver, lanes, and interface drivers
+- USB-C connectors, electronically marked cables, and the peer on the far end from `/sys/class/typec`, with decoded data rate, current, delivery wattage, advertised power profiles, alternate modes, and charging verdicts
+- USB-C peers correlated to their enumerated USB device and power delivery node, and live charging readouts from the UCSI power supply when available
 - `hwmon`, thermal zones, TPM, and NVMe controller enrichment
 - optional command enrichment via `lscpu`, `lsblk`, `ip`, `lsmem`, `hostnamectl`, `lspci`, `lsusb`, `ethtool`, `cpupower`, `drm_info`, `upower`, `fwupdmgr`, `boltctl`, `mmcli`, and `edid-decode`
 - command diagnostics for missing utilities, partial support, and permission-sensitive enrichments
