@@ -97,3 +97,47 @@ export function createHardwareComponent(hardwareClass, component) {
     ]),
   });
 }
+
+/**
+ * Build a CycloneDX `dependencies` graph from a list of edges.
+ *
+ * Each edge names a component `bom-ref` and the refs it depends on. Edges that
+ * share a `ref` are merged, references to unknown components are dropped so the
+ * graph never dangles, and self-references are ignored. This lets collectors
+ * express hardware topology such as a charger feeding a port, a port carrying a
+ * cable, and a cable connecting a device.
+ *
+ * @param {Array<{ ref: string, dependsOn?: string[] }>} edges Dependency edges.
+ * @param {Iterable<string>} [knownRefs] Refs that exist in the component list.
+ * @returns {Array<{ ref: string, dependsOn: string[] }>} Dependency graph.
+ */
+export function buildDependencyGraph(edges, knownRefs) {
+  const known = knownRefs ? new Set(knownRefs) : undefined;
+  const merged = new Map();
+
+  for (const edge of edges) {
+    if (!edge?.ref) {
+      continue;
+    }
+    if (known && !known.has(edge.ref)) {
+      continue;
+    }
+
+    const targets = merged.get(edge.ref) ?? new Set();
+    for (const dependency of edge.dependsOn ?? []) {
+      if (dependency === edge.ref) {
+        continue;
+      }
+      if (known && !known.has(dependency)) {
+        continue;
+      }
+      targets.add(dependency);
+    }
+    merged.set(edge.ref, targets);
+  }
+
+  return Array.from(merged, ([ref, targets]) => ({
+    ref,
+    dependsOn: Array.from(targets),
+  }));
+}

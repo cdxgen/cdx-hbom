@@ -12,6 +12,7 @@ import {
 } from "../../common/safe.js";
 import { createHbomDocument } from "../../common/schema.js";
 import {
+  buildDependencyGraph,
   compact,
   createComponent,
   createHardwareComponent,
@@ -23,6 +24,7 @@ import {
   recordCollectorTrace,
 } from "../../common/trace.js";
 import { LINUX_COMMON_COMMANDS } from "./commands.js";
+import { createTypecComponents, readTypecPorts } from "./typec.js";
 
 /**
  * Return a copy of the Linux command plan.
@@ -1253,6 +1255,7 @@ export function buildLinuxHbom(options) {
   const cpupowerIdle = sources.cpupowerIdle ?? {};
   const boltctlDomains = sources.boltctlDomains ?? [];
   const boltctlDevices = sources.boltctlDevices ?? [];
+  const typecPorts = sources.typecPorts ?? [];
   const modems = sources.modems ?? [];
   const upower = sources.upower ?? { devices: [], daemon: {} };
   const fwupdDevices = sources.fwupdDevices ?? [];
@@ -1372,6 +1375,7 @@ export function buildLinuxHbom(options) {
       createProperty("cdx:hbom:identifierPolicy", identifierPolicy),
     ]),
   });
+  const typec = createTypecComponents(typecPorts, options);
   const components = compact([
     createHardwareComponent("processor", {
       name: processorName,
@@ -1762,10 +1766,17 @@ export function buildLinuxHbom(options) {
     ...createVideoComponents(videoDevices),
     ...createDisplayComponents(enrichedDrmDevices, options, lshwNodes),
     ...createThunderboltComponents(boltctlDomains, boltctlDevices, options),
+    ...typec.components,
     ...createModemComponents(modems, options),
     ...createFirmwareManagedComponents(fwupdDevices, options),
     ...createLshwCommunicationComponents(lshwNodes),
   ]);
+
+  const knownRefs = compact(components.map((component) => component["bom-ref"]));
+  const dependencies = buildDependencyGraph(
+    [...buildUsbTopologyEdges(usbDevices), ...typec.dependencies],
+    knownRefs,
+  );
 
   return attachCollectorTrace(
     createHbomDocument({
@@ -1784,6 +1795,7 @@ export function buildLinuxHbom(options) {
         properties: [],
       },
       components,
+      dependencies,
       properties: compact([
         createProperty("cdx:hbom:targetPlatform", "linux"),
         createProperty("cdx:hbom:targetArchitecture", architecture),
@@ -2224,8 +2236,28 @@ function collectLinuxFileSources(observedFiles) {
     pciSysfsDevices: readPciSysfsDevices(observedFiles),
     usbSysfsDevices: readUsbSysfsDevices(observedFiles),
     drmDevices: readDrmDevices(observedFiles),
+    typecPorts: readTypecPorts({
+      base: TYPEC_BASE,
+      powerSupplyBase: POWER_SUPPLY_BASE,
+      exists: safeExistsSync,
+      readDir: safeReaddirSync,
+      readText: (filePath) => readObservedTextFile(filePath, observedFiles),
+      readLink: (linkPath) => safeReadlinkSync(linkPath),
+      toNumber,
+    }),
   };
 }
+
+// The USB-C connector class lives at a fixed sysfs path. The environment
+// override exists so the reader can be pointed at a captured tree during
+// testing on hosts that have no USB-C hardware of their own.
+const TYPEC_BASE = process.env.CDX_HBOM_TYPEC_ROOT ?? "/sys/class/typec";
+
+// The power supply class hosts the UCSI live charging readout used to enrich
+// the Type-C charging verdict. The override mirrors the Type-C one so both can
+// be pointed at a captured tree during testing.
+const POWER_SUPPLY_BASE =
+  process.env.CDX_HBOM_POWER_SUPPLY_ROOT ?? "/sys/class/power_supply";
 
 function readDmiInfo(observedFiles) {
   const basePath = ["/sys/devices/virtual/dmi/id", "/sys/class/dmi/id"].find(
@@ -2445,8 +2477,151 @@ function readUsbSysfsDevices(observedFiles) {
           join(basePath, "removable"),
           observedFiles,
         ),
+        driver: readObservedLinkBaseName(join(basePath, "driver")),
+        maxPowerMilliAmps: parseLeadingInteger(
+          readObservedTextFile(join(basePath, "bMaxPower"), observedFiles),
+        ),
+        rxLanes: toNumber(
+          readObservedTextFile(join(basePath, "rx_lanes"), observedFiles),
+        ),
+        txLanes: toNumber(
+          readObservedTextFile(join(basePath, "tx_lanes"), observedFiles),
+        ),
+        interfaceCount: toNumber(
+          readObservedTextFile(join(basePath, "bNumInterfaces"), observedFiles),
+        ),
+        configurationCount: toNumber(
+          readObservedTextFile(
+            join(basePath, "bNumConfigurations"),
+            observedFiles,
+          ),
+        ),
+        interfaces: readUsbSysfsInterfaces(name, basePath, observedFiles),
       };
     });
+}
+
+/**
+ * Read the interface descriptors of a USB device from sysfs.
+ *
+ * sysfs interleaves interface entries (`1-1:1.0`) with the device's own
+ * children in the same directory, so entries are matched by the interface
+ * naming pattern `<device>:<config>.<interface>`. Each interface records its
+ * class and the kernel driver bound to it.
+ *
+ * @param {string} deviceName Device kernel name, such as `1-1`.
+ * @param {string} basePath Path to the device directory.
+ * @param {string[]} observedFiles Accumulator for observed evidence files.
+ * @returns {Array<{ number: number | undefined, class: string | undefined, subclass: string | undefined, protocol: string | undefined, driver: string | undefined }>} Interface descriptors.
+ */
+function readUsbSysfsInterfaces(deviceName, basePath, observedFiles) {
+  const prefix = `${deviceName}:`;
+  return safeReaddirSync(basePath)
+    .filter(
+      (name) =>
+        name.startsWith(prefix) &&
+        safeExistsSync(join(basePath, name, "bInterfaceClass")),
+    )
+    .sort()
+    .map((name) => {
+      const interfacePath = join(basePath, name);
+      return {
+        number: toNumber(name.split(".").pop()),
+        class: normalizeHexString(
+          readObservedTextFile(
+            join(interfacePath, "bInterfaceClass"),
+            observedFiles,
+          ),
+        ),
+        subclass: normalizeHexString(
+          readObservedTextFile(
+            join(interfacePath, "bInterfaceSubClass"),
+            observedFiles,
+          ),
+        ),
+        protocol: normalizeHexString(
+          readObservedTextFile(
+            join(interfacePath, "bInterfaceProtocol"),
+            observedFiles,
+          ),
+        ),
+        driver: readObservedLinkBaseName(join(interfacePath, "driver")),
+      };
+    });
+}
+
+/**
+ * Parse the leading run of digits from a value such as `500mA`.
+ *
+ * @param {string | undefined} value Raw value.
+ * @returns {number | undefined} Leading integer, or undefined.
+ */
+function parseLeadingInteger(value) {
+  if (value === undefined || value === null) {
+    return undefined;
+  }
+  const match = /^\s*(\d+)/u.exec(String(value));
+  return match ? Number.parseInt(match[1], 10) : undefined;
+}
+
+/**
+ * Derive the parent bus-port name of a USB device from its kernel name.
+ *
+ * Root hubs (`usb1`) have no parent. A first-level device (`1-1`) hangs off
+ * its bus root hub (`usb1`). A deeper device (`1-1.2`) hangs off the device one
+ * level up (`1-1`).
+ *
+ * @param {string | undefined} kernelName USB device kernel name.
+ * @returns {string | undefined} Parent kernel name, or undefined for a root.
+ */
+export function deriveUsbParent(kernelName) {
+  if (!kernelName || /^usb\d+$/u.test(kernelName)) {
+    return undefined;
+  }
+  const match = /^(\d+)-(.+)$/u.exec(kernelName);
+  if (!match) {
+    return undefined;
+  }
+  const [, busNumber, portChain] = match;
+  const lastDot = portChain.lastIndexOf(".");
+  if (lastDot === -1) {
+    return `usb${busNumber}`;
+  }
+  return `${busNumber}-${portChain.slice(0, lastDot)}`;
+}
+
+/**
+ * Build the USB topology dependency edges from merged USB devices.
+ *
+ * Each device with a known kernel name is linked to its parent hub or root hub
+ * so the bill of materials shows what is plugged into what. Edges are expressed
+ * as parent depends-on child, matching the physical containment. References to
+ * devices that were not enumerated are dropped by the graph builder.
+ *
+ * @param {Array<{ kernelName?: string }>} devices Merged USB devices.
+ * @returns {Array<{ ref: string, dependsOn: string[] }>} Dependency edges.
+ */
+export function buildUsbTopologyEdges(devices) {
+  const present = new Set(
+    devices
+      .map((device) => getStringValue(device.kernelName))
+      .filter(Boolean),
+  );
+  const edges = [];
+  for (const device of devices) {
+    const kernelName = getStringValue(device.kernelName);
+    if (!kernelName) {
+      continue;
+    }
+    const parent = deriveUsbParent(kernelName);
+    if (parent && present.has(parent)) {
+      edges.push({
+        ref: `usb-device-${parent}`,
+        dependsOn: [`usb-device-${kernelName}`],
+      });
+    }
+  }
+  return edges;
 }
 
 function readDrmDevices(observedFiles) {
@@ -2937,9 +3112,19 @@ function mergeUsbSources(commandDevices, sysfsDevices, verboseDevices = []) {
       deviceClass: getStringValue(sysfs?.deviceClass),
       deviceSubclass: getStringValue(sysfs?.deviceSubclass),
       deviceProtocol: getStringValue(sysfs?.deviceProtocol),
-      configurationCount: getNumberValue(verbose?.configurationCount),
-      interfaceCount: getNumberValue(verbose?.interfaceCount),
-      maxPowerMilliAmps: getNumberValue(verbose?.maxPowerMilliAmps),
+      driver: getStringValue(sysfs?.driver),
+      rxLanes: getNumberValue(sysfs?.rxLanes),
+      txLanes: getNumberValue(sysfs?.txLanes),
+      interfaces: Array.isArray(sysfs?.interfaces) ? sysfs.interfaces : undefined,
+      configurationCount:
+        getNumberValue(verbose?.configurationCount) ??
+        getNumberValue(sysfs?.configurationCount),
+      interfaceCount:
+        getNumberValue(verbose?.interfaceCount) ??
+        getNumberValue(sysfs?.interfaceCount),
+      maxPowerMilliAmps:
+        getNumberValue(verbose?.maxPowerMilliAmps) ??
+        getNumberValue(sysfs?.maxPowerMilliAmps),
       selfPowered: getBooleanValue(verbose?.selfPowered),
       remoteWakeup: getBooleanValue(verbose?.remoteWakeup),
       deviceClassName: getStringValue(verbose?.deviceClassName),
@@ -2989,9 +3174,21 @@ function mergeUsbSources(commandDevices, sysfsDevices, verboseDevices = []) {
         deviceClass: getStringValue(device.deviceClass),
         deviceSubclass: getStringValue(device.deviceSubclass),
         deviceProtocol: getStringValue(device.deviceProtocol),
-        configurationCount: getNumberValue(verbose?.configurationCount),
-        interfaceCount: getNumberValue(verbose?.interfaceCount),
-        maxPowerMilliAmps: getNumberValue(verbose?.maxPowerMilliAmps),
+        driver: getStringValue(device.driver),
+        rxLanes: getNumberValue(device.rxLanes),
+        txLanes: getNumberValue(device.txLanes),
+        interfaces: Array.isArray(device.interfaces)
+          ? device.interfaces
+          : undefined,
+        configurationCount:
+          getNumberValue(verbose?.configurationCount) ??
+          getNumberValue(device.configurationCount),
+        interfaceCount:
+          getNumberValue(verbose?.interfaceCount) ??
+          getNumberValue(device.interfaceCount),
+        maxPowerMilliAmps:
+          getNumberValue(verbose?.maxPowerMilliAmps) ??
+          getNumberValue(device.maxPowerMilliAmps),
         selfPowered: getBooleanValue(verbose?.selfPowered),
         remoteWakeup: getBooleanValue(verbose?.remoteWakeup),
         deviceClassName: getStringValue(verbose?.deviceClassName),
@@ -3946,7 +4143,9 @@ function createPciComponent(device, lshwNodes = []) {
 }
 
 function createUsbComponent(device, options = {}) {
+  const kernelName = getStringValue(device.kernelName);
   return createHardwareComponent("usb-device", {
+    ...(kernelName ? { "bom-ref": `usb-device-${kernelName}` } : {}),
     name:
       device.productName ||
       device.description ||
@@ -4008,8 +4207,35 @@ function createUsbComponent(device, options = {}) {
         "cdx:hbom:remoteWakeup",
         getBooleanValue(device.remoteWakeup),
       ),
+      createProperty("cdx:hbom:driver", getStringValue(device.driver)),
+      createProperty("cdx:hbom:rxLanes", getNumberValue(device.rxLanes)),
+      createProperty("cdx:hbom:txLanes", getNumberValue(device.txLanes)),
+      createProperty(
+        "cdx:hbom:usbParent",
+        deriveUsbParent(getStringValue(device.kernelName)),
+      ),
+      createProperty(
+        "cdx:hbom:usbInterfaceDrivers",
+        formatInterfaceDrivers(device.interfaces),
+      ),
     ]),
   });
+}
+
+/**
+ * Render the per-interface bound drivers as a compact string.
+ *
+ * @param {Array<{ number?: number, driver?: string }> | undefined} interfaces Interface descriptors.
+ * @returns {string | undefined} Rendered drivers, or undefined when none.
+ */
+function formatInterfaceDrivers(interfaces) {
+  if (!Array.isArray(interfaces)) {
+    return undefined;
+  }
+  const parts = interfaces
+    .filter((entry) => getStringValue(entry?.driver))
+    .map((entry) => `${entry.number ?? "?"}:${getStringValue(entry.driver)}`);
+  return parts.length ? parts.join(", ") : undefined;
 }
 
 function createVideoComponents(videoDevices) {

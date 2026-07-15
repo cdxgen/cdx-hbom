@@ -4,6 +4,8 @@ import test from "node:test";
 
 import {
   buildLinuxHbom,
+  buildUsbTopologyEdges,
+  deriveUsbParent,
   parseAsoundCards,
   parseAsoundPcm,
   parseBoltctlText,
@@ -2428,3 +2430,147 @@ function writeEdidTextDescriptor(edid, offset, descriptorType, value) {
 function getPropertyValue(component, name) {
   return component.properties.find((property) => property.name === name)?.value;
 }
+
+test("buildLinuxHbom models USB-C ports, cables and their topology", () => {
+  const bom = buildLinuxHbom({
+    architecture: "amd64",
+    collectedAt: "2026-07-15T00:00:00.000Z",
+    sources: {
+      osRelease: { NAME: "Ubuntu", VERSION_ID: "24.04" },
+      typecPorts: [
+        {
+          name: "port0",
+          powerRole: "[sink] source",
+          dataRole: "[host] device",
+          portType: "dual",
+          pdRevision: "3.0",
+          connected: true,
+          sourceCapabilities: [
+            {
+              type: "fixed_supply",
+              voltageMillivolt: 20000,
+              maxCurrentMilliamp: 5000,
+            },
+          ],
+          cable: {
+            present: true,
+            plugType: "type-c",
+            productTypeVdo1: `0x${((2 << 9) | (2 << 5) | 3).toString(16)}`,
+          },
+        },
+      ],
+    },
+  });
+
+  const port = bom.components.find(
+    (component) =>
+      getPropertyValue(component, "cdx:hbom:hardwareClass") === "usb-c-port",
+  );
+  assert.ok(port);
+  assert.equal(getPropertyValue(port, "cdx:hbom:chargerMaxWatts"), "100");
+
+  const cable = bom.components.find(
+    (component) =>
+      getPropertyValue(component, "cdx:hbom:hardwareClass") === "cable",
+  );
+  assert.ok(cable);
+  assert.equal(getPropertyValue(cable, "cdx:hbom:maxDataRateGbps"), "40");
+
+  assert.deepEqual(bom.dependencies, [
+    { ref: "typec-port-port0", dependsOn: ["typec-cable-port0"] },
+  ]);
+});
+
+test("deriveUsbParent walks the bus-port hierarchy", () => {
+  assert.equal(deriveUsbParent("usb1"), undefined);
+  assert.equal(deriveUsbParent("1-1"), "usb1");
+  assert.equal(deriveUsbParent("2-3"), "usb2");
+  assert.equal(deriveUsbParent("1-1.2"), "1-1");
+  assert.equal(deriveUsbParent("1-1.2.3"), "1-1.2");
+  assert.equal(deriveUsbParent(undefined), undefined);
+});
+
+test("buildUsbTopologyEdges links devices to present parents only", () => {
+  const edges = buildUsbTopologyEdges([
+    { kernelName: "usb1" },
+    { kernelName: "1-1" },
+    { kernelName: "1-1.4" },
+    // A device whose parent hub was not enumerated yields no edge.
+    { kernelName: "3-2" },
+  ]);
+  assert.deepEqual(edges, [
+    { ref: "usb-device-usb1", dependsOn: ["usb-device-1-1"] },
+    { ref: "usb-device-1-1", dependsOn: ["usb-device-1-1.4"] },
+  ]);
+});
+
+test("buildLinuxHbom builds USB topology and links a Type-C partner", () => {
+  const bom = buildLinuxHbom({
+    architecture: "amd64",
+    collectedAt: "2026-07-15T00:00:00.000Z",
+    sources: {
+      osRelease: { NAME: "Ubuntu", VERSION_ID: "24.04" },
+      usbSysfsDevices: [
+        {
+          kernelName: "usb2",
+          bus: "2",
+          device: "1",
+          vendorId: "1d6b",
+          productId: "0003",
+          description: "xHCI Host Controller",
+        },
+        {
+          kernelName: "2-2",
+          bus: "2",
+          device: "5",
+          vendorId: "05ac",
+          productId: "1234",
+          description: "USB-C Dock",
+          rxLanes: 2,
+          txLanes: 2,
+          driver: "hub",
+        },
+      ],
+      typecPorts: [
+        {
+          name: "port0",
+          powerRole: "[source] sink",
+          connected: true,
+          cable: {
+            present: true,
+            productTypeVdo1: `0x${((2 << 5) | 3).toString(16)}`,
+          },
+          partner: {
+            present: true,
+            idHeader: `0x${((1 << 27) | 0x05ac).toString(16)}`,
+            usbName: "2-2",
+          },
+        },
+      ],
+    },
+  });
+
+  const dock = bom.components.find(
+    (component) => component["bom-ref"] === "usb-device-2-2",
+  );
+  assert.ok(dock);
+  assert.equal(getPropertyValue(dock, "cdx:hbom:rxLanes"), "2");
+  assert.equal(getPropertyValue(dock, "cdx:hbom:usbParent"), "usb2");
+
+  const partner = bom.components.find(
+    (component) => component["bom-ref"] === "typec-partner-port0",
+  );
+  assert.ok(partner);
+  assert.equal(getPropertyValue(partner, "cdx:hbom:linkedUsbDevice"), "2-2");
+
+  // The root hub carries the device, and the partner reaches the same device.
+  assert.deepEqual(
+    bom.dependencies.find((edge) => edge.ref === "usb-device-usb2")?.dependsOn,
+    ["usb-device-2-2"],
+  );
+  assert.deepEqual(
+    bom.dependencies.find((edge) => edge.ref === "typec-partner-port0")
+      ?.dependsOn,
+    ["usb-device-2-2"],
+  );
+});

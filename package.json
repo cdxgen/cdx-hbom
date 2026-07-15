@@ -1,6 +1,6 @@
 {
   "name": "@cdxgen/cdx-hbom",
-  "version": "0.5.1",
+  "version": "0.7.0",
   "description": "Dependency-free hardware bill of materials discovery library.",
   "homepage": "https://github.com/cdxgen/cdx-hbom",
   "bugs": {
@@ -20,6 +20,9 @@
       "default": "./index.js"
     },
     "./schema": "./src/common/schema.js",
+    "./usbpd": "./src/common/usbpd.js",
+    "./diagnostics": "./src/common/diagnostics.js",
+    "./vendors": "./src/common/vendors.js",
     "./darwin/arm64": "./src/darwin/arm64/index.js",
     "./linux/amd64": "./src/linux/amd64/index.js",
     "./linux/arm64": "./src/linux/arm64/index.js"
