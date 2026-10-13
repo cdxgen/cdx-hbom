@@ -4,7 +4,7 @@
 
 The OWASP cdxgen and `cdx-hbom` maintainers take security bugs seriously. We appreciate responsible disclosure and will make every effort to acknowledge valid reports and coordinate remediation.
 
-To report a security issue, email [security@cyclonedx.org](mailto:security@cyclonedx.org) and include the word **"SECURITY"** in the subject line.
+To report a security issue, email [cloud@appthreat.com](mailto:cloud@appthreat.com) and include the word **"SECURITY"** in the subject line.
 
 After the initial reply, the maintainers will share next steps, request any additional reproduction details needed for triage, and keep you informed about remediation and coordinated disclosure.
 
