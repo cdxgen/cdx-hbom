@@ -1,0 +1,25 @@
+test/windows/capture-tools.test.js
+  s_c81cb3ef09afe3::t_02d73ebdb2a233 189-218
+  s_c81cb3ef09afe3::t_b941d99aaa0c83 178-181
+  s_c81cb3ef09afe3::t_1c2200328df2f2 130-135
+scripts/windows/redact-fixtures.mjs
+  s_c81cb3ef09afe3::t_da94ff0dc287d6 128
+  s_c81cb3ef09afe3::t_d3e520d4ffeeb5 76-78,80,84,86,88,91
+  s_c81cb3ef09afe3::t_d280eb1a7b0b1e 174-184
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "5185a0a9ae414aef98af0d4f8ae7d804acb3c692",
+  "prompts": {},
+  "sessions": {
+    "s_c81cb3ef09afe3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2eb5ded0-f83f-4668-b459-e157774b0030",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Prabhu Subramanian <prabhu@appthreat.com>"
+    }
+  }
+}
