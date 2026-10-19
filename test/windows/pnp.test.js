@@ -322,3 +322,22 @@ test("captured selftest PnP IDs parse after fixture redaction", () => {
     "no raw instance segments may survive in fixtures",
   );
 });
+
+test("redactInstanceId redacts only the GUID of volume device paths", () => {
+  const volume = "\\\\?\\Volume{1a2b3c4d-5e6f-4a5b-8c9d-0e1f2a3b4c5d}\\";
+  assert.equal(
+    redactInstanceId(volume),
+    "\\\\?\\Volume{redacted:4c5d}\\",
+  );
+  assert.equal(
+    redactInstanceId(volume, { includeSensitiveIdentifiers: true }),
+    volume,
+  );
+  // Already-redacted paths are stable on a second pass.
+  assert.equal(
+    redactInstanceId("\\\\?\\Volume{redacted:4c5d}\\"),
+    "\\\\?\\Volume{redacted:4c5d}\\",
+  );
+  // Device paths without a volume GUID keep passing through untouched.
+  assert.equal(redactInstanceId("\\\\.\\PHYSICALDRIVE0"), "\\\\.\\PHYSICALDRIVE0");
+});
