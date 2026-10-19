@@ -379,6 +379,17 @@ export function redactHardwareIds(list, instanceId, options = {}) {
 }
 
 /**
+ * Extract the per-machine GUID of a Win32_Volume device path.
+ *
+ * @param {string | undefined} id Device ID such as `\\?\Volume{GUID}\`.
+ * @returns {string | undefined} Lower-cased GUID or undefined.
+ */
+export function parseVolumeDeviceId(id) {
+  const match = String(id ?? "").match(VOLUME_PATH_PATTERN);
+  return match === null ? undefined : match[1].toLowerCase();
+}
+
+/**
  * Return the instance segment of a device instance ID, if it has one.
  *
  * @param {string | undefined} id Device instance ID.

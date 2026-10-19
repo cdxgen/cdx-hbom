@@ -115,3 +115,166 @@ export function windowsEnumName(table, code) {
   }
   return table[key] ?? String(key);
 }
+
+/**
+ * MSFT_PhysicalDisk.BusType value map, from
+ * https://learn.microsoft.com/en-us/windows-hardware/drivers/storage/msft-physicaldisk
+ * (Unknown (0) ... NVMe (17)). The live root/Microsoft/Windows/Storage schema
+ * (VM-FINDINGS §5) extends the stale doc page with 14 Virtual, 18 SCM and
+ * 19 UFS, which the doc lists as reserved.
+ *
+ * @type {Readonly<Record<number, string>>}
+ */
+export const WINDOWS_STORAGE_BUS_TYPES = Object.freeze({
+  0: "Unknown",
+  1: "SCSI",
+  2: "ATAPI",
+  3: "ATA",
+  4: "1394",
+  5: "SSA",
+  6: "Fibre Channel",
+  7: "USB",
+  8: "RAID",
+  9: "iSCSI",
+  10: "SAS",
+  11: "SATA",
+  12: "SD",
+  13: "MMC",
+  14: "Virtual",
+  15: "File Backed Virtual",
+  16: "Storage Spaces",
+  17: "NVMe",
+  18: "SCM",
+  19: "UFS",
+});
+
+/**
+ * MSFT_PhysicalDisk.MediaType value map, from
+ * https://learn.microsoft.com/en-us/windows-hardware/drivers/storage/msft-physicaldisk
+ * (0 Unspecified, 3 HDD, 4 SSD, 5 SCM). 0 is omitted by callers.
+ *
+ * @type {Readonly<Record<number, string>>}
+ */
+export const WINDOWS_STORAGE_MEDIA_TYPES = Object.freeze({
+  0: "Unspecified",
+  3: "HDD",
+  4: "SSD",
+  5: "SCM",
+});
+
+/**
+ * MSFT_PhysicalDisk.HealthStatus value map, from
+ * https://learn.microsoft.com/en-us/windows-hardware/drivers/storage/msft-physicaldisk
+ * (0 Healthy, 1 Warning, 2 Unhealthy, 5 Unknown).
+ *
+ * @type {Readonly<Record<number, string>>}
+ */
+export const WINDOWS_STORAGE_HEALTH_STATUSES = Object.freeze({
+  0: "Healthy",
+  1: "Warning",
+  2: "Unhealthy",
+  5: "Unknown",
+});
+
+/**
+ * MSFT_NetAdapter.NdisPhysicalMedium value map, from
+ * https://learn.microsoft.com/en-us/previous-versions/windows/desktop/legacy/hh968170(v=vs.85)
+ * (Unspecified (0) ... Other (19)).
+ *
+ * @type {Readonly<Record<number, string>>}
+ */
+export const WINDOWS_NDIS_PHYSICAL_MEDIA = Object.freeze({
+  0: "Unspecified",
+  1: "Wireless LAN",
+  2: "Cable Modem",
+  3: "Phone Line",
+  4: "Power Line",
+  5: "DSL",
+  6: "FC",
+  7: "1394",
+  8: "Wireless WAN",
+  9: "Native 802.11",
+  10: "BlueTooth",
+  11: "Infiniband",
+  12: "WiMAX",
+  13: "UWB",
+  14: "802.3",
+  15: "802.5",
+  16: "IRDA",
+  17: "Wired WAN",
+  18: "Wired Connection Oriented WAN",
+  19: "Other",
+});
+
+/**
+ * Win32_Volume.DriveType value map, from
+ * https://learn.microsoft.com/en-us/previous-versions/windows/desktop/legacy/aa394515(v=vs.85)
+ * (0 Unknown ... 6 RAM Disk). Volumes are collected when they carry a drive
+ * letter or report a removable (2) or local (3) disk type.
+ *
+ * @type {Readonly<Record<number, string>>}
+ */
+export const WINDOWS_VOLUME_DRIVE_TYPES = Object.freeze({
+  0: "Unknown",
+  1: "No Root Directory",
+  2: "Removable Disk",
+  3: "Local Disk",
+  4: "Network Drive",
+  5: "Compact Disk",
+  6: "RAM Disk",
+});
+
+/**
+ * Win32_NetworkAdapter.NetConnectionStatus value map, from
+ * https://learn.microsoft.com/en-us/windows/win32/cimwin32prov/win32-networkadapter
+ * (Disconnected (0) ... Credentials Required (12)); 13+ is Other. Only the
+ * values that map to an operState survive into the BOM.
+ *
+ * @type {Readonly<Record<number, string>>}
+ */
+export const WINDOWS_NET_CONNECTION_STATUSES = Object.freeze({
+  0: "Disconnected",
+  1: "Connecting",
+  2: "Connected",
+  3: "Disconnecting",
+  4: "Hardware Not Present",
+  5: "Hardware Disabled",
+  6: "Hardware Malfunction",
+  7: "Media Disconnected",
+  8: "Authenticating",
+  9: "Authentication Succeeded",
+  10: "Authentication Failed",
+  11: "Invalid Address",
+  12: "Credentials Required",
+});
+
+/**
+ * CIM_ManagedSystemElement.OperationalStatus value map (inherited by the
+ * Storage CIM classes), from the DMTF Values qualifier as documented at
+ * https://learn.microsoft.com/en-us/windows/win32/hyperv_v2/cim-managedsystemelement
+ * (0 Unknown ... 19 Relocating).
+ *
+ * @type {Readonly<Record<number, string>>}
+ */
+export const WINDOWS_OPERATIONAL_STATUSES = Object.freeze({
+  0: "Unknown",
+  1: "Other",
+  2: "OK",
+  3: "Degraded",
+  4: "Stressed",
+  5: "Predictive Failure",
+  6: "Error",
+  7: "Non-Recoverable Error",
+  8: "Starting",
+  9: "Stopping",
+  10: "Stopped",
+  11: "In Service",
+  12: "No Contact",
+  13: "Lost Communication",
+  14: "Aborted",
+  15: "Dormant",
+  16: "Supporting Entity in Error",
+  17: "Completed",
+  18: "Power Mode",
+  19: "Relocating",
+});

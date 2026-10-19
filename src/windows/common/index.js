@@ -21,7 +21,7 @@ import { createHbomDocument } from "../../common/schema.js";
 import {
   normalizeTargetArchitecture,
 } from "../../common/targets.js";
-import { attachCollectorTrace } from "../../common/trace.js";
+import { attachCollectorTrace, recordCollectorTrace } from "../../common/trace.js";
 import {
   parseWindowsEnvelope,
   summarizeWindowsAccess,
@@ -29,6 +29,15 @@ import {
   WINDOWS_NETWORK_LOGON_HINT,
 } from "./cim.js";
 import { WINDOWS_COMMANDS, getRequiredWindowsCommand } from "./commands.js";
+import {
+  buildNetworkComponents,
+} from "./network.js";
+import {
+  buildStorageComponents,
+  buildStorageVolumeComponents,
+  parseStorageNetworkEnvelope,
+  storageNetworkDiagnostics,
+} from "./storage.js";
 import {
   buildWindowsBoardFirmwareChassisComponents,
   buildWindowsHostComponent,
@@ -61,6 +70,14 @@ export {
   buildWindowsMemoryComponents,
   buildWindowsBoardFirmwareChassisComponents,
 } from "./platform.js";
+export {
+  parseStorageNetworkEnvelope,
+  buildStorageComponents,
+  buildStorageVolumeComponents,
+  storageNetworkDiagnostics,
+} from "./storage.js";
+export { selectHardwareNetAdapters, buildNetworkComponents } from "./network.js";
+export { WINDOWS_STORAGE_NETWORK_MANIFEST } from "./commands.js";
 export {
   WINDOWS_PC_SYSTEM_TYPES_EX,
   WINDOWS_MEMORY_ERROR_CORRECTIONS,
@@ -99,7 +116,8 @@ export function getWindowsCommandPlan() {
  *   architecture?: string,
  *   sources?: {
  *     baseline?: { cpuModel?: string, cpuCount?: number, totalMemoryBytes?: number, osRelease?: string, osName?: string },
- *     platformEnvelope?: ReturnType<parseWindowsEnvelope>
+ *     platformEnvelope?: ReturnType<parseWindowsEnvelope>,
+ *     storageNetworkEnvelope?: ReturnType<parseWindowsEnvelope>
  *   },
  *   includeSensitiveIdentifiers?: boolean,
  *   executedCommands?: Array<{ id: string, category: string, command: string, args: string[] }>,
@@ -112,6 +130,10 @@ export function getWindowsCommandPlan() {
  */
 export function buildWindowsHbom(options = {}) {
   const envelope = options.sources?.platformEnvelope;
+  const storageEnvelope = options.sources?.storageNetworkEnvelope;
+  const storageSources = storageEnvelope
+    ? parseStorageNetworkEnvelope(storageEnvelope)
+    : undefined;
   const parsed = envelope
     ? parsePlatformEnvelope(envelope)
     : {
@@ -147,6 +169,10 @@ export function buildWindowsHbom(options = {}) {
   const commandDiagnostics = [
     ...(options.commandDiagnostics ?? []),
     ...envelopeDiagnostics(envelope),
+    ...envelopeDiagnostics(storageEnvelope),
+    ...(storageSources
+      ? storageNetworkDiagnostics(storageSources, storageEnvelope?.meta)
+      : []),
   ];
   const executedCommands = options.executedCommands ?? [];
 
@@ -154,6 +180,19 @@ export function buildWindowsHbom(options = {}) {
     buildWindowsProcessorComponent(context),
     ...buildWindowsMemoryComponents(context),
     ...buildWindowsBoardFirmwareChassisComponents(context),
+    ...(storageSources
+      ? [
+          ...buildStorageComponents(storageSources, options),
+          ...buildStorageVolumeComponents(storageSources, options),
+          ...buildNetworkComponents(
+            storageSources.netAdapters,
+            storageSources.netAdapterHardware,
+            storageEnvelope?.results?.netAdapter ?? { ok: false },
+            storageSources.legacyNetworkAdapters,
+            options,
+          ),
+        ]
+      : []),
   ]);
   const hostComponent = buildWindowsHostComponent(context);
 
@@ -282,6 +321,37 @@ export async function collectWindowsHardware(options = {}) {
     allowPartial,
     recordCommandError,
   );
+
+  if (options.includeCommandEnrichment !== false) {
+    const storageSpec = getRequiredWindowsCommand("windows-cim-storage-network");
+    const wmiDenied =
+      sources.platformEnvelope !== undefined &&
+      summarizeWindowsAccess(sources.platformEnvelope).allWmiDenied;
+    if (wmiDenied) {
+      // A network logon denies every WMI namespace (~5 s each), so later WMI
+      // commands are skipped and traced instead of re-paying the denial.
+      recordCollectorTrace(options.trace, {
+        args: [...storageSpec.args],
+        category: storageSpec.category,
+        command: resolveWindowsPowerShellPath(),
+        id: storageSpec.id,
+        kind: "command",
+        reason:
+          "WMI denied for a network logon; later WMI commands are skipped",
+        status: "skipped",
+      });
+    } else {
+      await attemptCollection(
+        async () => {
+          const stdout = await runCommand(storageSpec, options);
+          executedCommands.push(toEvidenceCommand(storageSpec));
+          sources.storageNetworkEnvelope = parseWindowsEnvelope(stdout);
+        },
+        allowPartial,
+        recordCommandError,
+      );
+    }
+  }
 
   return buildWindowsHbom({
     ...options,
