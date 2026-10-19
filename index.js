@@ -32,6 +32,10 @@ import {
   withCollectorTrace,
 } from "./src/common/trace.js";
 import {
+  normalizeTargetArchitecture,
+  normalizeTargetPlatform,
+} from "./src/common/targets.js";
+import {
   buildDarwinArm64Hbom,
   collectDarwinArm64Hardware,
   getDarwinArm64CommandPlan,
@@ -46,7 +50,16 @@ import {
   collectLinuxArm64Hardware,
   getLinuxArm64CommandPlan,
 } from "./src/linux/arm64/index.js";
-import { getWindowsCommandPlan } from "./src/windows/common/index.js";
+import {
+  buildWindowsAmd64Hbom,
+  collectWindowsAmd64Hardware,
+  getWindowsAmd64CommandPlan,
+} from "./src/windows/amd64/index.js";
+import {
+  buildWindowsArm64Hbom,
+  collectWindowsArm64Hardware,
+  getWindowsArm64CommandPlan,
+} from "./src/windows/arm64/index.js";
 
 /**
  * Supported hardware discovery targets.
@@ -64,6 +77,14 @@ export const SUPPORTED_TARGETS = Object.freeze([
   }),
   Object.freeze({
     platform: "linux",
+    architecture: "arm64",
+  }),
+  Object.freeze({
+    platform: "win32",
+    architecture: "amd64",
+  }),
+  Object.freeze({
+    platform: "win32",
     architecture: "arm64",
   }),
 ]);
@@ -90,7 +111,9 @@ export function getCommandPlan(options = {}) {
     return getLinuxArm64CommandPlan();
   }
   if (platform === "win32" && ["amd64", "arm64"].includes(architecture)) {
-    return getWindowsCommandPlan();
+    return architecture === "amd64"
+      ? getWindowsAmd64CommandPlan()
+      : getWindowsArm64CommandPlan();
   }
 
   throw new Error(`Unsupported HBOM target: ${platform}/${architecture}`);
@@ -138,6 +161,16 @@ export async function collectHardware(options = {}) {
       });
     } else if (platform === "linux" && architecture === "arm64") {
       bom = await collectLinuxArm64Hardware({
+        ...options,
+        trace,
+      });
+    } else if (platform === "win32" && architecture === "amd64") {
+      bom = await collectWindowsAmd64Hardware({
+        ...options,
+        trace,
+      });
+    } else if (platform === "win32" && architecture === "arm64") {
+      bom = await collectWindowsArm64Hardware({
         ...options,
         trace,
       });
@@ -202,7 +235,9 @@ export async function collectHardware(options = {}) {
  *     lsmem?: Array<Record<string, unknown>>,
  *     lshw?: Array<Record<string, unknown>>,
  *     ethtool?: Record<string, Record<string, string>>,
- *     drmDevices?: Array<Record<string, unknown>>
+ *     drmDevices?: Array<Record<string, unknown>>,
+ *     baseline?: { cpuModel?: string, cpuCount?: number, totalMemoryBytes?: number, osRelease?: string, osName?: string },
+ *     platformEnvelope?: { meta: Record<string, unknown>, results: Record<string, unknown>, warnings?: string[] }
  *   },
  *   includeSensitiveIdentifiers?: boolean,
  *   collectedAt?: string
@@ -222,6 +257,10 @@ export function buildHardwareFromSources(options) {
     bom = buildLinuxAmd64Hbom(options);
   } else if (platform === "linux" && architecture === "arm64") {
     bom = buildLinuxArm64Hbom(options);
+  } else if (platform === "win32" && architecture === "amd64") {
+    bom = buildWindowsAmd64Hbom(options);
+  } else if (platform === "win32" && architecture === "arm64") {
+    bom = buildWindowsArm64Hbom(options);
   } else {
     throw new Error(`Unsupported HBOM target: ${platform}/${architecture}`);
   }
@@ -238,8 +277,7 @@ export function buildHardwareFromSources(options) {
  * @returns {string} Normalized platform.
  */
 function normalizePlatform(platform) {
-  const normalized = String(platform ?? "").toLowerCase();
-  return normalized === "windows" ? "win32" : normalized;
+  return normalizeTargetPlatform(platform);
 }
 
 /**
@@ -255,14 +293,5 @@ function normalizePlatform(platform) {
  * @returns {string} Normalized architecture.
  */
 function normalizeArchitecture(architecture) {
-  const normalized = String(architecture ?? "").toLowerCase();
-
-  if (["x64", "x86_64", "x86-64"].includes(normalized)) {
-    return "amd64";
-  }
-  if (["aarch64", "armv8", "arm64e"].includes(normalized)) {
-    return "arm64";
-  }
-
-  return normalized;
+  return normalizeTargetArchitecture(architecture);
 }

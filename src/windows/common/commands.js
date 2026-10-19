@@ -323,6 +323,21 @@ export const WINDOWS_SELFTEST_COMMAND = toWindowsCommandSpec(
 );
 
 /**
+ * Look up a Windows command spec by id.
+ *
+ * @param {string} id Command id such as `windows-cim-platform`.
+ * @returns {import("../../common/command.js").CommandSpec} Command spec.
+ * @throws {Error} When no Windows command carries the id.
+ */
+export function getRequiredWindowsCommand(id) {
+  const spec = WINDOWS_COMMANDS.find((candidate) => candidate.id === id);
+  if (!spec) {
+    throw new Error(`Unknown Windows command: ${id}`);
+  }
+  return spec;
+}
+
+/**
  * Build a frozen command spec from a manifest.
  *
  * The script is generated and validated at module load so an unsafe or
