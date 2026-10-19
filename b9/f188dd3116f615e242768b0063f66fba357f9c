@@ -1,0 +1,14 @@
+.github/workflows/windows-capture.yml
+  h_6a4cc5cdf68def 1-48
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b9f188dd3116f615e242768b0063f66fba357f9c",
+  "prompts": {},
+  "humans": {
+    "h_6a4cc5cdf68def": {
+      "author": "Team AppThreat <cloud@appthreat.com>"
+    }
+  }
+}
