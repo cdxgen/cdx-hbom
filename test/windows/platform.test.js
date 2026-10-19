@@ -4,6 +4,7 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 import { join } from "node:path";
 
+import { toEvidenceCommand } from "../../src/common/evidence.js";
 import { isPlaceholderIdentity } from "../../src/common/shape.js";
 import {
   SMBIOS_CHASSIS_TYPES,
@@ -304,6 +305,9 @@ test("amd64 GHA fixture collapses one multi-core processor instance", () => {
     undefined,
     "the None module serial is dropped, not redacted",
   );
+  // The runner reports SMBIOSMemoryType 2 and FormFactor 0, both `Unknown`.
+  assert.equal(prop(modules[0], "cdx:hbom:memoryType"), undefined);
+  assert.equal(prop(modules[0], "cdx:hbom:formFactor"), undefined);
 
   const host = bom.metadata.component;
   assert.equal(
@@ -319,6 +323,22 @@ test("amd64 GHA fixture collapses one multi-core processor instance", () => {
   assert.equal(chassis.length, 1);
   assert.equal(chassis[0].name, "desktop");
   assert.equal(prop(chassis[0], "cdx:hbom:assetTag"), "redacted:0004");
+});
+
+test("evidence properties carry a script digest, not the PowerShell script", () => {
+  const { bom } = buildFromFixture("arm64/vm-parallels-elevated", {
+    executedCommands: [toEvidenceCommand(PLATFORM_SPEC)],
+  });
+  const evidence = (bom.properties ?? [])
+    .filter((property) => property.name === "cdx:hbom:evidence:command")
+    .map((property) => property.value);
+
+  assert.equal(evidence.length, 1);
+  assert.match(
+    evidence[0],
+    /^windows-cim-platform\|platform\|.+powershell\.exe -Command windows-cim-platform script sha256:[0-9a-f]{12}$/u,
+  );
+  assert.equal(evidence[0].includes("ConvertTo-Json"), false);
 });
 
 test("arm64 GHA fixture reports Cobalt 100 with four cores", () => {

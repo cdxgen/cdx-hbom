@@ -215,8 +215,9 @@ export function buildWindowsHostComponent(context) {
  *
  * Windows reports one instance per core on some virtual platforms (four
  * single-core instances on the Parallels VM) and one instance per socket on
- * others (one 2-core instance on the Hyper-V runners), so instances sharing
- * a Name/Manufacturer pair collapse into one component.
+ * others (one multi-core instance on the Hyper-V runners). Every captured
+ * host reports a single model, so all instances collapse into one component
+ * and `socketCount` is the instance count.
  *
  * @param {{
  *   sources: WindowsPlatformSources,
@@ -375,16 +376,22 @@ export function buildWindowsMemoryComponents(context) {
           ),
           createProperty(
             "cdx:hbom:memoryType",
-            lookupSmbiosName(
-              SMBIOS_MEMORY_TYPES,
-              cimNumber(module.SMBIOSMemoryType),
+            // `Unknown` (SMBIOS 2, form factor 0) is what the Hyper-V runners
+            // report; like other placeholders it is omitted, not emitted.
+            normalizeIdentityString(
+              lookupSmbiosName(
+                SMBIOS_MEMORY_TYPES,
+                cimNumber(module.SMBIOSMemoryType),
+              ),
             ),
           ),
           createProperty(
             "cdx:hbom:formFactor",
-            windowsEnumName(
-              WINDOWS_MEMORY_FORM_FACTORS,
-              cimNumber(module.FormFactor),
+            normalizeIdentityString(
+              windowsEnumName(
+                WINDOWS_MEMORY_FORM_FACTORS,
+                cimNumber(module.FormFactor),
+              ),
             ),
           ),
           createProperty(
@@ -601,11 +608,7 @@ function windowsChassisTypeName(enclosure) {
  * @returns {string | undefined} SMBIOS version.
  */
 function smbiosVersion(bios) {
-  const major = cimNumber(bios?.SMBIOSMajorVersion);
-  const minor = cimNumber(bios?.SMBIOSMinorVersion);
-  return major === undefined || minor === undefined
-    ? undefined
-    : `${major}.${minor}`;
+  return joinVersions(bios?.SMBIOSMajorVersion, bios?.SMBIOSMinorVersion);
 }
 
 /**
@@ -633,15 +636,11 @@ function joinVersions(major, minor) {
  * @returns {string | undefined} Embedded controller version.
  */
 function embeddedControllerVersion(bios) {
-  const major = cimNumber(bios?.EmbeddedControllerMajorVersion);
-  const minor = cimNumber(bios?.EmbeddedControllerMinorVersion);
-  if (major === undefined || minor === undefined) {
-    return undefined;
-  }
-  if (major === 255 && minor === 255) {
-    return undefined;
-  }
-  return `${major}.${minor}`;
+  const version = joinVersions(
+    bios?.EmbeddedControllerMajorVersion,
+    bios?.EmbeddedControllerMinorVersion,
+  );
+  return version === "255.255" ? undefined : version;
 }
 
 /**

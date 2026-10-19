@@ -5,7 +5,7 @@
 import os from "node:os";
 import process from "node:process";
 
-import { runCommand } from "../../common/command.js";
+import { runCommand, summarizeScriptTarget } from "../../common/command.js";
 import {
   attemptCollection,
   collectCommandDiagnosticProperties,
@@ -23,6 +23,7 @@ import {
 } from "../../common/targets.js";
 import { attachCollectorTrace, recordCollectorTrace } from "../../common/trace.js";
 import {
+  cimString,
   parseWindowsEnvelope,
   summarizeWindowsAccess,
   toWindowsResultDiagnostic,
@@ -223,11 +224,11 @@ export function buildWindowsHbom(options = {}) {
         ),
         createProperty(
           "cdx:hbom:osName",
-          cimText(parsed.os?.Caption) ?? cimText(baseline.osName),
+          cimString(parsed.os?.Caption) ?? cimString(baseline.osName),
         ),
         createProperty(
           "cdx:hbom:osVersion",
-          cimText(parsed.os?.Version) ?? cimText(baseline.osRelease),
+          cimString(parsed.os?.Version) ?? cimString(baseline.osRelease),
         ),
         createProperty("cdx:hbom:architectureSource", detected.source),
         ...(fallbackArchitecture && fallbackArchitecture !== detected.architecture
@@ -240,11 +241,11 @@ export function buildWindowsHbom(options = {}) {
           : []),
         createProperty(
           "cdx:hbom:evidence:powershellVersion",
-          cimText(envelope?.meta?.psVersion),
+          cimString(envelope?.meta?.psVersion),
         ),
         createProperty(
           "cdx:hbom:evidence:languageMode",
-          cimText(envelope?.meta?.languageMode),
+          cimString(envelope?.meta?.languageMode),
         ),
         ...(envelope?.meta?.elevated === null ||
         envelope?.meta?.elevated === undefined
@@ -311,46 +312,41 @@ export async function collectWindowsHardware(options = {}) {
     }
   };
 
-  const platformSpec = getRequiredWindowsCommand("windows-cim-platform");
-  await attemptCollection(
-    async () => {
-      const stdout = await runCommand(platformSpec, options);
-      executedCommands.push(toEvidenceCommand(platformSpec));
-      sources.platformEnvelope = parseWindowsEnvelope(stdout);
-    },
-    allowPartial,
-    recordCommandError,
-  );
-
-  if (options.includeCommandEnrichment !== false) {
-    const storageSpec = getRequiredWindowsCommand("windows-cim-storage-network");
-    const wmiDenied =
+  const steps = [
+    { id: "windows-cim-platform", sourceKey: "platformEnvelope" },
+    ...(options.includeCommandEnrichment === false
+      ? []
+      : WINDOWS_ENRICHMENT_STEPS),
+  ];
+  for (const step of steps) {
+    const spec = getRequiredWindowsCommand(step.id);
+    if (
       sources.platformEnvelope !== undefined &&
-      summarizeWindowsAccess(sources.platformEnvelope).allWmiDenied;
-    if (wmiDenied) {
+      summarizeWindowsAccess(sources.platformEnvelope).allWmiDenied
+    ) {
       // A network logon denies every WMI namespace (~5 s each), so later WMI
       // commands are skipped and traced instead of re-paying the denial.
       recordCollectorTrace(options.trace, {
-        args: [...storageSpec.args],
-        category: storageSpec.category,
-        command: resolveWindowsPowerShellPath(),
-        id: storageSpec.id,
+        args: [...spec.args],
+        category: spec.category,
+        command: spec.command,
+        id: spec.id,
         kind: "command",
-        reason:
-          "WMI denied for a network logon; later WMI commands are skipped",
+        reason: "WMI denied for a network logon; later WMI commands are skipped",
         status: "skipped",
+        target: summarizeScriptTarget(spec),
       });
-    } else {
-      await attemptCollection(
-        async () => {
-          const stdout = await runCommand(storageSpec, options);
-          executedCommands.push(toEvidenceCommand(storageSpec));
-          sources.storageNetworkEnvelope = parseWindowsEnvelope(stdout);
-        },
-        allowPartial,
-        recordCommandError,
-      );
+      continue;
     }
+    await attemptCollection(
+      async () => {
+        const stdout = await runCommand(spec, options);
+        executedCommands.push(toEvidenceCommand(spec));
+        sources[step.sourceKey] = parseWindowsEnvelope(stdout);
+      },
+      allowPartial,
+      recordCommandError,
+    );
   }
 
   return buildWindowsHbom({
@@ -360,6 +356,16 @@ export async function collectWindowsHardware(options = {}) {
     commandDiagnostics,
   });
 }
+
+// Enrichment batches run after `windows-cim-platform`, in order, and are
+// skipped when `includeCommandEnrichment` is false. Each one fills
+// `sources[sourceKey]` with its parsed envelope for `buildWindowsHbom`.
+const WINDOWS_ENRICHMENT_STEPS = Object.freeze([
+  Object.freeze({
+    id: "windows-cim-storage-network",
+    sourceKey: "storageNetworkEnvelope",
+  }),
+]);
 
 /**
  * Read the T0 baseline from the Node `os` module.
@@ -435,16 +441,4 @@ function envelopeDiagnostics(envelope) {
     });
   }
   return diagnostics;
-}
-
-/**
- * Trim a scalar to a display string.
- *
- * @param {unknown} value Candidate value.
- * @returns {string | undefined} Trimmed string or undefined.
- */
-function cimText(value) {
-  return typeof value === "string" && value.trim().length > 0
-    ? value.trim()
-    : undefined;
 }

@@ -3,6 +3,7 @@
 // mapping, and the allowPartial wrapper. Lifted from the Linux collector;
 // Linux behavior is unchanged.
 
+import { summarizeScriptArgs } from "./command.js";
 import { compact, createProperty } from "./shape.js";
 
 /**
@@ -27,7 +28,10 @@ export async function attemptCollection(action, allowPartial, onError) {
 /**
  * Record an executed command spec as evidence input.
  *
- * @param {{ id: string, category: string, command: string, args: string[] }} spec Command spec.
+ * Windows CIM specs record a script digest instead of the script itself
+ * (`summarizeScriptArgs`); every other spec keeps its full arguments.
+ *
+ * @param {{ id: string, category: string, command: string, args: string[], parser?: string }} spec Command spec.
  * @returns {{ id: string, category: string, command: string, args: string[] }} Evidence command.
  */
 export function toEvidenceCommand(spec) {
@@ -35,7 +39,7 @@ export function toEvidenceCommand(spec) {
     id: spec.id,
     category: spec.category,
     command: spec.command,
-    args: [...spec.args],
+    args: summarizeScriptArgs(spec) ?? [...spec.args],
   };
 }
 
