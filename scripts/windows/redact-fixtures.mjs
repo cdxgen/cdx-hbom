@@ -38,10 +38,14 @@ import {
 } from "../../src/windows/common/pnp.js";
 
 const GUID_PATTERN = /^\{?([0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12})\}?$/u;
-const MAC_PATTERN = /^([0-9A-Fa-f]{2}[:-]){5}[0-9A-Fa-f]{2}$/u;
+// MAC shapes: separated 6-pair form, plus the bare 12-hex form
+// MSFT_NetAdapter.PermanentAddress uses (observed on win11-vm).
+const MAC_PATTERN = /^(?:([0-9A-Fa-f]{2}[:-]){5}[0-9A-Fa-f]{2}|[0-9A-Fa-f]{12})$/u;
 const MAC_FIELD_PATTERN = /Address/iu;
 const PNP_FIELD_NAMES = new Set([
   "PNPDeviceID",
+  // MSFT_NetAdapter and other CIM-derived classes spell it PnPDeviceID.
+  "PnPDeviceID",
   "DeviceID",
   "HardwareID",
   "CompatibleID",
@@ -147,10 +151,12 @@ function redactFile(filePath) {
 
   const sensitive = [];
   if (envelope?.results) {
+    // Generic scans first: MAC-shaped and PnP-instance replacements then win
+    // over the plain serial fallback an explicit path would otherwise pick.
+    collectGenericFields(envelope, sensitive);
     for (const field of spec?.sensitiveFields ?? []) {
       collectSensitiveField(envelope, field, sensitive);
     }
-    collectGenericFields(envelope, sensitive);
   }
 
   const replacements = sensitive

@@ -188,7 +188,7 @@ These appear across multiple hardware classes.
 | `cdx:hbom:wearPercentageUsed` | Flash wear percentage if reported                |
 | `cdx:hbom:container`          | Parent container reference for a volume          |
 | `cdx:hbom:containerUuid`      | APFS container UUID, redacted by default         |
-| `cdx:hbom:volumeUuid`         | APFS volume UUID, redacted by default            |
+| `cdx:hbom:volumeUuid`         | APFS or Windows volume UUID, redacted by default |
 | `cdx:hbom:physicalStores`     | APFS physical backing stores                     |
 | `cdx:hbom:isEncrypted`        | Whether a volume is encrypted                    |
 | `cdx:hbom:fileVault`          | Whether FileVault is enabled for a volume        |
@@ -196,6 +196,14 @@ These appear across multiple hardware classes.
 | `cdx:hbom:pciAddress`         | PCI address associated with a storage controller |
 | `cdx:hbom:namespaceCount`     | Number of NVMe namespaces                        |
 | `cdx:hbom:namespaces`         | Namespace identifiers or names                   |
+| `cdx:hbom:diskNumber`         | Windows: disk number (`Win32_DiskDrive.Index`, PHYSICALDRIVE*n*) |
+| `cdx:hbom:physicalBlockSize`  | Windows: physical sector size (`MSFT_PhysicalDisk.PhysicalSectorSize`) in bytes |
+| `cdx:hbom:healthStatus`       | Windows: storage health (`MSFT_PhysicalDisk.HealthStatus`), not SMART |
+| `cdx:hbom:operationalStatus`  | Windows: joined CIM operational-status names (`MSFT_PhysicalDisk.OperationalStatus`) |
+| `cdx:hbom:fileSystem`         | Windows: volume file system (`Win32_Volume.FileSystem`) |
+| `cdx:hbom:mountPoint`         | Windows: volume drive-letter mount point (`Win32_Volume.DriveLetter`) |
+| `cdx:hbom:isBootVolume`       | Windows: whether the volume is the boot volume (`Win32_Volume.BootVolume`) |
+| `cdx:hbom:isSystemVolume`     | Windows: whether the volume is the system volume (`Win32_Volume.SystemVolume`) |
 
 ## Network and wireless properties
 
@@ -206,7 +214,7 @@ These appear across multiple hardware classes.
 | `cdx:hbom:flags`                 | Interface flag list                                               |
 | `cdx:hbom:ipv4Count`             | Number of IPv4 addresses observed                                 |
 | `cdx:hbom:ipv6Count`             | Number of IPv6 addresses observed                                 |
-| `cdx:hbom:operState`             | Linux interface operational state                                 |
+| `cdx:hbom:operState`             | Interface operational state such as `up` or `down`                |
 | `cdx:hbom:speedMbps`             | Interface speed in Mbps when reported                             |
 | `cdx:hbom:duplex`                | Duplex mode                                                       |
 | `cdx:hbom:ifindex`               | Interface index                                                   |
@@ -220,6 +228,11 @@ These appear across multiple hardware classes.
 | `cdx:hbom:phyMode`               | Current wireless PHY mode                                         |
 | `cdx:hbom:linkRateMbps`          | Current wireless link rate in Mbps                                |
 | `cdx:hbom:securityMode`          | Current wireless security mode                                    |
+| `cdx:hbom:interfaceName`         | Windows: connection name (`MSFT_NetAdapter.Name`, for example `Ethernet`) |
+| `cdx:hbom:driverProvider`        | Windows: NIC driver provider (`MSFT_NetAdapter.DriverProvider`)   |
+| `cdx:hbom:driverDate`            | Windows: NIC driver date (`MSFT_NetAdapter.DriverDate`)           |
+| `cdx:hbom:physicalMedium`        | Windows: NDIS physical medium name (`MSFT_NetAdapter.NdisPhysicalMedium`) |
+| `cdx:hbom:adapterType`           | Windows: legacy adapter type (`Win32_NetworkAdapter.AdapterType`) |
 
 ## Audio properties
 

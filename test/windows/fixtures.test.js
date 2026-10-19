@@ -88,12 +88,14 @@ test("committed fixtures carry only redacted sensitive values", () => {
   const serialPattern = /REDACTED-SERIAL-\d+/u;
   const guidReplacement =
     /\{?00000000-0000-4000-8000-0000000000\d{2}\}?/iu;
+  const macReplacement = /^02[:-]00[:-]00[:-]00[:-]00[:-][0-9a-f]{2}$/u;
   const rawGuid =
     /\{?[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}\}?/u;
   // PnP identifier fields redact only the instance segment, not the whole
   // value, so they get a segment-level check instead of a value-level one.
   const pnpFieldNames = new Set([
     "PNPDeviceID",
+    "PnPDeviceID",
     "DeviceID",
     "HardwareID",
     "CompatibleID",
@@ -131,6 +133,16 @@ test("committed fixtures carry only redacted sensitive values", () => {
               continue;
             }
             if (pnpFieldNames.has(name)) {
+              // Volume device paths carry their sensitive part inside the
+              // braces, not in a trailing instance segment.
+              if (/^\\\\\?\\Volume\{/u.test(entry)) {
+                assert.match(
+                  entry,
+                  /^\\\\\?\\Volume\{redacted/u,
+                  `${label}/${command.id}: ${field} carries a raw volume GUID (${entry.slice(0, 16)}...)`,
+                );
+                continue;
+              }
               const parts = entry.split("\\");
               if (parts.length >= 3) {
                 assert.match(
@@ -145,6 +157,7 @@ test("committed fixtures carry only redacted sensitive values", () => {
               isPlaceholderIdentity(entry) ||
                 serialPattern.test(entry) ||
                 guidReplacement.test(entry) ||
+                macReplacement.test(entry) ||
                 /^redacted(:|$)/u.test(entry),
               `${label}/${command.id}: ${field} still carries a raw value (${entry.slice(0, 12)}...)`,
             );

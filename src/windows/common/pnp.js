@@ -64,9 +64,11 @@ const UEFI_REVISION_PATTERN = /(?:^|&)REV_(\d+)(?=&|$)/iu;
 
 // Volume device IDs (`\\?\Volume{GUID}\`), the Win32_Volume key format:
 // https://learn.microsoft.com/en-us/previous-versions/windows/desktop/legacy/aa394515(v=vs.85)
-// Only the GUID is per-machine; the framing identifies nothing.
+// Only the GUID is per-machine; the framing identifies nothing. The braces
+// also accept the redacted token this module produces, so fixture-driven
+// builds keep a redactable volume identifier.
 const VOLUME_PATH_PATTERN =
-  /^\\\\\?\\Volume\{([0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12})\}\\?$/iu;
+  /^\\\\\?\\Volume\{([0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}|redacted(?::[0-9A-Za-z]+)?)\}\\?$/iu;
 
 // Bluetooth PnP IDs:
 // https://learn.microsoft.com/en-us/windows-hardware/drivers/bluetooth/installing-a-bluetooth-device
