@@ -5108,6 +5108,11 @@ function shouldRetainLinuxCommandDiagnostic(error) {
   const issue = getStringValue(error?.issue) ?? "";
   const message = String(error?.message ?? error?.stderr ?? "").toLowerCase();
 
+  // Dry-run blocks are planned refusals, not collection failures.
+  if (issue === "dry-run") {
+    return false;
+  }
+
   if (
     commandId.startsWith("ethtool-driver-info:") &&
     ["command-error", "partial-support"].includes(issue) &&

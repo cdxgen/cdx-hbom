@@ -6,7 +6,7 @@ import {
   readFileSync,
   readlinkSync,
 } from "node:fs";
-import { basename, resolve } from "node:path";
+import { basename, resolve, win32 } from "node:path";
 import process from "node:process";
 
 import { recordCollectorTrace } from "./trace.js";
@@ -293,13 +293,16 @@ export function safeReadlinkSync(linkPath, options = {}) {
  */
 export function safeSpawnSync(command, args = [], options = {}) {
   const allowedCommands = normalizeAllowedCommands(options.allowedCommands);
-  const commandName = basename(command);
+  const commandName = getCommandBasename(command);
   const traceActivity = {
     ...options.traceActivity,
     args: [...args],
     command,
     kind: "command",
-    target: formatCommandTarget(command, args),
+    target:
+      typeof options.traceActivity?.target === "string"
+        ? options.traceActivity.target
+        : formatCommandTarget(command, args),
   };
 
   if (
@@ -450,6 +453,22 @@ function isWindowsShellHijackRisk(command, cwd) {
 
 function formatCommandTarget(command, args) {
   return `${command}${args.length ? ` ${args.join(" ")}` : ""}`;
+}
+
+/**
+ * Resolve the basename used for allowlist comparisons.
+ *
+ * Windows collectors invoke `C:\Windows\...\powershell.exe` by absolute path,
+ * so a backslash-separated (or drive-absolute) command must be split with
+ * win32 semantics even when the collector runs on a POSIX host.
+ *
+ * @param {string} command Executable path or name.
+ * @returns {string} Command basename.
+ */
+function getCommandBasename(command) {
+  return /^[A-Za-z]:\\/u.test(command) || command.includes("\\")
+    ? win32.basename(command)
+    : basename(command);
 }
 
 function getReadByteSize(value, encoding) {

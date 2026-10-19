@@ -90,3 +90,35 @@ test("getCommandPlan rejects unsupported targets", () => {
     /Unsupported HBOM target/u,
   );
 });
+
+test("getCommandPlan returns the Windows collector plan for both architectures", () => {
+  for (const architecture of ["amd64", "arm64"]) {
+    const plan = getCommandPlan({ platform: "win32", architecture });
+    const planByAlias = getCommandPlan({ platform: "windows", architecture });
+
+    assert.ok(Array.isArray(plan));
+    assert.equal(plan.length, 1);
+    assert.equal(plan[0].id, "windows-cim-platform");
+    assert.equal(plan[0].phase, "collector-v1");
+    assert.equal(plan[0].parser, "windows-envelope");
+    assert.equal(plan[0].privilege, "none");
+    assert.equal(plan[0].sudoRetryOnPermissionDenied, false);
+    assert.equal(plan[0].timeoutMs, 60000);
+    assert.ok(
+      plan[0].command.endsWith(
+        "System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+      ),
+    );
+    assert.deepEqual(plan[0].args.slice(0, 4), [
+      "-NoLogo",
+      "-NoProfile",
+      "-NonInteractive",
+      "-Command",
+    ]);
+    assert.ok(
+      plan[0].args[4].length > 0 && plan[0].args[4].length <= 8000,
+      "script within the length budget",
+    );
+    assert.deepEqual(planByAlias[0].args, plan[0].args);
+  }
+});

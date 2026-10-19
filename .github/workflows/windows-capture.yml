@@ -1,0 +1,51 @@
+name: Windows fixture capture
+
+# Manual fixture capture from GitHub-hosted runners (PLAN.md §5.3, P2).
+# Produces redacted capture artifacts for amd64 (windows-2025) and a second
+# arm64 source (windows-11-arm); nothing is committed automatically.
+
+on:
+  workflow_dispatch:
+    inputs:
+      label_suffix:
+        description: "Suffix appended to the capture label"
+        required: false
+        default: gha
+
+permissions:
+  contents: read
+
+jobs:
+  capture:
+    name: Capture fixtures (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-2025, windows-11-arm]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e  # v6.4.0
+        with:
+          node-version: 24.x
+          package-manager-cache: false
+
+      # The input reaches the shell through env, never by template expansion.
+      - name: Capture fixtures
+        env:
+          CAPTURE_LABEL: ${{ matrix.os }}-${{ inputs.label_suffix }}
+        run: node scripts/windows/capture-fixtures.mjs --out capture --label "$env:CAPTURE_LABEL" --selftest
+
+      - name: Redact fixtures
+        run: node scripts/windows/redact-fixtures.mjs capture
+
+      - name: Upload capture artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: windows-fixtures-${{ matrix.os }}
+          path: capture
+          if-no-files-found: error

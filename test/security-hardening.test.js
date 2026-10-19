@@ -64,6 +64,10 @@ test("runCommand retries with sudo only for commands that explicitly opt in and 
     assert.equal(stdout, "retried");
     assert.equal(existsSync(retryLog), true);
     assert.match(readFileSync(retryLog, "utf8"), /-n/u);
+    const sudoActivity = trace.activities.find(
+      (entry) => entry.kind === "command" && entry.command === "sudo",
+    );
+    assert.match(sudoActivity?.target ?? "", /^sudo -n /u);
     assert.equal(
       trace.activities.some(
         (entry) =>
