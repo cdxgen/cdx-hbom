@@ -17,9 +17,11 @@ import {
   createComponent,
   createHardwareComponent,
   createProperty,
-  isPlaceholderIdentity,
+  formatBytes,
+  normalizeIdentityString,
   redactIdentifier,
 } from "../../common/shape.js";
+import { SMBIOS_CHASSIS_TYPES } from "../../common/smbios.js";
 import {
   attachCollectorTrace,
   recordCollectorTrace,
@@ -5982,52 +5984,14 @@ function normalizePciClassCode(value) {
   return normalized.length > 2 ? normalized.slice(0, -2) : normalized;
 }
 
-function normalizeIdentityString(value) {
-  const normalized = normalizeEmptyString(value)?.trim();
-
-  if (!normalized) {
-    return undefined;
-  }
-  if (isPlaceholderIdentity(normalized)) {
-    return undefined;
-  }
-
-  return normalized;
-}
-
 function normalizeChassisType(value) {
   const normalized = normalizeIdentityString(value);
 
   if (!normalized) {
     return undefined;
   }
-  const mapped = {
-    3: "desktop",
-    4: "low-profile-desktop",
-    5: "pizza-box",
-    6: "mini-tower",
-    7: "tower",
-    8: "portable",
-    9: "laptop",
-    10: "notebook",
-    11: "hand-held",
-    12: "docking-station",
-    13: "all-in-one",
-    14: "sub-notebook",
-    15: "space-saving",
-    16: "lunch-box",
-    17: "main-server-chassis",
-    23: "rack-mount",
-    30: "tablet",
-    31: "convertible",
-    32: "detachable",
-    33: "iot-gateway",
-    34: "embedded-pc",
-    35: "mini-pc",
-    36: "stick-pc",
-  }[normalized];
 
-  return mapped ?? normalized;
+  return SMBIOS_CHASSIS_TYPES[normalized] ?? normalized;
 }
 
 function normalizeHostnamectlFirmwareDate(value) {
@@ -6603,23 +6567,6 @@ function toNumber(value) {
   }
   const parsed = Number.parseInt(String(value), 10);
   return Number.isNaN(parsed) ? undefined : parsed;
-}
-
-function formatBytes(bytes) {
-  if (!bytes || Number.isNaN(bytes)) {
-    return undefined;
-  }
-
-  const units = ["B", "KB", "MB", "GB", "TB", "PB"];
-  let value = bytes;
-  let unitIndex = 0;
-
-  while (value >= 1024 && unitIndex < units.length - 1) {
-    value /= 1024;
-    unitIndex += 1;
-  }
-
-  return `${value >= 10 ? Math.round(value) : value.toFixed(1)} ${units[unitIndex]}`;
 }
 
 function unquoteOsReleaseValue(value) {
