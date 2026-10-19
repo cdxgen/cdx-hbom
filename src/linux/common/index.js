@@ -1,5 +1,5 @@
 import { Buffer } from "node:buffer";
-import { basename, join, resolve } from "node:path";
+import { posix } from "node:path";
 import process from "node:process";
 
 import { getInstallHint, runCommand } from "../../common/command.js";
@@ -25,6 +25,10 @@ import {
 } from "../../common/trace.js";
 import { LINUX_COMMON_COMMANDS } from "./commands.js";
 import { createTypecComponents, readTypecPorts } from "./typec.js";
+
+// These paths always describe a Linux target (/sys, /proc), so use POSIX semantics
+// even when the collector code is loaded on another host (for example win32).
+const { basename, join, resolve } = posix;
 
 /**
  * Return a copy of the Linux command plan.

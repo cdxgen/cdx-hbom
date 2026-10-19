@@ -25,7 +25,7 @@ import {
   shouldDecodeDrmEdid,
 } from "../src/linux/common/index.js";
 
-test("runCommand retries with sudo only for commands that explicitly opt in and records the retry", async () => {
+test("runCommand retries with sudo only for commands that explicitly opt in and records the retry", { skip: process.platform === "win32" ? "POSIX sudo shim" : false }, async () => {
   const sandbox = mkdtempSync(join(tmpdir(), "cdx-hbom-sudo-retry-"));
   const binDir = join(sandbox, "bin");
   const retryLog = join(sandbox, "sudo.log");
@@ -74,6 +74,64 @@ test("runCommand retries with sudo only for commands that explicitly opt in and 
   } finally {
     process.env.PATH = originalPath;
     rmSync(sandbox, { force: true, recursive: true });
+  }
+});
+
+test("runCommand never invokes sudo on win32", async () => {
+  const trace = createCollectorTrace();
+  const platformDescriptor = Object.getOwnPropertyDescriptor(process, "platform");
+  Object.defineProperty(process, "platform", {
+    ...platformDescriptor,
+    value: "win32",
+  });
+
+  try {
+    await assert.rejects(
+      () =>
+        runCommand(
+          {
+            id: "windows-elevation-guard",
+            category: "platform",
+            command: process.execPath,
+            args: [
+              "-e",
+              'process.stderr.write("Permission denied\\n"); process.exit(1);',
+            ],
+            parser: "text",
+            purpose: "Verify win32 never elevates.",
+            phase: "collector-v1",
+            privilege: "required",
+            sudoRetryOnPermissionDenied: true,
+          },
+          { includePrivilegedEnrichment: true, trace },
+        ),
+      (error) => {
+        assert.equal(error.code, "CDX_HBOM_PERMISSION_DENIED");
+        assert.equal(
+          error.privilegeHint,
+          "Re-run from an elevated (Run as administrator) prompt; cdx-hbom never requests elevation on Windows.",
+        );
+        return true;
+      },
+    );
+
+    assert.equal(
+      trace.activities.some((entry) => entry.command === "sudo"),
+      false,
+    );
+    assert.equal(
+      trace.activities.some((entry) => entry.kind === "command-retry"),
+      false,
+    );
+    assert.equal(
+      trace.activities.some(
+        (entry) =>
+          entry.kind === "command" && entry.command === process.execPath,
+      ),
+      true,
+    );
+  } finally {
+    Object.defineProperty(process, "platform", platformDescriptor);
   }
 });
 

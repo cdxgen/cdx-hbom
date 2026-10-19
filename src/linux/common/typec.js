@@ -22,7 +22,7 @@
  * captured tree in tests.
  */
 
-import { join } from "node:path";
+import { posix } from "node:path";
 
 import {
   cableTrustNotes,
@@ -41,6 +41,10 @@ import {
   toUint32,
 } from "../../common/usbpd.js";
 import { isHexFallback, lookupVendor } from "../../common/vendors.js";
+
+// These paths always describe a Linux target (/sys, /proc), so use POSIX semantics
+// even when the collector code is loaded on another host (for example win32).
+const { join } = posix;
 
 // Standard IDs (SVIDs) for the alternate modes worth surfacing by name.
 const ALT_MODE_SVIDS = {

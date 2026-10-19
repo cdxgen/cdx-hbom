@@ -3,6 +3,22 @@ import process from "node:process";
 import { safeSpawnSync } from "./safe.js";
 import { recordCollectorTrace } from "./trace.js";
 
+// Windows 11 ships its own sudo.exe, so the Linux `sudo -n` elevation paths must
+// never run on win32. cdx-hbom never requests elevation there; users who need
+// privileged sources start from an elevated prompt themselves.
+const WINDOWS_PRIVILEGE_HINT =
+  "Re-run from an elevated (Run as administrator) prompt; cdx-hbom never requests elevation on Windows.";
+const LINUX_PRIVILEGE_HINT =
+  "Retry with --privileged to allow a non-interactive sudo attempt for permission-sensitive Linux commands.";
+
+function isWindowsHost() {
+  return process.platform === "win32";
+}
+
+function getPrivilegeHint() {
+  return isWindowsHost() ? WINDOWS_PRIVILEGE_HINT : LINUX_PRIVILEGE_HINT;
+}
+
 /**
  * @typedef {object} CommandSpec
  * @property {string} id Stable command identifier.
@@ -26,15 +42,11 @@ import { recordCollectorTrace } from "./trace.js";
  */
 export async function runCommand(spec, options = {}) {
   const timeoutMs = options.timeoutMs ?? 15000;
-  const privilegeMode = spec.privilege ?? "none";
-  const shouldRunWithSudo =
-    options.includePrivilegedEnrichment === true &&
-    privilegeMode === "required" &&
-    process.getuid?.() !== 0;
-  let result = executeCommand(spec, options, timeoutMs, shouldRunWithSudo);
+  const attemptedWithSudo = shouldRunWithSudo(spec, options);
+  let result = executeCommand(spec, options, timeoutMs, attemptedWithSudo);
 
   if (
-    shouldRetryWithSudo(spec, options, result, shouldRunWithSudo) &&
+    shouldRetryWithSudo(spec, options, result, attemptedWithSudo) &&
     process.getuid?.() !== 0
   ) {
     recordSudoRetry(spec, options, result);
@@ -81,9 +93,21 @@ function executeCommand(spec, options, timeoutMs, useSudo) {
   });
 }
 
+function shouldRunWithSudo(spec, options) {
+  if (isWindowsHost()) {
+    return false;
+  }
+  return (
+    options.includePrivilegedEnrichment === true &&
+    (spec.privilege ?? "none") === "required" &&
+    process.getuid?.() !== 0
+  );
+}
+
 function shouldRetryWithSudo(spec, options, result, attemptedWithSudo) {
   if (
     attemptedWithSudo ||
+    isWindowsHost() ||
     options.includePrivilegedEnrichment !== true ||
     spec.sudoRetryOnPermissionDenied !== true ||
     result.status === 0
@@ -174,9 +198,7 @@ function createCommandFailure(spec, result, options) {
   error.issue = errorType;
   error.installHint = getInstallHint(spec.command);
   error.privilegeHint =
-    privilegeMode === "none"
-      ? undefined
-      : "Retry with --privileged to allow a non-interactive sudo attempt for permission-sensitive Linux commands.";
+    privilegeMode === "none" ? undefined : getPrivilegeHint();
   error.suppressedDiagnostic = shouldSuppressCommandDiagnostic(
     spec,
     errorType,
@@ -268,7 +290,7 @@ function buildHintMessage(spec, errorType) {
     errorType === "permission-denied" &&
     (spec.privilege ?? "none") !== "none"
   ) {
-    return "Retry with --privileged to allow a non-interactive sudo attempt for permission-sensitive Linux commands.";
+    return getPrivilegeHint();
   }
   return undefined;
 }
