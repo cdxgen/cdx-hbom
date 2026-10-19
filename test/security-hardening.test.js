@@ -13,10 +13,7 @@ import { join } from "node:path";
 import process from "node:process";
 import test from "node:test";
 
-import {
-  runCommand,
-  setHostPlatformOverrideForTests,
-} from "../src/common/command.js";
+import { runCommand } from "../src/common/command.js";
 import { createCollectorTrace } from "../src/common/trace.js";
 import {
   createEdidDecodeCommand,
@@ -82,7 +79,11 @@ test("runCommand retries with sudo only for commands that explicitly opt in and 
 
 test("runCommand never invokes sudo on win32", async () => {
   const trace = createCollectorTrace();
-  setHostPlatformOverrideForTests("win32");
+  const platformDescriptor = Object.getOwnPropertyDescriptor(process, "platform");
+  Object.defineProperty(process, "platform", {
+    ...platformDescriptor,
+    value: "win32",
+  });
 
   try {
     await assert.rejects(
@@ -130,7 +131,7 @@ test("runCommand never invokes sudo on win32", async () => {
       true,
     );
   } finally {
-    setHostPlatformOverrideForTests(null);
+    Object.defineProperty(process, "platform", platformDescriptor);
   }
 });
 

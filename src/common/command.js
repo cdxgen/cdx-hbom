@@ -3,34 +3,20 @@ import process from "node:process";
 import { safeSpawnSync } from "./safe.js";
 import { recordCollectorTrace } from "./trace.js";
 
-// Windows 11 ships its own sudo.exe that rejects `sudo -n`, so the Linux
-// elevation paths must never reach it on win32 (VM-FINDINGS §8). The override
-// exists so tests can exercise the win32 gate from any host.
-let hostPlatformOverride = null;
-
-function getHostPlatform() {
-  return hostPlatformOverride ?? process.platform;
-}
-
-/**
- * Force the platform that `runCommand()` safety gating sees, for tests.
- *
- * @param {string | null} platform Platform such as `win32`, or `null` to restore the real host platform.
- * @returns {void}
- */
-export function setHostPlatformOverrideForTests(platform) {
-  hostPlatformOverride = platform;
-}
-
-// cdx-hbom never requests elevation on Windows; users who need privileged
-// sources must start from an elevated prompt themselves.
+// Windows 11 ships its own sudo.exe, so the Linux `sudo -n` elevation paths must
+// never run on win32. cdx-hbom never requests elevation there; users who need
+// privileged sources start from an elevated prompt themselves.
 const WINDOWS_PRIVILEGE_HINT =
   "Re-run from an elevated (Run as administrator) prompt; cdx-hbom never requests elevation on Windows.";
+const LINUX_PRIVILEGE_HINT =
+  "Retry with --privileged to allow a non-interactive sudo attempt for permission-sensitive Linux commands.";
+
+function isWindowsHost() {
+  return process.platform === "win32";
+}
 
 function getPrivilegeHint() {
-  return getHostPlatform() === "win32"
-    ? WINDOWS_PRIVILEGE_HINT
-    : "Retry with --privileged to allow a non-interactive sudo attempt for permission-sensitive Linux commands.";
+  return isWindowsHost() ? WINDOWS_PRIVILEGE_HINT : LINUX_PRIVILEGE_HINT;
 }
 
 /**
@@ -108,7 +94,7 @@ function executeCommand(spec, options, timeoutMs, useSudo) {
 }
 
 function shouldRunWithSudo(spec, options) {
-  if (getHostPlatform() === "win32") {
+  if (isWindowsHost()) {
     return false;
   }
   return (
@@ -121,7 +107,7 @@ function shouldRunWithSudo(spec, options) {
 function shouldRetryWithSudo(spec, options, result, attemptedWithSudo) {
   if (
     attemptedWithSudo ||
-    getHostPlatform() === "win32" ||
+    isWindowsHost() ||
     options.includePrivilegedEnrichment !== true ||
     spec.sudoRetryOnPermissionDenied !== true ||
     result.status === 0

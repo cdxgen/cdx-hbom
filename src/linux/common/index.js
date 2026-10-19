@@ -26,6 +26,10 @@ import {
 import { LINUX_COMMON_COMMANDS } from "./commands.js";
 import { createTypecComponents, readTypecPorts } from "./typec.js";
 
+// These paths always describe a Linux target (/sys, /proc), so use POSIX semantics
+// even when the collector code is loaded on another host (for example win32).
+const { basename, join, resolve } = posix;
+
 /**
  * Return a copy of the Linux command plan.
  *
@@ -2285,7 +2289,7 @@ function readDmiInfo(observedFiles) {
     "chassis_type",
   ].reduce(
     (result, field) => {
-      const value = readObservedTextFile(posix.join(basePath, field), observedFiles);
+      const value = readObservedTextFile(join(basePath, field), observedFiles);
       if (value) {
         result[field] = value;
       }
@@ -2303,21 +2307,21 @@ function readDeviceTreeInfo(observedFiles) {
   }
 
   return {
-    model: readObservedBinaryTextFile(posix.join(basePath, "model"), observedFiles),
+    model: readObservedBinaryTextFile(join(basePath, "model"), observedFiles),
     compatible: readObservedNullSeparatedStrings(
-      posix.join(basePath, "compatible"),
+      join(basePath, "compatible"),
       observedFiles,
     ),
     serialNumber: readObservedBinaryTextFile(
-      posix.join(basePath, "serial-number"),
+      join(basePath, "serial-number"),
       observedFiles,
     ),
     linuxRevision: readObservedBinaryHexFile(
-      posix.join(basePath, "system", "linux,revision"),
+      join(basePath, "system", "linux,revision"),
       observedFiles,
     ),
     linuxSerial: readObservedBinaryHexFile(
-      posix.join(basePath, "system", "linux,serial"),
+      join(basePath, "system", "linux,serial"),
       observedFiles,
     ),
   };
@@ -2329,13 +2333,13 @@ function readAudioCards(observedFiles) {
   );
 
   return cards.map((card) => {
-    const basePath = posix.join("/sys/class/sound", `card${card.number}`);
+    const basePath = join("/sys/class/sound", `card${card.number}`);
     const uevent = parseUeventText(
-      readObservedTextFile(posix.join(basePath, "uevent"), observedFiles) ?? "",
+      readObservedTextFile(join(basePath, "uevent"), observedFiles) ?? "",
     );
     return {
       ...card,
-      kernelId: readObservedTextFile(posix.join(basePath, "id"), observedFiles),
+      kernelId: readObservedTextFile(join(basePath, "id"), observedFiles),
       driver: normalizeEmptyString(uevent.driver),
     };
   });
@@ -2349,46 +2353,46 @@ function readAudioPcmDevices(observedFiles) {
 
 function readVideo4LinuxDevices(observedFiles) {
   return safeReaddirSync("/sys/class/video4linux").map((name) => {
-    const basePath = posix.join("/sys/class/video4linux", name);
+    const basePath = join("/sys/class/video4linux", name);
     return {
       kernelName: name,
-      name: readObservedTextFile(posix.join(basePath, "name"), observedFiles),
+      name: readObservedTextFile(join(basePath, "name"), observedFiles),
       index: toNumber(
-        readObservedTextFile(posix.join(basePath, "index"), observedFiles),
+        readObservedTextFile(join(basePath, "index"), observedFiles),
       ),
       modalias: readObservedTextFile(
-        posix.join(basePath, "device", "modalias"),
+        join(basePath, "device", "modalias"),
         observedFiles,
       ),
-      driver: readObservedLinkBaseName(posix.join(basePath, "device", "driver")),
+      driver: readObservedLinkBaseName(join(basePath, "device", "driver")),
     };
   });
 }
 
 function readMmcDevices(observedFiles) {
   return safeReaddirSync("/sys/bus/mmc/devices").map((name) => {
-    const basePath = posix.join("/sys/bus/mmc/devices", name);
+    const basePath = join("/sys/bus/mmc/devices", name);
     return {
       name,
-      type: readObservedTextFile(posix.join(basePath, "type"), observedFiles),
-      productName: readObservedTextFile(posix.join(basePath, "name"), observedFiles),
+      type: readObservedTextFile(join(basePath, "type"), observedFiles),
+      productName: readObservedTextFile(join(basePath, "name"), observedFiles),
       manufacturerId: readObservedTextFile(
-        posix.join(basePath, "manfid"),
+        join(basePath, "manfid"),
         observedFiles,
       ),
-      oemId: readObservedTextFile(posix.join(basePath, "oemid"), observedFiles),
-      serial: readObservedTextFile(posix.join(basePath, "serial"), observedFiles),
-      date: readObservedTextFile(posix.join(basePath, "date"), observedFiles),
+      oemId: readObservedTextFile(join(basePath, "oemid"), observedFiles),
+      serial: readObservedTextFile(join(basePath, "serial"), observedFiles),
+      date: readObservedTextFile(join(basePath, "date"), observedFiles),
       firmwareRevision: readObservedTextFile(
-        posix.join(basePath, "fwrev"),
+        join(basePath, "fwrev"),
         observedFiles,
       ),
       hardwareRevision: readObservedTextFile(
-        posix.join(basePath, "hwrev"),
+        join(basePath, "hwrev"),
         observedFiles,
       ),
       uevent: parseUeventText(
-        readObservedTextFile(posix.join(basePath, "uevent"), observedFiles) ?? "",
+        readObservedTextFile(join(basePath, "uevent"), observedFiles) ?? "",
       ),
     };
   });
@@ -2396,27 +2400,27 @@ function readMmcDevices(observedFiles) {
 
 function readPciSysfsDevices(observedFiles) {
   return safeReaddirSync("/sys/bus/pci/devices").map((name) => {
-    const basePath = posix.join("/sys/bus/pci/devices", name);
+    const basePath = join("/sys/bus/pci/devices", name);
     return {
       slot: name,
       classCode: normalizeHexString(
-        readObservedTextFile(posix.join(basePath, "class"), observedFiles),
+        readObservedTextFile(join(basePath, "class"), observedFiles),
       ),
       vendorId: normalizeHexString(
-        readObservedTextFile(posix.join(basePath, "vendor"), observedFiles),
+        readObservedTextFile(join(basePath, "vendor"), observedFiles),
       ),
       productId: normalizeHexString(
-        readObservedTextFile(posix.join(basePath, "device"), observedFiles),
+        readObservedTextFile(join(basePath, "device"), observedFiles),
       ),
       subsystemVendorId: normalizeHexString(
-        readObservedTextFile(posix.join(basePath, "subsystem_vendor"), observedFiles),
+        readObservedTextFile(join(basePath, "subsystem_vendor"), observedFiles),
       ),
       subsystemDeviceId: normalizeHexString(
-        readObservedTextFile(posix.join(basePath, "subsystem_device"), observedFiles),
+        readObservedTextFile(join(basePath, "subsystem_device"), observedFiles),
       ),
-      modalias: readObservedTextFile(posix.join(basePath, "modalias"), observedFiles),
-      driver: readObservedLinkBaseName(posix.join(basePath, "driver")),
-      label: readObservedTextFile(posix.join(basePath, "label"), observedFiles),
+      modalias: readObservedTextFile(join(basePath, "modalias"), observedFiles),
+      driver: readObservedLinkBaseName(join(basePath, "driver")),
+      label: readObservedTextFile(join(basePath, "label"), observedFiles),
     };
   });
 }
@@ -2424,75 +2428,75 @@ function readPciSysfsDevices(observedFiles) {
 function readUsbSysfsDevices(observedFiles) {
   return safeReaddirSync("/sys/bus/usb/devices")
     .filter((name) =>
-      safeExistsSync(posix.join("/sys/bus/usb/devices", name, "idVendor")),
+      safeExistsSync(join("/sys/bus/usb/devices", name, "idVendor")),
     )
     .map((name) => {
-      const basePath = posix.join("/sys/bus/usb/devices", name);
+      const basePath = join("/sys/bus/usb/devices", name);
       return {
         kernelName: name,
         bus: normalizeUsbNumber(
-          readObservedTextFile(posix.join(basePath, "busnum"), observedFiles),
+          readObservedTextFile(join(basePath, "busnum"), observedFiles),
         ),
         device: normalizeUsbNumber(
-          readObservedTextFile(posix.join(basePath, "devnum"), observedFiles),
+          readObservedTextFile(join(basePath, "devnum"), observedFiles),
         ),
         manufacturer: readObservedTextFile(
-          posix.join(basePath, "manufacturer"),
+          join(basePath, "manufacturer"),
           observedFiles,
         ),
         description: readObservedTextFile(
-          posix.join(basePath, "product"),
+          join(basePath, "product"),
           observedFiles,
         ),
         version: normalizeUsbVersion(
-          readObservedTextFile(posix.join(basePath, "version"), observedFiles),
+          readObservedTextFile(join(basePath, "version"), observedFiles),
         ),
-        serial: readObservedTextFile(posix.join(basePath, "serial"), observedFiles),
+        serial: readObservedTextFile(join(basePath, "serial"), observedFiles),
         vendorId: normalizeHexString(
-          readObservedTextFile(posix.join(basePath, "idVendor"), observedFiles),
+          readObservedTextFile(join(basePath, "idVendor"), observedFiles),
         ),
         productId: normalizeHexString(
-          readObservedTextFile(posix.join(basePath, "idProduct"), observedFiles),
+          readObservedTextFile(join(basePath, "idProduct"), observedFiles),
         ),
         deviceClass: normalizeHexString(
-          readObservedTextFile(posix.join(basePath, "bDeviceClass"), observedFiles),
+          readObservedTextFile(join(basePath, "bDeviceClass"), observedFiles),
         ),
         deviceSubclass: normalizeHexString(
           readObservedTextFile(
-            posix.join(basePath, "bDeviceSubClass"),
+            join(basePath, "bDeviceSubClass"),
             observedFiles,
           ),
         ),
         deviceProtocol: normalizeHexString(
           readObservedTextFile(
-            posix.join(basePath, "bDeviceProtocol"),
+            join(basePath, "bDeviceProtocol"),
             observedFiles,
           ),
         ),
-        devpath: readObservedTextFile(posix.join(basePath, "devpath"), observedFiles),
+        devpath: readObservedTextFile(join(basePath, "devpath"), observedFiles),
         speedMbps: normalizeUsbSpeed(
-          readObservedTextFile(posix.join(basePath, "speed"), observedFiles),
+          readObservedTextFile(join(basePath, "speed"), observedFiles),
         ),
         removable: readObservedTextFile(
-          posix.join(basePath, "removable"),
+          join(basePath, "removable"),
           observedFiles,
         ),
-        driver: readObservedLinkBaseName(posix.join(basePath, "driver")),
+        driver: readObservedLinkBaseName(join(basePath, "driver")),
         maxPowerMilliAmps: parseLeadingInteger(
-          readObservedTextFile(posix.join(basePath, "bMaxPower"), observedFiles),
+          readObservedTextFile(join(basePath, "bMaxPower"), observedFiles),
         ),
         rxLanes: toNumber(
-          readObservedTextFile(posix.join(basePath, "rx_lanes"), observedFiles),
+          readObservedTextFile(join(basePath, "rx_lanes"), observedFiles),
         ),
         txLanes: toNumber(
-          readObservedTextFile(posix.join(basePath, "tx_lanes"), observedFiles),
+          readObservedTextFile(join(basePath, "tx_lanes"), observedFiles),
         ),
         interfaceCount: toNumber(
-          readObservedTextFile(posix.join(basePath, "bNumInterfaces"), observedFiles),
+          readObservedTextFile(join(basePath, "bNumInterfaces"), observedFiles),
         ),
         configurationCount: toNumber(
           readObservedTextFile(
-            posix.join(basePath, "bNumConfigurations"),
+            join(basePath, "bNumConfigurations"),
             observedFiles,
           ),
         ),
@@ -2520,32 +2524,32 @@ function readUsbSysfsInterfaces(deviceName, basePath, observedFiles) {
     .filter(
       (name) =>
         name.startsWith(prefix) &&
-        safeExistsSync(posix.join(basePath, name, "bInterfaceClass")),
+        safeExistsSync(join(basePath, name, "bInterfaceClass")),
     )
     .sort()
     .map((name) => {
-      const interfacePath = posix.join(basePath, name);
+      const interfacePath = join(basePath, name);
       return {
         number: toNumber(name.split(".").pop()),
         class: normalizeHexString(
           readObservedTextFile(
-            posix.join(interfacePath, "bInterfaceClass"),
+            join(interfacePath, "bInterfaceClass"),
             observedFiles,
           ),
         ),
         subclass: normalizeHexString(
           readObservedTextFile(
-            posix.join(interfacePath, "bInterfaceSubClass"),
+            join(interfacePath, "bInterfaceSubClass"),
             observedFiles,
           ),
         ),
         protocol: normalizeHexString(
           readObservedTextFile(
-            posix.join(interfacePath, "bInterfaceProtocol"),
+            join(interfacePath, "bInterfaceProtocol"),
             observedFiles,
           ),
         ),
-        driver: readObservedLinkBaseName(posix.join(interfacePath, "driver")),
+        driver: readObservedLinkBaseName(join(interfacePath, "driver")),
       };
     });
 }
@@ -2626,20 +2630,20 @@ export function buildUsbTopologyEdges(devices) {
 
 function readDrmDevices(observedFiles) {
   return safeReaddirSync("/sys/class/drm").map((name) => {
-    const basePath = posix.join("/sys/class/drm", name);
+    const basePath = join("/sys/class/drm", name);
     const uevent = parseUeventText(
-      readObservedTextFile(posix.join(basePath, "device", "uevent"), observedFiles) ??
+      readObservedTextFile(join(basePath, "device", "uevent"), observedFiles) ??
         "",
     );
     const edidBuffer = readObservedBinaryBuffer(
-      posix.join(basePath, "edid"),
+      join(basePath, "edid"),
       observedFiles,
     );
     return {
       name,
       sysfsPath: basePath,
-      edidPath: safeExistsSync(posix.join(basePath, "edid"))
-        ? posix.join(basePath, "edid")
+      edidPath: safeExistsSync(join(basePath, "edid"))
+        ? join(basePath, "edid")
         : undefined,
       edidByteLength: Buffer.isBuffer(edidBuffer)
         ? edidBuffer.length
@@ -2649,41 +2653,41 @@ function readDrmDevices(observedFiles) {
         : name.includes("-")
           ? "connector"
           : "other",
-      status: readObservedTextFile(posix.join(basePath, "status"), observedFiles),
-      enabled: readObservedTextFile(posix.join(basePath, "enabled"), observedFiles),
-      modes: readObservedTextFileList(posix.join(basePath, "modes"), observedFiles),
+      status: readObservedTextFile(join(basePath, "status"), observedFiles),
+      enabled: readObservedTextFile(join(basePath, "enabled"), observedFiles),
+      modes: readObservedTextFileList(join(basePath, "modes"), observedFiles),
       edid: parseEdidBuffer(edidBuffer),
       vendorId:
         normalizeHexString(
           readObservedTextFile(
-            posix.join(basePath, "device", "vendor"),
+            join(basePath, "device", "vendor"),
             observedFiles,
           ),
         ) ?? normalizeHexString(uevent.PCI_ID?.split(":")[0]),
       productId:
         normalizeHexString(
           readObservedTextFile(
-            posix.join(basePath, "device", "device"),
+            join(basePath, "device", "device"),
             observedFiles,
           ),
         ) ?? normalizeHexString(uevent.PCI_ID?.split(":")[1]),
       subsystemVendorId:
         normalizeHexString(
           readObservedTextFile(
-            posix.join(basePath, "device", "subsystem_vendor"),
+            join(basePath, "device", "subsystem_vendor"),
             observedFiles,
           ),
         ) ?? normalizeHexString(uevent.PCI_SUBSYS_ID?.split(":")[0]),
       subsystemDeviceId:
         normalizeHexString(
           readObservedTextFile(
-            posix.join(basePath, "device", "subsystem_device"),
+            join(basePath, "device", "subsystem_device"),
             observedFiles,
           ),
         ) ?? normalizeHexString(uevent.PCI_SUBSYS_ID?.split(":")[1]),
       pciSlot: uevent.PCI_SLOT_NAME,
       driver:
-        readObservedLinkBaseName(posix.join(basePath, "device", "driver")) ??
+        readObservedLinkBaseName(join(basePath, "device", "driver")) ??
         normalizeEmptyString(uevent.DRIVER),
       ofName: normalizeEmptyString(uevent.OF_NAME),
       ofCompatible: collectOrderedUeventValues(uevent, "OF_COMPATIBLE_"),
@@ -2695,26 +2699,26 @@ function readSysfsNetworkInterfaces(observedFiles) {
   return safeReaddirSync("/sys/class/net")
     .filter((name) => name !== "lo")
     .map((name) => {
-      const basePath = posix.join("/sys/class/net", name);
+      const basePath = join("/sys/class/net", name);
       return {
         name,
         ifname: name,
-        address: readObservedTextFile(posix.join(basePath, "address"), observedFiles),
+        address: readObservedTextFile(join(basePath, "address"), observedFiles),
         operstate: readObservedTextFile(
-          posix.join(basePath, "operstate"),
+          join(basePath, "operstate"),
           observedFiles,
         ),
         mtu: toNumber(
-          readObservedTextFile(posix.join(basePath, "mtu"), observedFiles),
+          readObservedTextFile(join(basePath, "mtu"), observedFiles),
         ),
         speedMbps: toNumber(
-          readObservedTextFile(posix.join(basePath, "speed"), observedFiles),
+          readObservedTextFile(join(basePath, "speed"), observedFiles),
         ),
-        duplex: readObservedTextFile(posix.join(basePath, "duplex"), observedFiles),
+        duplex: readObservedTextFile(join(basePath, "duplex"), observedFiles),
         ifindex: toNumber(
-          readObservedTextFile(posix.join(basePath, "ifindex"), observedFiles),
+          readObservedTextFile(join(basePath, "ifindex"), observedFiles),
         ),
-        linkType: readObservedTextFile(posix.join(basePath, "type"), observedFiles),
+        linkType: readObservedTextFile(join(basePath, "type"), observedFiles),
       };
     });
 }
@@ -2723,39 +2727,39 @@ function readSysfsBlockDevices(observedFiles) {
   return safeReaddirSync("/sys/block")
     .filter((name) => !name.startsWith("loop") && !name.startsWith("ram"))
     .map((name) => {
-      const basePath = posix.join("/sys/block", name);
+      const basePath = join("/sys/block", name);
       const sectors = toNumber(
-        readObservedTextFile(posix.join(basePath, "size"), observedFiles),
+        readObservedTextFile(join(basePath, "size"), observedFiles),
       );
       const logicalBlockSize = toNumber(
         readObservedTextFile(
-          posix.join(basePath, "queue", "logical_block_size"),
+          join(basePath, "queue", "logical_block_size"),
           observedFiles,
         ),
       );
       return {
         name,
         model: readObservedTextFile(
-          posix.join(basePath, "device", "model"),
+          join(basePath, "device", "model"),
           observedFiles,
         ),
         vendor: readObservedTextFile(
-          posix.join(basePath, "device", "vendor"),
+          join(basePath, "device", "vendor"),
           observedFiles,
         ),
         serial: readObservedTextFile(
-          posix.join(basePath, "device", "serial"),
+          join(basePath, "device", "serial"),
           observedFiles,
         ),
         removable:
-          readObservedTextFile(posix.join(basePath, "removable"), observedFiles) ===
+          readObservedTextFile(join(basePath, "removable"), observedFiles) ===
           "1",
         rotational:
           readObservedTextFile(
-            posix.join(basePath, "queue", "rotational"),
+            join(basePath, "queue", "rotational"),
             observedFiles,
           ) === "1",
-        subsystem: readObservedLinkBaseName(posix.join(basePath, "subsystem")),
+        subsystem: readObservedLinkBaseName(join(basePath, "subsystem")),
         transport: inferBlockTransport(name, basePath),
         logicalBlockSize,
         size:
@@ -2768,79 +2772,79 @@ function readSysfsBlockDevices(observedFiles) {
 
 function readPowerSupplies(observedFiles) {
   return safeReaddirSync("/sys/class/power_supply").map((name) => {
-    const basePath = posix.join("/sys/class/power_supply", name);
+    const basePath = join("/sys/class/power_supply", name);
     return {
       name,
-      type: readObservedTextFile(posix.join(basePath, "type"), observedFiles),
-      status: readObservedTextFile(posix.join(basePath, "status"), observedFiles),
+      type: readObservedTextFile(join(basePath, "type"), observedFiles),
+      status: readObservedTextFile(join(basePath, "status"), observedFiles),
       capacity: toNumber(
-        readObservedTextFile(posix.join(basePath, "capacity"), observedFiles),
+        readObservedTextFile(join(basePath, "capacity"), observedFiles),
       ),
       cycleCount: toNumber(
-        readObservedTextFile(posix.join(basePath, "cycle_count"), observedFiles),
+        readObservedTextFile(join(basePath, "cycle_count"), observedFiles),
       ),
       manufacturer: readObservedTextFile(
-        posix.join(basePath, "manufacturer"),
+        join(basePath, "manufacturer"),
         observedFiles,
       ),
       modelName: readObservedTextFile(
-        posix.join(basePath, "model_name"),
+        join(basePath, "model_name"),
         observedFiles,
       ),
       serialNumber: readObservedTextFile(
-        posix.join(basePath, "serial_number"),
+        join(basePath, "serial_number"),
         observedFiles,
       ),
       technology: readObservedTextFile(
-        posix.join(basePath, "technology"),
+        join(basePath, "technology"),
         observedFiles,
       ),
-      scope: readObservedTextFile(posix.join(basePath, "scope"), observedFiles),
+      scope: readObservedTextFile(join(basePath, "scope"), observedFiles),
       online: toNumber(
-        readObservedTextFile(posix.join(basePath, "online"), observedFiles),
+        readObservedTextFile(join(basePath, "online"), observedFiles),
       ),
       voltageNow: toNumber(
-        readObservedTextFile(posix.join(basePath, "voltage_now"), observedFiles),
+        readObservedTextFile(join(basePath, "voltage_now"), observedFiles),
       ),
       voltageMinDesign: toNumber(
         readObservedTextFile(
-          posix.join(basePath, "voltage_min_design"),
+          join(basePath, "voltage_min_design"),
           observedFiles,
         ),
       ),
       voltageMaxDesign: toNumber(
         readObservedTextFile(
-          posix.join(basePath, "voltage_max_design"),
+          join(basePath, "voltage_max_design"),
           observedFiles,
         ),
       ),
       currentNow: toNumber(
-        readObservedTextFile(posix.join(basePath, "current_now"), observedFiles),
+        readObservedTextFile(join(basePath, "current_now"), observedFiles),
       ),
       powerNow: toNumber(
-        readObservedTextFile(posix.join(basePath, "power_now"), observedFiles),
+        readObservedTextFile(join(basePath, "power_now"), observedFiles),
       ),
       energyNow: toNumber(
-        readObservedTextFile(posix.join(basePath, "energy_now"), observedFiles),
+        readObservedTextFile(join(basePath, "energy_now"), observedFiles),
       ),
       energyFull: toNumber(
-        readObservedTextFile(posix.join(basePath, "energy_full"), observedFiles),
+        readObservedTextFile(join(basePath, "energy_full"), observedFiles),
       ),
       energyFullDesign: toNumber(
         readObservedTextFile(
-          posix.join(basePath, "energy_full_design"),
+          join(basePath, "energy_full_design"),
           observedFiles,
         ),
       ),
       chargeNow: toNumber(
-        readObservedTextFile(posix.join(basePath, "charge_now"), observedFiles),
+        readObservedTextFile(join(basePath, "charge_now"), observedFiles),
       ),
       chargeFull: toNumber(
-        readObservedTextFile(posix.join(basePath, "charge_full"), observedFiles),
+        readObservedTextFile(join(basePath, "charge_full"), observedFiles),
       ),
       chargeFullDesign: toNumber(
         readObservedTextFile(
-          posix.join(basePath, "charge_full_design"),
+          join(basePath, "charge_full_design"),
           observedFiles,
         ),
       ),
@@ -2850,9 +2854,9 @@ function readPowerSupplies(observedFiles) {
 
 function readHwmonDevices(observedFiles) {
   return safeReaddirSync("/sys/class/hwmon").map((name) => {
-    const basePath = posix.join("/sys/class/hwmon", name);
+    const basePath = join("/sys/class/hwmon", name);
     return parseHwmonAttributes({
-      name: readObservedTextFile(posix.join(basePath, "name"), observedFiles),
+      name: readObservedTextFile(join(basePath, "name"), observedFiles),
       ...collectIndexedAttributeFiles(basePath, observedFiles, "temp", [
         "input",
         "label",
@@ -2870,72 +2874,72 @@ function readThermalZones(observedFiles) {
   return safeReaddirSync("/sys/class/thermal")
     .filter((name) => name.startsWith("thermal_zone"))
     .map((name) => {
-      const basePath = posix.join("/sys/class/thermal", name);
+      const basePath = join("/sys/class/thermal", name);
       return {
         name,
-        type: readObservedTextFile(posix.join(basePath, "type"), observedFiles),
+        type: readObservedTextFile(join(basePath, "type"), observedFiles),
         tempMilliC: toNumber(
-          readObservedTextFile(posix.join(basePath, "temp"), observedFiles),
+          readObservedTextFile(join(basePath, "temp"), observedFiles),
         ),
-        mode: readObservedTextFile(posix.join(basePath, "mode"), observedFiles),
+        mode: readObservedTextFile(join(basePath, "mode"), observedFiles),
       };
     });
 }
 
 function readTpmDevices(observedFiles) {
   return safeReaddirSync("/sys/class/tpm").map((name) => {
-    const basePath = posix.join("/sys/class/tpm", name);
+    const basePath = join("/sys/class/tpm", name);
     return {
       name,
       versionMajor: toNumber(
         readObservedTextFile(
-          posix.join(basePath, "tpm_version_major"),
+          join(basePath, "tpm_version_major"),
           observedFiles,
         ),
       ),
       versionMinor: toNumber(
         readObservedTextFile(
-          posix.join(basePath, "tpm_version_minor"),
+          join(basePath, "tpm_version_minor"),
           observedFiles,
         ),
       ),
       description: readObservedTextFile(
-        posix.join(basePath, "device", "description"),
+        join(basePath, "device", "description"),
         observedFiles,
       ),
       modalias: readObservedTextFile(
-        posix.join(basePath, "device", "modalias"),
+        join(basePath, "device", "modalias"),
         observedFiles,
       ),
-      driver: readObservedLinkBaseName(posix.join(basePath, "device", "driver")),
+      driver: readObservedLinkBaseName(join(basePath, "device", "driver")),
     };
   });
 }
 
 function readNvmeControllers(observedFiles) {
   return safeReaddirSync("/sys/class/nvme").map((name) => {
-    const basePath = posix.join("/sys/class/nvme", name);
+    const basePath = join("/sys/class/nvme", name);
     const namespaces = safeReaddirSync(basePath)
-      .filter((entry) => safeExistsSync(posix.join(basePath, entry)))
+      .filter((entry) => safeExistsSync(join(basePath, entry)))
       .filter((entry) => new RegExp(`^${name}n\\d+$`, "u").test(entry));
     return {
       name,
-      model: readObservedTextFile(posix.join(basePath, "model"), observedFiles),
-      serial: readObservedTextFile(posix.join(basePath, "serial"), observedFiles),
+      model: readObservedTextFile(join(basePath, "model"), observedFiles),
+      serial: readObservedTextFile(join(basePath, "serial"), observedFiles),
       firmwareRevision: readObservedTextFile(
-        posix.join(basePath, "firmware_rev"),
+        join(basePath, "firmware_rev"),
         observedFiles,
       ),
       transport: readObservedTextFile(
-        posix.join(basePath, "transport"),
+        join(basePath, "transport"),
         observedFiles,
       ),
-      state: readObservedTextFile(posix.join(basePath, "state"), observedFiles),
-      address: readObservedTextFile(posix.join(basePath, "address"), observedFiles),
+      state: readObservedTextFile(join(basePath, "state"), observedFiles),
+      address: readObservedTextFile(join(basePath, "address"), observedFiles),
       vendorId: normalizeHexString(
-        readObservedTextFile(posix.join(basePath, "device", "vendor"), observedFiles),
+        readObservedTextFile(join(basePath, "device", "vendor"), observedFiles),
       ),
-      driver: readObservedLinkBaseName(posix.join(basePath, "device", "driver")),
+      driver: readObservedLinkBaseName(join(basePath, "device", "driver")),
       namespaceCount: namespaces.length || undefined,
       namespaces,
     };
@@ -4750,9 +4754,9 @@ export function isValidLinuxEdidPath(value) {
     return false;
   }
 
-  const resolvedPath = posix.resolve(normalized);
+  const resolvedPath = resolve(normalized);
   return (
-    posix.basename(resolvedPath) === "edid" &&
+    basename(resolvedPath) === "edid" &&
     /^\/sys\/class\/drm\/[^/]+\/edid$/u.test(resolvedPath)
   );
 }
@@ -5240,7 +5244,7 @@ function inferBlockTransport(deviceName, basePath) {
   if (deviceName.startsWith("sd")) {
     return "scsi";
   }
-  if (safeExistsSync(posix.join(basePath, "device", "ieee1394_id"))) {
+  if (safeExistsSync(join(basePath, "device", "ieee1394_id"))) {
     return "firewire";
   }
   return undefined;
@@ -5525,7 +5529,7 @@ function collectIndexedAttributeFiles(
         suffixes.forEach((suffix) => {
           const fileName = suffix ? `${sensorPrefix}_${suffix}` : sensorPrefix;
           const value = readObservedTextFile(
-            posix.join(basePath, fileName),
+            join(basePath, fileName),
             observedFiles,
           );
           if (value !== undefined) {
