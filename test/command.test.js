@@ -48,7 +48,12 @@ test("runCommand classifies permission-denied failures", async () => {
     (error) => {
       assert.equal(error.code, "CDX_HBOM_PERMISSION_DENIED");
       assert.equal(error.issue, "permission-denied");
-      assert.match(error.privilegeHint, /--privileged/u);
+      assert.match(
+        error.privilegeHint,
+        process.platform === "win32"
+          ? /never requests elevation on Windows/u
+          : /--privileged/u,
+      );
       return true;
     },
   );
