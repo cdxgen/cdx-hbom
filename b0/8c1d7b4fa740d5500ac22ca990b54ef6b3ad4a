@@ -1,0 +1,20 @@
+index.js
+  h_6a4cc5cdf68def 49,92-94,235-236,241-242
+src/common/command.js
+  h_6a4cc5cdf68def 1,10,45,92,98-119,135,165,185,227-229,243,281-285,337-338
+src/common/safe.js
+  h_6a4cc5cdf68def 9,296,302-305,458-473
+src/linux/common/index.js
+  h_6a4cc5cdf68def 5111-5115
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b08c1d7b4fa740d5500ac22ca990b54ef6b3ad4a",
+  "prompts": {},
+  "humans": {
+    "h_6a4cc5cdf68def": {
+      "author": "Team AppThreat <cloud@appthreat.com>"
+    }
+  }
+}
