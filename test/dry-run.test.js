@@ -82,11 +82,20 @@ test("collectHardware routes win32 to the Windows collector", async () => {
     );
   }
   // On a non-Windows host the collector refuses to run; the platform gate
-  // lives inside the collector, matching Linux and Darwin.
-  await assert.rejects(
-    () => collectHardware({ platform: "win32", architecture: "amd64" }),
-    /Windows collector must run on win32/u,
-  );
+  // lives inside the collector, matching Linux and Darwin. On Windows the
+  // same call collects for real.
+  if (process.platform === "win32") {
+    const bom = await collectHardware({
+      platform: "win32",
+      architecture: "amd64",
+    });
+    assert.equal(bom.specVersion, "1.7");
+  } else {
+    await assert.rejects(
+      () => collectHardware({ platform: "win32", architecture: "amd64" }),
+      /Windows collector must run on win32/u,
+    );
+  }
 });
 
 test("dry-run on win32 builds a T0 BOM with only blocked command activities", async () => {
