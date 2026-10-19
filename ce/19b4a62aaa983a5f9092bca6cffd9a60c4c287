@@ -1,0 +1,34 @@
+docs/hardware-properties.md
+  h_6a4cc5cdf68def 191,199-206,217,231-235
+scripts/windows/redact-fixtures.mjs
+  h_6a4cc5cdf68def 41-43,47-48,154-156
+src/windows/common/pnp.js
+  h_6a4cc5cdf68def 67-69,71
+test/fixtures/windows/arm64/vm-parallels-elevated/manifest.json
+  h_6a4cc5cdf68def 3,16,20-27,32
+test/fixtures/windows/arm64/vm-parallels-elevated/windows-cim-storage-network.stdout
+  h_6a4cc5cdf68def 1
+test/fixtures/windows/arm64/vm-parallels-std-local/manifest.json
+  h_6a4cc5cdf68def 3,16,20-27,32
+test/fixtures/windows/arm64/vm-parallels-std-local/windows-cim-storage-network.stdout
+  h_6a4cc5cdf68def 1
+test/fixtures/windows/arm64/vm-parallels-std-network/manifest.json
+  h_6a4cc5cdf68def 3,15,19-26,31
+test/fixtures/windows/arm64/vm-parallels-std-network/windows-cim-storage-network.stdout
+  h_6a4cc5cdf68def 1
+test/windows/fixtures.test.js
+  h_6a4cc5cdf68def 91,98,136-145,160
+test/windows/storage-network.test.js
+  h_6a4cc5cdf68def 1-461
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "ce19b4a62aaa983a5f9092bca6cffd9a60c4c287",
+  "prompts": {},
+  "humans": {
+    "h_6a4cc5cdf68def": {
+      "author": "Team AppThreat <cloud@appthreat.com>"
+    }
+  }
+}
