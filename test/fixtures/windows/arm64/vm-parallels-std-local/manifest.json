@@ -1,0 +1,29 @@
+{
+  "label": "vm-parallels-std-local",
+  "capturedAt": "2026-10-19T18:40:52.219Z",
+  "nodeVersion": "v24.20.0",
+  "processArch": "x64",
+  "osRelease": "10.0.26200",
+  "hardwareArch": "arm64",
+  "elevated": false,
+  "languageMode": "FullLanguage",
+  "psVersion": "5.1.26100.9457",
+  "commands": [
+    {
+      "id": "windows-cim-platform",
+      "argsSha256": "32d2257efbe318a250aa6f9b2b0cb0664ce6095d278c43e49efbe2673cf2a492",
+      "exitCode": 0,
+      "durationMs": 1297,
+      "bytes": 4446,
+      "provenance": "captured"
+    },
+    {
+      "id": "windows-cim-selftest",
+      "argsSha256": "3f90eaab8a502377d0472b05f98acb1084f3a787088aceaeed6135267b75103a",
+      "exitCode": 0,
+      "durationMs": 6325,
+      "bytes": 25070,
+      "provenance": "captured"
+    }
+  ]
+}
