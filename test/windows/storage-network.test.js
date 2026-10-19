@@ -7,7 +7,10 @@ import { join } from "node:path";
 import { isPlaceholderIdentity } from "../../src/common/shape.js";
 import { parseWindowsEnvelope } from "../../src/windows/common/cim.js";
 import { WINDOWS_COMMANDS } from "../../src/windows/common/commands.js";
-import { selectHardwareNetAdapters } from "../../src/windows/common/network.js";
+import {
+  buildNetworkComponents,
+  selectHardwareNetAdapters,
+} from "../../src/windows/common/network.js";
 import { buildWindowsHbom } from "../../src/windows/common/index.js";
 
 const FIXTURES_ROOT = fileURLToPath(
@@ -459,3 +462,36 @@ function collectSensitiveValues(envelope) {
   }
   return values;
 }
+
+test("ServiceName join survives the live instance-ID case difference", () => {
+  // Live shape observed on win11-vm: MSFT_NetAdapter lower-cases the
+  // instance segment while Win32_NetworkAdapter upper-cases it (not visible
+  // in the committed fixtures, whose redacted segments match exactly).
+  // Test input derived from those two live spellings.
+  const components = buildNetworkComponents(
+    [
+      {
+        Name: "Ethernet",
+        InterfaceDescription: "Parallels VirtIO Ethernet Adapter",
+        HardwareInterface: true,
+        Virtual: false,
+        EndPointInterface: false,
+        PnPDeviceID: "PCI\\VEN_1AF4&DEV_1000\\3&3259bad1&0&28",
+        DriverName: "\\SystemRoot\\System32\\drivers\\netkvm.sys",
+      },
+    ],
+    [],
+    { ok: true },
+    [
+      {
+        Name: "Parallels VirtIO Ethernet Adapter",
+        PhysicalAdapter: true,
+        ServiceName: "netkvm",
+        PNPDeviceID: "PCI\\VEN_1AF4&DEV_1000\\3&3259BAD1&0&28",
+      },
+    ],
+    {},
+  );
+  assert.equal(components.length, 1);
+  assert.equal(prop(components[0], "cdx:hbom:driver"), "netkvm");
+});

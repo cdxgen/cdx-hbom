@@ -2,8 +2,6 @@
 // MSFT_NetAdapter, with Win32_NetworkAdapter as the fallback when the
 // NetAdapter CIM classes are unavailable. All builders are pure.
 
-import { posix } from "node:path";
-
 import {
   compact,
   createHardwareComponent,
@@ -247,24 +245,30 @@ function netAdapterDriver(adapter, legacy) {
   if (driverName === undefined) {
     return undefined;
   }
-  const base = posix.basename(driverName).replace(/\.sys$/iu, "");
+  // DriverName is a Windows path (\SystemRoot\...\netkvm.sys).
+  const base = (driverName.split(/[\\/]/u).at(-1) ?? "").replace(/\.sys$/iu, "");
   return base.length > 0 ? base : undefined;
 }
 
 /**
  * Find the Win32_NetworkAdapter carrying the same PnP device instance ID.
  *
+ * Device instance IDs compare case-insensitively: MSFT_NetAdapter reports
+ * the virtio instance segment in lower-case hex while Win32_NetworkAdapter
+ * reports the same segment upper-cased (observed live on win11-vm).
+ * https://learn.microsoft.com/en-us/windows-hardware/drivers/install/device-instance-ids
+ *
  * @param {Array<Record<string, unknown>>} legacyAdapters Legacy items.
  * @param {unknown} instanceId PnPDeviceID to match.
  * @returns {Record<string, unknown> | undefined} Matched adapter.
  */
 function findLegacyByInstanceId(legacyAdapters, instanceId) {
-  const target = cimString(instanceId);
+  const target = cimString(instanceId)?.toLowerCase();
   if (target === undefined) {
     return undefined;
   }
   return legacyAdapters.find(
-    (adapter) => cimString(adapter.PNPDeviceID) === target,
+    (adapter) => cimString(adapter.PNPDeviceID)?.toLowerCase() === target,
   );
 }
 
