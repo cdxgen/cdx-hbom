@@ -309,8 +309,12 @@ export function redactInstanceId(id, options = {}) {
 
   const devicePart = text.slice(0, lastSeparator);
   const instanceSegment = text.slice(lastSeparator + 1);
+  // redactIdentifier turns short segments into a bare `redacted`; keep that
+  // as is so a second pass does not turn it into `redacted:cted`.
   const redactedInstance =
-    redactIdentifier(instanceSegment, options) ?? instanceSegment;
+    instanceSegment === "redacted"
+      ? instanceSegment
+      : (redactIdentifier(instanceSegment, options) ?? instanceSegment);
 
   const enumerator = text.slice(0, firstSeparator);
   const safeDevicePart = /^(BTHENUM|BTHLE)$/iu.test(enumerator)
@@ -321,4 +325,52 @@ export function redactInstanceId(id, options = {}) {
     : devicePart;
 
   return `${safeDevicePart}${INSTANCE_ID_SEPARATOR}${redactedInstance}`;
+}
+
+/**
+ * Redact hardware or compatible IDs that repeat the device's instance segment.
+ *
+ * Hyper-V VMBus devices list their own instance GUID as a hardware ID
+ * (`VMBUS\{instance}`), observed for most VMBus devices in the windows-2025
+ * and windows-11-arm GitHub runner captures. Such an entry carries the same
+ * per-machine value that `redactInstanceId` removes from the instance ID, so
+ * it is redacted the same way and the two still match.
+ *
+ * @param {string[] | string | null | undefined} list Hardware or compatible IDs.
+ * @param {string | undefined} instanceId The device's PNPDeviceID.
+ * @param {{ includeSensitiveIdentifiers?: boolean }} [options={}] Redaction options.
+ * @returns {string[]} IDs with echoed instance segments redacted.
+ */
+export function redactHardwareIds(list, instanceId, options = {}) {
+  const ids = Array.isArray(list) ? list : list ? [list] : [];
+  const instance = getInstanceSegment(instanceId);
+  if (!instance || options.includeSensitiveIdentifiers === true) {
+    return [...ids];
+  }
+  return ids.map((id) => {
+    const text = String(id ?? "");
+    const separator = text.indexOf(INSTANCE_ID_SEPARATOR);
+    const devicePart = text.slice(separator + 1);
+    if (
+      separator <= 0 ||
+      devicePart === "redacted" ||
+      devicePart.toLowerCase() !== instance.toLowerCase()
+    ) {
+      return text;
+    }
+    return `${text.slice(0, separator + 1)}${redactIdentifier(devicePart, options) ?? devicePart}`;
+  });
+}
+
+/**
+ * Return the instance segment of a device instance ID, if it has one.
+ *
+ * @param {string | undefined} id Device instance ID.
+ * @returns {string | undefined} Raw instance segment.
+ */
+export function getInstanceSegment(id) {
+  const text = String(id ?? "");
+  const first = text.indexOf(INSTANCE_ID_SEPARATOR);
+  const last = text.lastIndexOf(INSTANCE_ID_SEPARATOR);
+  return first > 0 && last !== first ? text.slice(last + 1) : undefined;
 }

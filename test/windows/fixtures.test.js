@@ -5,6 +5,7 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 import { join } from "node:path";
 
+import { isPlaceholderIdentity } from "../../src/common/shape.js";
 import {
   WINDOWS_COMMANDS,
   WINDOWS_SELFTEST_COMMAND,
@@ -141,7 +142,8 @@ test("committed fixtures carry only redacted sensitive values", () => {
               continue;
             }
             assert.ok(
-              serialPattern.test(entry) ||
+              isPlaceholderIdentity(entry) ||
+                serialPattern.test(entry) ||
                 guidReplacement.test(entry) ||
                 /^redacted(:|$)/u.test(entry),
               `${label}/${command.id}: ${field} still carries a raw value (${entry.slice(0, 12)}...)`,

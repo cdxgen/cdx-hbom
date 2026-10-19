@@ -3,8 +3,10 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 
 import {
+  getInstanceSegment,
   parseDeviceInstanceId,
   parseHardwareIds,
+  redactHardwareIds,
   redactInstanceId,
 } from "../../src/windows/common/pnp.js";
 import { parseWindowsEnvelope } from "../../src/windows/common/cim.js";
@@ -236,11 +238,51 @@ test("redactInstanceId redacts the instance segment and Bluetooth MACs", () => {
   );
   // Redaction is idempotent, so already-redacted fixture values stay stable.
   assert.equal(
+    redactInstanceId(redactInstanceId("ACPI\\PRL4005\\0")),
+    "ACPI\\PRL4005\\redacted",
+  );
+  assert.equal(
     redactInstanceId(
       "PCI\\VEN_8086&DEV_265C&SUBSYS_04001AB8&REV_02\\redacted:0&10",
     ),
     "PCI\\VEN_8086&DEV_265C&SUBSYS_04001AB8&REV_02\\redacted:0&10",
   );
+});
+
+test("redactHardwareIds redacts hardware IDs that repeat the instance segment", () => {
+  // Shape observed for VMBus devices on the windows-2025 and windows-11-arm
+  // runners: HardwareID is [VMBUS\{device type}, VMBUS\{instance}]. The
+  // device type GUID is from those captures; the instance GUID is made up.
+  const instanceId =
+    "VMBUS\\{F8615163-DF3E-46C5-913F-F2D2F965ED0E}\\{11111111-2222-4333-8444-555555555555}";
+  const hardwareIds = [
+    "VMBUS\\{F8615163-DF3E-46C5-913F-F2D2F965ED0E}",
+    "VMBUS\\{11111111-2222-4333-8444-555555555555}",
+  ];
+
+  const redacted = redactHardwareIds(hardwareIds, instanceId);
+  assert.deepEqual(redacted, [
+    "VMBUS\\{F8615163-DF3E-46C5-913F-F2D2F965ED0E}",
+    "VMBUS\\redacted:555}",
+  ]);
+  // The echoed entry matches the redacted instance ID, so joins survive.
+  assert.equal(
+    redactInstanceId(instanceId).split("\\").at(-1),
+    redacted[1].split("\\").at(-1),
+  );
+  // Idempotent over already-redacted values, and raw on request.
+  assert.deepEqual(
+    redactHardwareIds(redacted, redactInstanceId(instanceId)),
+    redacted,
+  );
+  assert.deepEqual(
+    redactHardwareIds(hardwareIds, instanceId, {
+      includeSensitiveIdentifiers: true,
+    }),
+    hardwareIds,
+  );
+  assert.equal(getInstanceSegment("USB\\COMPOSITE"), undefined);
+  assert.equal(getInstanceSegment("\\\\.\\PHYSICALDRIVE0"), undefined);
 });
 
 test("captured selftest PnP IDs parse after fixture redaction", () => {

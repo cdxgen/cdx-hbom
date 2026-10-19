@@ -24,11 +24,16 @@ import { existsSync, readFileSync, readdirSync, rmSync, writeFileSync } from "no
 import { join } from "node:path";
 import process from "node:process";
 
+import { isPlaceholderIdentity } from "../../src/common/shape.js";
 import {
   WINDOWS_COMMANDS,
   WINDOWS_SELFTEST_COMMAND,
 } from "../../src/windows/common/commands.js";
-import { redactInstanceId } from "../../src/windows/common/pnp.js";
+import {
+  getInstanceSegment,
+  redactHardwareIds,
+  redactInstanceId,
+} from "../../src/windows/common/pnp.js";
 
 const GUID_PATTERN = /^\{?([0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12})\}?$/u;
 const MAC_PATTERN = /^([0-9A-Fa-f]{2}[:-]){5}[0-9A-Fa-f]{2}$/u;
@@ -72,21 +77,22 @@ const counters = { serial: 0, guid: 0, mac: 0 };
 const files = readdirSync(directory).filter((name) =>
   name.endsWith(".stdout"),
 );
-for (const name of files) {
-  redactFile(join(directory, name));
-}
-
+// Messages describe survivors by position and length only: this script also
+// runs in public CI logs (windows-capture.yml), so it never prints a value.
 const survivors = [];
 for (const name of files) {
+  survivors.push(...redactFile(join(directory, name)));
+}
+for (const name of files) {
   const text = readFileSync(join(directory, name), "utf8");
-  for (const literal of literals) {
+  literals.forEach((literal, index) => {
     if (containsLiteral(text, literal)) {
-      survivors.push(`${name}: ${literal}`);
+      survivors.push(`${name}: literal #${index + 1} (${literal.length} chars)`);
     }
-  }
+  });
 }
 if (survivors.length > 0) {
-  console.error(`redact-fixtures: literals still present after redaction:`);
+  console.error(`redact-fixtures: raw values still present after redaction:`);
   for (const survivor of survivors) {
     console.error(`  ${survivor}`);
   }
@@ -123,7 +129,7 @@ function loadLiterals(directory, explicit) {
  * Redact one captured stdout file in place.
  *
  * @param {string} filePath File to redact.
- * @returns {void} Nothing.
+ * @returns {string[]} Survivors: sensitive values still present afterwards.
  */
 function redactFile(filePath) {
   const original = readFileSync(filePath, "utf8");
@@ -149,13 +155,13 @@ function redactFile(filePath) {
     .map((value) => [value, replacementFor(value)])
     .filter(([value, replacement]) => value !== replacement);
 
-  // Longest first so a value that contains another targeted value as a
-  // substring is replaced before its inner part can match.
-  replacements.sort((a, b) => b[0].length - a[0].length);
+  // Replace whole JSON string tokens only. A substring match would rewrite
+  // unrelated values that merely contain a short serial. The same value in
+  // any other string field is still replaced, which keeps joins stable.
   for (const [value, replacement] of replacements) {
     text = text.replaceAll(
-      new RegExp(jsonTextPattern(value), "g"),
-      () => escapeJson(replacement),
+      new RegExp(`"${jsonTextPattern(value)}"`, "g"),
+      () => `"${escapeJson(replacement)}"`,
     );
   }
 
@@ -169,6 +175,41 @@ function redactFile(filePath) {
   if (text !== original) {
     writeFileSync(filePath, text, "utf8");
   }
+
+  // Token replacement misses a sensitive value embedded in a longer string,
+  // and a raw PnP instance segment can be repeated in another field, so fail
+  // closed instead. Values of 4 characters or fewer are skipped: they are too
+  // short to identify a host, and redactIdentifier treats them the same.
+  const leftovers = [
+    ...replacements.map(([value]) => value),
+    ...collectRawInstanceSegments(envelope),
+  ];
+  return leftovers
+    .filter((value) => value.length > 4)
+    .filter((value) => new RegExp(jsonTextPattern(value), "u").test(text))
+    .map(
+      (value) =>
+        `${fileName(filePath)}.stdout: sensitive value (${value.length} chars) still present`,
+    );
+}
+
+/**
+ * Collect the raw (not yet redacted) PnP instance segments of an envelope.
+ *
+ * @param {object | undefined} envelope Parsed envelope.
+ * @returns {string[]} Raw instance segments.
+ */
+function collectRawInstanceSegments(envelope) {
+  const segments = [];
+  for (const result of Object.values(envelope?.results ?? {})) {
+    for (const item of [...(result?.items ?? [])]) {
+      const segment = getInstanceSegment(item?.PNPDeviceID ?? item?.PnPDeviceID);
+      if (segment && !segment.startsWith("redacted")) {
+        segments.push(segment);
+      }
+    }
+  }
+  return segments;
 }
 
 /**
@@ -212,9 +253,12 @@ function collectGenericFields(envelope, sensitive) {
       if (!item || typeof item !== "object") {
         continue;
       }
+      const instanceId = item.PNPDeviceID ?? item.PnPDeviceID;
       for (const [name, value] of Object.entries(item)) {
         if (PNP_FIELD_NAMES.has(name)) {
-          collectFieldValue(item, name, sensitive, redactInstanceId);
+          collectFieldValue(item, name, sensitive, (entry) =>
+            redactHardwareIds([redactInstanceId(entry)], instanceId)[0],
+          );
           continue;
         }
         if (MAC_FIELD_PATTERN.test(name)) {
@@ -247,7 +291,9 @@ function collectFieldValue(item, name, sensitive, transform = undefined) {
         assignments.set(entry, replacement);
         sensitive.push(entry);
       }
-    } else {
+    } else if (!isPlaceholderIdentity(entry)) {
+      // Placeholders such as Hyper-V's `None` identify nothing, and many
+      // unrelated fields share them, so they stay as captured.
       sensitive.push(entry);
     }
   }

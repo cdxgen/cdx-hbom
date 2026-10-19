@@ -17,6 +17,7 @@ import {
   createComponent,
   createHardwareComponent,
   createProperty,
+  isPlaceholderIdentity,
   redactIdentifier,
 } from "../../common/shape.js";
 import {
@@ -5987,15 +5988,7 @@ function normalizeIdentityString(value) {
   if (!normalized) {
     return undefined;
   }
-  if (
-    [
-      "default string",
-      "to be filled by o.e.m.",
-      "not specified",
-      "unknown",
-      "none",
-    ].includes(normalized.toLowerCase())
-  ) {
+  if (isPlaceholderIdentity(normalized)) {
     return undefined;
   }
 
