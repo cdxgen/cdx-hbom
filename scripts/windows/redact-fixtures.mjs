@@ -154,15 +154,15 @@ function redactFile(filePath) {
   replacements.sort((a, b) => b[0].length - a[0].length);
   for (const [value, replacement] of replacements) {
     text = text.replaceAll(
-      escapeJson(value),
-      escapeJson(replacement),
+      new RegExp(jsonTextPattern(value), "g"),
+      () => escapeJson(replacement),
     );
   }
 
   for (const literal of literals) {
-    text = text.replace(
+    text = text.replaceAll(
       literalPattern(literal),
-      escapeJson(LITERAL_REPLACEMENT),
+      () => escapeJson(LITERAL_REPLACEMENT),
     );
   }
 
@@ -173,6 +173,10 @@ function redactFile(filePath) {
 
 /**
  * Collect values of one `resultKey.field` sensitive path.
+ *
+ * Fields holding PnP identifiers always redact through the instance-segment
+ * rule (two-part hardware IDs pass through unchanged), so listing them in a
+ * spec's `sensitiveFields` documents sensitivity without mangling whole IDs.
  *
  * @param {object} envelope Parsed envelope.
  * @param {string} field Path such as `bios.SerialNumber`.
@@ -186,11 +190,12 @@ function collectSensitiveField(envelope, field, sensitive) {
   }
   const result = envelope.results?.[field.slice(0, separator)];
   const name = field.slice(separator + 1);
+  const transform = PNP_FIELD_NAMES.has(name) ? redactInstanceId : undefined;
   for (const item of [...(result?.items ?? [])]) {
-    collectFieldValue(item, name, sensitive);
+    collectFieldValue(item, name, sensitive, transform);
   }
   if (result?.values) {
-    collectFieldValue(result.values, name, sensitive);
+    collectFieldValue(result.values, name, sensitive, transform);
   }
 }
 
@@ -321,16 +326,55 @@ function escapeJson(value) {
 }
 
 /**
- * Build a case-insensitive pattern matching a literal in raw or JSON-escaped text.
+ * Build a regex source matching a value as it appears in captured JSON text.
+ *
+ * Windows PowerShell's `ConvertTo-Json` HTML-escapes `& < > '` as
+ * `\u0026`-style sequences (observed in VM-FINDINGS §3), while plain JSON
+ * keeps them literal, so each such character matches either form. Backslashes
+ * and quotes match their JSON-escaped spellings.
+ *
+ * @param {string} value Raw value.
+ * @returns {string} Regex source.
+ */
+function jsonTextPattern(value) {
+  const bs = "\\";
+  let source = "";
+  for (const ch of value) {
+    if (ch === bs) {
+      source += `${bs}${bs}${bs}${bs}`;
+    } else if (ch === '"') {
+      source += `${bs}${bs}"`;
+    } else if (ch === "&") {
+      source += `(?:${bs}${bs}u0026|&)`;
+    } else if (ch === "<") {
+      source += `(?:${bs}${bs}u003c|<)`;
+    } else if (ch === ">") {
+      source += `(?:${bs}${bs}u003e|>)`;
+    } else if (ch === "'") {
+      source += `(?:${bs}${bs}u0027|')`;
+    } else if (ch === "\n") {
+      source += `${bs}n`;
+    } else if (ch === "\r") {
+      source += `${bs}r`;
+    } else if (ch === "\t") {
+      source += `${bs}t`;
+    } else if ("*+?^${}()|[]".includes(ch)) {
+      source += bs + ch;
+    } else {
+      source += ch;
+    }
+  }
+  return source;
+}
+
+/**
+ * Build a case-insensitive pattern matching a literal in captured JSON text.
  *
  * @param {string} literal Literal value.
- * @returns {RegExp} Pattern with the `g` flag.
+ * @returns {RegExp} Pattern with the `g` and `i` flags.
  */
 function literalPattern(literal) {
-  const alternatives = [literal, escapeJson(literal)]
-    .filter((candidate) => candidate.length > 0)
-    .map((candidate) => candidate.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&"));
-  return new RegExp(alternatives.join("|"), "gi");
+  return new RegExp(jsonTextPattern(literal), "gi");
 }
 
 /**
