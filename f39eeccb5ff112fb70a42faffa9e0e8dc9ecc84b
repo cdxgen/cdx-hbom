@@ -1,0 +1,30 @@
+scripts/windows/redact-fixtures.mjs
+  s_c81cb3ef09afe3::t_aed4d66edc4e84 180-189,191-192,196-212
+  s_c81cb3ef09afe3::t_a552faf90df43b 256,259-261
+  s_c81cb3ef09afe3::t_84bb77e562b6ee 32-36
+  s_c81cb3ef09afe3::t_780e1a3529a5a4 213-214
+test/windows/pnp.test.js
+  s_c81cb3ef09afe3::t_eb18dff5e771a1 6,9
+  s_c81cb3ef09afe3::t_e7649aee577ae9 252-287
+src/windows/common/pnp.js
+  s_c81cb3ef09afe3::t_d78ad77dd7e614 354-358
+  s_c81cb3ef09afe3::t_aa50425e93c705 329-353,359-376
+test/windows/capture-tools.test.js
+  s_c81cb3ef09afe3::t_3b0b1bd80a3c57 213
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f39eeccb5ff112fb70a42faffa9e0e8dc9ecc84b",
+  "prompts": {},
+  "sessions": {
+    "s_c81cb3ef09afe3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2eb5ded0-f83f-4668-b459-e157774b0030",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Prabhu Subramanian <prabhu@appthreat.com>"
+    }
+  }
+}
