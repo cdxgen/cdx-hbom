@@ -2,7 +2,7 @@
 
 `cdx-hbom` emits **official CycloneDX 1.7 JSON documents** and carries hardware-specific detail via custom `properties`.
 
-All currently emitted custom property names use the `cdx:hbom:` prefix. This page is intended to describe the properties emitted by the current source tree, including Darwin camera/APFS enrichment and the newer Linux sensor, TPM, NVMe, MMC, graphics, and audio fields.
+All currently emitted custom property names use the `cdx:hbom:` prefix. This page is intended to describe the properties emitted by the current source tree, including Darwin camera/APFS enrichment, the newer Linux sensor, TPM, NVMe, MMC, graphics, and audio fields, and the Windows CIM collector fields.
 
 ## Document-level properties
 
@@ -22,6 +22,11 @@ These properties appear at the BOM top level in `properties`.
 | `cdx:hbom:evidence:command`                | A command used during collection                               | `lscpu-json,cpu-memory,lscpu -J`                     |
 | `cdx:hbom:evidence:commandDiagnosticCount` | Number of optional command diagnostics captured                | `2`                                                  |
 | `cdx:hbom:evidence:commandDiagnostic`      | JSON-serialized skipped-command diagnostic with issue and hint | `{"id":"drm-info-json","issue":"permission-denied"}` |
+| `cdx:hbom:architectureSource`              | Windows: where the emitted architecture came from (`Win32_Processor` or the collector process) | `Win32_Processor`                    |
+| `cdx:hbom:collectorProcessArchitecture`    | Windows: collector process architecture when emulation makes it differ from the detected architecture | `amd64` |
+| `cdx:hbom:evidence:powershellVersion`      | Windows: PowerShell version of the CIM run (envelope `psVersion`) | `5.1.26100.9457`                                  |
+| `cdx:hbom:evidence:languageMode`           | Windows: PowerShell language mode of the CIM run (envelope `languageMode`) | `FullLanguage`                              |
+| `cdx:hbom:evidence:elevated`               | Windows: whether the CIM batch ran elevated (envelope `elevated`) | `true`                                             |
 
 ## Metadata component properties
 
@@ -50,6 +55,10 @@ These properties commonly appear on `metadata.component`, which describes the ho
 | `cdx:hbom:isAcAttached`          | Whether the host currently reports AC power attached        |
 | `cdx:hbom:warningLevel`          | Host or battery warning level when available                |
 | `cdx:hbom:identifierPolicy`      | Identifier privacy mode applied to the host component       |
+| `cdx:hbom:systemFamily`          | Windows: system family (`Win32_ComputerSystem.SystemFamily`) |
+| `cdx:hbom:pcSystemType`          | Windows: system type from `Win32_ComputerSystem.PCSystemTypeEx`, such as `desktop` or `slate` |
+| `cdx:hbom:hypervisorPresent`     | Windows: whether a hypervisor is present (`Win32_ComputerSystem.HypervisorPresent`) |
+| `cdx:hbom:smbiosVersion`         | Windows: SMBIOS version as `major.minor` (`Win32_BIOS.SMBIOSMajorVersion`/`SMBIOSMinorVersion`) |
 
 ## Shared component classification property
 
@@ -58,7 +67,7 @@ The finer-grained hardware role is recorded with:
 
 | Property                 | Meaning                      | Example                                                                |
 | ------------------------ | ---------------------------- | ---------------------------------------------------------------------- |
-| `cdx:hbom:hardwareClass` | Hardware role/classification | `processor`, `storage`, `camera`, `network-interface`, `power-adapter` |
+| `cdx:hbom:hardwareClass` | Hardware role/classification | `processor`, `storage`, `camera`, `network-interface`, `power-adapter`, `memory-module` |
 
 ## Common hardware properties
 
@@ -137,6 +146,25 @@ These appear across multiple hardware classes.
 | `cdx:hbom:sizeBytes`                | Exact size in bytes                                |
 | `cdx:hbom:memoryRangeCount`         | Number of memory ranges reported by `lsmem`        |
 | `cdx:hbom:memoryOnlineSize`         | Online memory size reported by `lsmem`             |
+| `cdx:hbom:currentClockMHz`          | Windows: current CPU frequency (`Win32_Processor.CurrentClockSpeed`) in MHz |
+| `cdx:hbom:l2CacheKiB`               | Windows: L2 cache size (`Win32_Processor.L2CacheSize`) in KiB |
+| `cdx:hbom:l3CacheKiB`               | Windows: L3 cache size (`Win32_Processor.L3CacheSize`) in KiB |
+| `cdx:hbom:virtualizationFirmwareEnabled` | Windows: firmware virtualization enabled (`Win32_Processor.VirtualizationFirmwareEnabled`) |
+| `cdx:hbom:slatSupported`            | Windows: second-level address translation support (`Win32_Processor.SecondLevelAddressTranslationExtensions`) |
+| `cdx:hbom:vmMonitorModeExtensions`  | Windows: VM monitor mode extensions (`Win32_Processor.VMMonitorModeExtensions`) |
+| `cdx:hbom:socketDesignation`        | Windows: processor socket designation (`Win32_Processor.SocketDesignation`) |
+| `cdx:hbom:processorInstanceCount`   | Windows: Win32_Processor instance count when it disagrees with the logical CPU count |
+| `cdx:hbom:visibleMemoryBytes`       | Windows: `Win32_ComputerSystem.TotalPhysicalMemory` in bytes |
+| `cdx:hbom:memoryModuleCount`        | Windows: number of `Win32_PhysicalMemory` modules installed |
+| `cdx:hbom:maxCapacityBytes`         | Windows: memory array maximum capacity (`Win32_PhysicalMemoryArray.MaxCapacityEx`, KiB-based) in bytes |
+| `cdx:hbom:memoryErrorCorrection`    | Windows: memory array error correction (`Win32_PhysicalMemoryArray.MemoryErrorCorrection`) |
+| `cdx:hbom:memoryType`               | Windows: module memory type name from `Win32_PhysicalMemory.SMBIOSMemoryType` (SMBIOS Table 77) |
+| `cdx:hbom:formFactor`               | Windows: module form factor name from `Win32_PhysicalMemory.FormFactor` |
+| `cdx:hbom:speedMTs`                 | Windows: module speed (`Win32_PhysicalMemory.Speed`) in MT/s |
+| `cdx:hbom:configuredSpeedMTs`       | Windows: configured module clock (`Win32_PhysicalMemory.ConfiguredClockSpeed`) in MT/s |
+| `cdx:hbom:configuredVoltageMv`      | Windows: configured module voltage (`Win32_PhysicalMemory.ConfiguredVoltage`) in mV |
+| `cdx:hbom:bankLabel`                | Windows: module bank label (`Win32_PhysicalMemory.BankLabel`) |
+| `cdx:hbom:deviceLocator`            | Windows: module socket label (`Win32_PhysicalMemory.DeviceLocator`) |
 
 ## Storage, APFS, and NVMe properties
 
@@ -160,7 +188,7 @@ These appear across multiple hardware classes.
 | `cdx:hbom:wearPercentageUsed` | Flash wear percentage if reported                |
 | `cdx:hbom:container`          | Parent container reference for a volume          |
 | `cdx:hbom:containerUuid`      | APFS container UUID, redacted by default         |
-| `cdx:hbom:volumeUuid`         | APFS volume UUID, redacted by default            |
+| `cdx:hbom:volumeUuid`         | APFS or Windows volume UUID, redacted by default |
 | `cdx:hbom:physicalStores`     | APFS physical backing stores                     |
 | `cdx:hbom:isEncrypted`        | Whether a volume is encrypted                    |
 | `cdx:hbom:fileVault`          | Whether FileVault is enabled for a volume        |
@@ -168,6 +196,14 @@ These appear across multiple hardware classes.
 | `cdx:hbom:pciAddress`         | PCI address associated with a storage controller |
 | `cdx:hbom:namespaceCount`     | Number of NVMe namespaces                        |
 | `cdx:hbom:namespaces`         | Namespace identifiers or names                   |
+| `cdx:hbom:diskNumber`         | Windows: disk number (`Win32_DiskDrive.Index`, PHYSICALDRIVE*n*) |
+| `cdx:hbom:physicalBlockSize`  | Windows: physical sector size (`MSFT_PhysicalDisk.PhysicalSectorSize`) in bytes |
+| `cdx:hbom:healthStatus`       | Windows: storage health (`MSFT_PhysicalDisk.HealthStatus`), not SMART |
+| `cdx:hbom:operationalStatus`  | Windows: joined CIM operational-status names (`MSFT_PhysicalDisk.OperationalStatus`) |
+| `cdx:hbom:fileSystem`         | Windows: volume file system (`Win32_Volume.FileSystem`) |
+| `cdx:hbom:mountPoint`         | Windows: volume drive-letter mount point (`Win32_Volume.DriveLetter`) |
+| `cdx:hbom:isBootVolume`       | Windows: whether the volume is the boot volume (`Win32_Volume.BootVolume`) |
+| `cdx:hbom:isSystemVolume`     | Windows: whether the volume is the system volume (`Win32_Volume.SystemVolume`) |
 
 ## Network and wireless properties
 
@@ -178,7 +214,7 @@ These appear across multiple hardware classes.
 | `cdx:hbom:flags`                 | Interface flag list                                               |
 | `cdx:hbom:ipv4Count`             | Number of IPv4 addresses observed                                 |
 | `cdx:hbom:ipv6Count`             | Number of IPv6 addresses observed                                 |
-| `cdx:hbom:operState`             | Linux interface operational state                                 |
+| `cdx:hbom:operState`             | Interface operational state such as `up` or `down`                |
 | `cdx:hbom:speedMbps`             | Interface speed in Mbps when reported                             |
 | `cdx:hbom:duplex`                | Duplex mode                                                       |
 | `cdx:hbom:ifindex`               | Interface index                                                   |
@@ -192,6 +228,11 @@ These appear across multiple hardware classes.
 | `cdx:hbom:phyMode`               | Current wireless PHY mode                                         |
 | `cdx:hbom:linkRateMbps`          | Current wireless link rate in Mbps                                |
 | `cdx:hbom:securityMode`          | Current wireless security mode                                    |
+| `cdx:hbom:interfaceName`         | Windows: connection name (`MSFT_NetAdapter.Name`, for example `Ethernet`) |
+| `cdx:hbom:driverProvider`        | Windows: NIC driver provider (`MSFT_NetAdapter.DriverProvider`)   |
+| `cdx:hbom:driverDate`            | Windows: NIC driver date (`MSFT_NetAdapter.DriverDate`)           |
+| `cdx:hbom:physicalMedium`        | Windows: NDIS physical medium name (`MSFT_NetAdapter.NdisPhysicalMedium`) |
+| `cdx:hbom:adapterType`           | Windows: legacy adapter type (`Win32_NetworkAdapter.AdapterType`) |
 
 ## Audio properties
 
@@ -359,6 +400,7 @@ These appear across multiple hardware classes.
 | `cdx:hbom:guids`        | GUIDs associated with an update-managed device  |
 | `cdx:hbom:instanceIds`  | fwupd instance identifiers, redacted by default |
 | `cdx:hbom:createdEpoch` | Creation/registration epoch reported by fwupd   |
+| `cdx:hbom:embeddedControllerVersion` | Windows: embedded controller version (`Win32_BIOS.EmbeddedController*Version`), omitted at 255.255 |
 
 ## PCI properties
 

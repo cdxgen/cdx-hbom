@@ -62,6 +62,14 @@ const HDAUDIO_TOKENS = [
 const UEFI_RESOURCE_PATTERN = /^RES_\{([0-9a-fA-F-]{36})\}(?:&REV_(\d+))?$/u;
 const UEFI_REVISION_PATTERN = /(?:^|&)REV_(\d+)(?=&|$)/iu;
 
+// Volume device IDs (`\\?\Volume{GUID}\`), the Win32_Volume key format:
+// https://learn.microsoft.com/en-us/previous-versions/windows/desktop/legacy/aa394515(v=vs.85)
+// Only the GUID is per-machine; the framing identifies nothing. The braces
+// also accept the redacted token this module produces, so fixture-driven
+// builds keep a redactable volume identifier.
+const VOLUME_PATH_PATTERN =
+  /^\\\\\?\\Volume\{([0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}|redacted(?::[0-9A-Za-z]+)?)\}\\?$/iu;
+
 // Bluetooth PnP IDs:
 // https://learn.microsoft.com/en-us/windows-hardware/drivers/bluetooth/installing-a-bluetooth-device
 // BTHENUM\{ServiceGUID}[_VID&nnnnnnnn[_PID&nnnn] | _LOCALMFG&nnnn], plus
@@ -279,7 +287,9 @@ export function parseHardwareIds(list) {
  * serial (the USB iSerialNumber) or a Bluetooth radio address, so it is
  * replaced through `redactIdentifier` unless raw identifiers were requested.
  * Inside BTHENUM/BTHLE device-ID segments, MAC-like 12-hex-digit tokens are
- * redacted as well.
+ * redacted as well. Volume device paths (`\\?\Volume{GUID}\`) carry no
+ * enumerator; only their GUID is per-machine, so just the GUID is redacted
+ * while the path framing survives.
  *
  * @param {string} id Device instance ID or hardware ID.
  * @param {{ includeSensitiveIdentifiers?: boolean }} [options={}] Redaction options.
@@ -292,6 +302,14 @@ export function redactInstanceId(id, options = {}) {
     options.includeSensitiveIdentifiers === true
   ) {
     return text;
+  }
+
+  const volumeMatch = text.match(VOLUME_PATH_PATTERN);
+  if (volumeMatch) {
+    return text.replace(
+      volumeMatch[1],
+      redactIdentifier(volumeMatch[1], options) ?? volumeMatch[1],
+    );
   }
 
   const lastSeparator = text.lastIndexOf(INSTANCE_ID_SEPARATOR);
@@ -360,6 +378,17 @@ export function redactHardwareIds(list, instanceId, options = {}) {
     }
     return `${text.slice(0, separator + 1)}${redactIdentifier(devicePart, options) ?? devicePart}`;
   });
+}
+
+/**
+ * Extract the per-machine GUID of a Win32_Volume device path.
+ *
+ * @param {string | undefined} id Device ID such as `\\?\Volume{GUID}\`.
+ * @returns {string | undefined} Lower-cased GUID or undefined.
+ */
+export function parseVolumeDeviceId(id) {
+  const match = String(id ?? "").match(VOLUME_PATH_PATTERN);
+  return match === null ? undefined : match[1].toLowerCase();
 }
 
 /**

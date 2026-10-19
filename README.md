@@ -7,6 +7,8 @@ It currently supports following OS hosts:
 - `darwin/arm64` (Apple Silicon Macs)
 - `linux/amd64`
 - `linux/arm64`
+- `win32/amd64`
+- `win32/arm64`
 
 ## Install
 

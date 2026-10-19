@@ -97,28 +97,34 @@ test("getCommandPlan returns the Windows collector plan for both architectures",
     const planByAlias = getCommandPlan({ platform: "windows", architecture });
 
     assert.ok(Array.isArray(plan));
-    assert.equal(plan.length, 1);
-    assert.equal(plan[0].id, "windows-cim-platform");
-    assert.equal(plan[0].phase, "collector-v1");
-    assert.equal(plan[0].parser, "windows-envelope");
-    assert.equal(plan[0].privilege, "none");
-    assert.equal(plan[0].sudoRetryOnPermissionDenied, false);
-    assert.equal(plan[0].timeoutMs, 60000);
-    assert.ok(
-      plan[0].command.endsWith(
-        "System32\\WindowsPowerShell\\v1.0\\powershell.exe",
-      ),
+    assert.equal(plan.length, 2);
+    assert.deepEqual(
+      plan.map((entry) => entry.id),
+      ["windows-cim-platform", "windows-cim-storage-network"],
     );
-    assert.deepEqual(plan[0].args.slice(0, 4), [
-      "-NoLogo",
-      "-NoProfile",
-      "-NonInteractive",
-      "-Command",
-    ]);
-    assert.ok(
-      plan[0].args[4].length > 0 && plan[0].args[4].length <= 8000,
-      "script within the length budget",
-    );
+    for (const entry of plan) {
+      assert.equal(entry.phase, "collector-v1");
+      assert.equal(entry.parser, "windows-envelope");
+      assert.equal(entry.privilege, "none");
+      assert.equal(entry.sudoRetryOnPermissionDenied, false);
+      assert.equal(entry.timeoutMs, 60000);
+      assert.ok(
+        entry.command.endsWith(
+          "System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+        ),
+      );
+      assert.deepEqual(entry.args.slice(0, 4), [
+        "-NoLogo",
+        "-NoProfile",
+        "-NonInteractive",
+        "-Command",
+      ]);
+      assert.ok(
+        entry.args[4].length > 0 && entry.args[4].length <= 8000,
+        "script within the length budget",
+      );
+    }
     assert.deepEqual(planByAlias[0].args, plan[0].args);
+    assert.deepEqual(planByAlias[1].args, plan[1].args);
   }
 });

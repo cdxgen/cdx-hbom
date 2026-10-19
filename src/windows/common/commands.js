@@ -195,6 +195,152 @@ export const WINDOWS_PLATFORM_MANIFEST = Object.freeze({
 });
 
 /**
+ * Manifest of `windows-cim-storage-network`, the tier-2 storage and network
+ * enrichment batch (PLAN.md §4.2). Storage components are built from
+ * Win32_DiskDrive and enriched from MSFT_PhysicalDisk, which returns zero
+ * instances (no error) for a standard user (PERMISSIONS-MATRIX.md). PII and
+ * per-machine identifiers (InterfaceGuid, MSFT DeviceID, NetLuid,
+ * NetworkAddresses, the user-chosen volume Label and the path-valued volume
+ * Name, LocationInformationString) are never selected.
+ *
+ * @type {{
+ *   commandId: string,
+ *   entries: ReadonlyArray<Readonly<import("./powershell.js").CimManifestEntry>>
+ * }}
+ */
+export const WINDOWS_STORAGE_NETWORK_MANIFEST = Object.freeze({
+  commandId: "windows-cim-storage-network",
+  entries: Object.freeze([
+    Object.freeze({
+      key: "physicalDisk",
+      kind: "cim",
+      namespace: "root/Microsoft/Windows/Storage",
+      className: "MSFT_PhysicalDisk",
+      properties: Object.freeze([
+        "DeviceId",
+        "FriendlyName",
+        "Model",
+        "Manufacturer",
+        "SerialNumber",
+        "FirmwareVersion",
+        "Size",
+        "BusType",
+        "MediaType",
+        "SpindleSpeed",
+        "HealthStatus",
+        "OperationalStatus",
+        "LogicalSectorSize",
+        "PhysicalSectorSize",
+      ]),
+    }),
+    Object.freeze({
+      key: "diskDrive",
+      kind: "cim",
+      namespace: "root/cimv2",
+      className: "Win32_DiskDrive",
+      properties: Object.freeze([
+        "Index",
+        "Model",
+        "Manufacturer",
+        "InterfaceType",
+        "PNPDeviceID",
+        "SerialNumber",
+        "Size",
+        "FirmwareRevision",
+        "BytesPerSector",
+        "Partitions",
+        "Capabilities",
+        "Status",
+      ]),
+    }),
+    Object.freeze({
+      key: "volume",
+      kind: "cim",
+      namespace: "root/cimv2",
+      className: "Win32_Volume",
+      properties: Object.freeze([
+        "DeviceID",
+        "DriveLetter",
+        "DriveType",
+        "FileSystem",
+        "Capacity",
+        "FreeSpace",
+        "BootVolume",
+        "SystemVolume",
+        "SerialNumber",
+      ]),
+    }),
+    Object.freeze({
+      key: "netAdapter",
+      kind: "cim",
+      namespace: "root/StandardCimv2",
+      className: "MSFT_NetAdapter",
+      properties: Object.freeze([
+        "Name",
+        "InterfaceDescription",
+        "DriverDescription",
+        "DriverVersionString",
+        "DriverProvider",
+        "DriverDate",
+        "DriverName",
+        "PermanentAddress",
+        "MtuSize",
+        "ReceiveLinkSpeed",
+        "TransmitLinkSpeed",
+        "FullDuplex",
+        "MediaConnectState",
+        "InterfaceOperationalStatus",
+        "InterfaceIndex",
+        "NdisPhysicalMedium",
+        "HardwareInterface",
+        "Virtual",
+        "ConnectorPresent",
+        "EndPointInterface",
+        "PnPDeviceID",
+        "ComponentID",
+      ]),
+    }),
+    Object.freeze({
+      key: "netAdapterHardware",
+      kind: "cim",
+      namespace: "root/StandardCimv2",
+      className: "MSFT_NetAdapterHardwareInfoSettingData",
+      properties: Object.freeze([
+        "Name",
+        "InterfaceDescription",
+        "SegmentNumber",
+        "BusNumber",
+        "DeviceNumber",
+        "FunctionNumber",
+        "PciExpressCurrentLinkSpeedEncoded",
+        "PciExpressCurrentLinkWidth",
+        "PciExpressMaxLinkSpeedEncoded",
+        "PciExpressMaxLinkWidth",
+      ]),
+    }),
+    Object.freeze({
+      key: "networkAdapterLegacy",
+      kind: "cim",
+      namespace: "root/cimv2",
+      className: "Win32_NetworkAdapter",
+      properties: Object.freeze([
+        "Name",
+        "Manufacturer",
+        "ProductName",
+        "PNPDeviceID",
+        "MACAddress",
+        "Speed",
+        "PhysicalAdapter",
+        "NetConnectionStatus",
+        "ServiceName",
+        "AdapterType",
+        "InterfaceIndex",
+      ]),
+    }),
+  ]),
+});
+
+/**
  * Manifest of the Windows CIM selftest command.
  *
  * `WINDOWS_SELFTEST_COMMAND` is deliberately excluded from
@@ -300,6 +446,22 @@ export const WINDOWS_COMMANDS = Object.freeze([
       "physicalMemory.SerialNumber",
     ],
   }),
+  toWindowsCommandSpec(WINDOWS_STORAGE_NETWORK_MANIFEST, {
+    category: "storage-network",
+    purpose:
+      "Collect disk, volume and network-adapter inventory via CIM, enriching Win32_DiskDrive from the Storage and NetAdapter CIM classes.",
+    sensitiveFields: [
+      "physicalDisk.SerialNumber",
+      "diskDrive.SerialNumber",
+      "diskDrive.PNPDeviceID",
+      "volume.DeviceID",
+      "volume.SerialNumber",
+      "netAdapter.PermanentAddress",
+      "netAdapter.PnPDeviceID",
+      "networkAdapterLegacy.MACAddress",
+      "networkAdapterLegacy.PNPDeviceID",
+    ],
+  }),
 ]);
 
 /**
@@ -321,6 +483,21 @@ export const WINDOWS_SELFTEST_COMMAND = toWindowsCommandSpec(
     ],
   },
 );
+
+/**
+ * Look up a Windows command spec by id.
+ *
+ * @param {string} id Command id such as `windows-cim-platform`.
+ * @returns {import("../../common/command.js").CommandSpec} Command spec.
+ * @throws {Error} When no Windows command carries the id.
+ */
+export function getRequiredWindowsCommand(id) {
+  const spec = WINDOWS_COMMANDS.find((candidate) => candidate.id === id);
+  if (!spec) {
+    throw new Error(`Unknown Windows command: ${id}`);
+  }
+  return spec;
+}
 
 /**
  * Build a frozen command spec from a manifest.

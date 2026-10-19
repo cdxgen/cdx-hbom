@@ -97,18 +97,18 @@ function executeCommand(spec, options, timeoutMs, useSudo) {
 }
 
 /**
- * Summarize the trace `target` of a Windows CIM spec.
+ * Summarize the arguments of a Windows CIM spec.
  *
  * Windows CIM specs carry a multi-kilobyte PowerShell script as their last
- * argument; replaying it in every trace row (and in consumers that copy
- * `target` verbatim) hides the signal. Such specs summarize the script by its
- * SHA-256 digest instead, while `args`/`requestedArgs` stay complete for
- * auditing.
+ * argument; replaying it in every trace row, BOM evidence property (and in
+ * consumers that copy them verbatim) hides the signal. Such specs summarize
+ * the script by its SHA-256 digest instead, while the trace's
+ * `args`/`requestedArgs` and the command plan stay complete for auditing.
  *
  * @param {CommandSpec} spec Command descriptor.
- * @returns {string | undefined} Summarized target, or undefined for other specs.
+ * @returns {string[] | undefined} Summarized args, or undefined for other specs.
  */
-function summarizeScriptTarget(spec) {
+export function summarizeScriptArgs(spec) {
   if (spec.parser !== "windows-envelope" || !spec.args?.length) {
     return undefined;
   }
@@ -116,7 +116,18 @@ function summarizeScriptTarget(spec) {
     .update(String(spec.args.at(-1)))
     .digest("hex")
     .slice(0, 12);
-  return `${spec.command} -Command ${spec.id} script sha256:${digest}`;
+  return ["-Command", spec.id, "script", `sha256:${digest}`];
+}
+
+/**
+ * Summarize the trace `target` of a Windows CIM spec.
+ *
+ * @param {CommandSpec} spec Command descriptor.
+ * @returns {string | undefined} Summarized target, or undefined for other specs.
+ */
+export function summarizeScriptTarget(spec) {
+  const args = summarizeScriptArgs(spec);
+  return args ? `${spec.command} ${args.join(" ")}` : undefined;
 }
 
 function formatSpecTarget(spec) {
@@ -223,7 +234,8 @@ function createCommandFailure(spec, result, options) {
   error.code = mapCommandFailureCode(errorType);
   error.commandId = spec.id;
   error.command = spec.command;
-  error.args = [...spec.args];
+  // Diagnostics land in the BOM, so Windows scripts are summarized there too.
+  error.args = summarizeScriptArgs(spec) ?? [...spec.args];
   error.category = spec.category;
   error.phase = spec.phase;
   error.exitCode = result.status ?? undefined;

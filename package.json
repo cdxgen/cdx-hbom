@@ -25,7 +25,9 @@
     "./vendors": "./src/common/vendors.js",
     "./darwin/arm64": "./src/darwin/arm64/index.js",
     "./linux/amd64": "./src/linux/amd64/index.js",
-    "./linux/arm64": "./src/linux/arm64/index.js"
+    "./linux/arm64": "./src/linux/arm64/index.js",
+    "./windows/amd64": "./src/windows/amd64/index.js",
+    "./windows/arm64": "./src/windows/arm64/index.js"
   },
   "files": [
     "bin/",

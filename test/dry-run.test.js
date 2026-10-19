@@ -71,15 +71,57 @@ test("dry-run leaves the Linux BOM free of phantom diagnostics", async () => {
   });
 });
 
-test("collectHardware on win32 still throws until the C03 collector lands", async () => {
+test("collectHardware routes win32 to the Windows collector", async () => {
   for (const architecture of ["amd64", "arm64"]) {
-    await assert.rejects(
-      () => collectHardware({ platform: "win32", architecture }),
-      /Unsupported HBOM target: win32/u,
+    assert.ok(
+      SUPPORTED_TARGETS.some(
+        (target) =>
+          target.platform === "win32" && target.architecture === architecture,
+      ),
+      `win32/${architecture} is a supported target`,
     );
   }
-  assert.equal(
-    SUPPORTED_TARGETS.find((target) => target.platform === "win32"),
-    undefined,
+  // On a non-Windows host the collector refuses to run; the platform gate
+  // lives inside the collector, matching Linux and Darwin. On Windows the
+  // same call collects for real.
+  if (process.platform === "win32") {
+    const bom = await collectHardware({
+      platform: "win32",
+      architecture: "amd64",
+    });
+    assert.equal(bom.specVersion, "1.7");
+  } else {
+    await assert.rejects(
+      () => collectHardware({ platform: "win32", architecture: "amd64" }),
+      /Windows collector must run on win32/u,
+    );
+  }
+});
+
+test("dry-run on win32 builds a T0 BOM with only blocked command activities", async () => {
+  const bom = await withTargetPlatform("win32", "x64", () =>
+    collectHardware({ platform: "win32", dryRun: true }),
   );
+  const trace = getCollectorTrace(bom);
+  const kinds = new Set(trace.activities.map((entry) => entry.kind));
+
+  assert.deepEqual([...kinds], ["command"]);
+  for (const activity of trace.activities) {
+    assert.equal(activity.status, "blocked");
+    assert.match(
+      activity.target,
+      /windows-cim-(platform|storage-network) script sha256:[0-9a-f]{12}$/u,
+      "trace target uses the C02 short script form",
+    );
+  }
+
+  const diagnosticProperties = (bom.properties ?? []).filter((property) =>
+    property.name === "cdx:hbom:evidence:commandDiagnostic",
+  );
+  assert.deepEqual(diagnosticProperties, []);
+  assert.equal(bom.specVersion, "1.7");
+  const architectureSource = (bom.properties ?? []).find(
+    (property) => property.name === "cdx:hbom:architectureSource",
+  );
+  assert.equal(architectureSource?.value, "process");
 });

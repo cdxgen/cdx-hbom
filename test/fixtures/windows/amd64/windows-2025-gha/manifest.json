@@ -1,6 +1,6 @@
 {
   "label": "windows-2025-gha",
-  "capturedAt": "2026-10-19T21:34:32.588Z",
+  "capturedAt": "2026-10-19T22:37:19.611Z",
   "nodeVersion": "v24.21.0",
   "processArch": "x64",
   "osRelease": "10.0.26100",
@@ -13,15 +13,23 @@
       "id": "windows-cim-platform",
       "argsSha256": "32d2257efbe318a250aa6f9b2b0cb0664ce6095d278c43e49efbe2673cf2a492",
       "exitCode": 0,
-      "durationMs": 3845,
+      "durationMs": 3669,
       "bytes": 3484,
+      "provenance": "captured"
+    },
+    {
+      "id": "windows-cim-storage-network",
+      "argsSha256": "7ff42a105618c6c61b7316eed1b76ef593d832bfd11994ce55f1219df6329761",
+      "exitCode": 0,
+      "durationMs": 649,
+      "bytes": 7165,
       "provenance": "captured"
     },
     {
       "id": "windows-cim-selftest",
       "argsSha256": "3f90eaab8a502377d0472b05f98acb1084f3a787088aceaeed6135267b75103a",
       "exitCode": 0,
-      "durationMs": 508,
+      "durationMs": 462,
       "bytes": 19795,
       "provenance": "captured"
     }

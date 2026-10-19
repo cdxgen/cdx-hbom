@@ -39,6 +39,47 @@ export function isPlaceholderIdentity(value) {
 }
 
 /**
+ * Normalize a vendor-reported identity string, dropping empty values, `N/A`
+ * and vendor placeholders so they never surface as an identity.
+ *
+ * @param {string | undefined | null} value Candidate value.
+ * @returns {string | undefined} Trimmed identity or undefined.
+ */
+export function normalizeIdentityString(value) {
+  if (!value || value === "N/A") {
+    return undefined;
+  }
+  const normalized = value.trim();
+  if (!normalized || isPlaceholderIdentity(normalized)) {
+    return undefined;
+  }
+  return normalized;
+}
+
+/**
+ * Format a byte count with binary units, for example `16.0 GB`.
+ *
+ * @param {number | undefined | null} bytes Byte count.
+ * @returns {string | undefined} Formatted size or undefined.
+ */
+export function formatBytes(bytes) {
+  if (!bytes || Number.isNaN(bytes)) {
+    return undefined;
+  }
+
+  const units = ["B", "KB", "MB", "GB", "TB", "PB"];
+  let value = bytes;
+  let unitIndex = 0;
+
+  while (value >= 1024 && unitIndex < units.length - 1) {
+    value /= 1024;
+    unitIndex += 1;
+  }
+
+  return `${value >= 10 ? Math.round(value) : value.toFixed(1)} ${units[unitIndex]}`;
+}
+
+/**
  * Return a redacted representation for sensitive identifiers unless explicitly allowed.
  *
  * @param {string | undefined | null} value Identifier value.

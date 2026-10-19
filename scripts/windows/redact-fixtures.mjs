@@ -14,6 +14,8 @@
 //   serial-like: REDACTED-SERIAL-0001
 //   GUID:        00000000-0000-4000-8000-0000000000NN (braces and case kept)
 //   MAC:         02-00-00-00-00-NN (separators and case kept)
+//   volume path: \\?\Volume{GUID}\ keeps its framing, GUID redacted
+//   numeric:     same digit count with every digit turned into 4
 //   literal:     REDACTED-LITERAL
 //
 // The script rewrites `*.stdout` files in place at the byte level (only the
@@ -36,10 +38,14 @@ import {
 } from "../../src/windows/common/pnp.js";
 
 const GUID_PATTERN = /^\{?([0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12})\}?$/u;
-const MAC_PATTERN = /^([0-9A-Fa-f]{2}[:-]){5}[0-9A-Fa-f]{2}$/u;
+// MAC shapes: separated 6-pair form, plus the bare 12-hex form
+// MSFT_NetAdapter.PermanentAddress uses (observed on win11-vm).
+const MAC_PATTERN = /^(?:([0-9A-Fa-f]{2}[:-]){5}[0-9A-Fa-f]{2}|[0-9A-Fa-f]{12})$/u;
 const MAC_FIELD_PATTERN = /Address/iu;
 const PNP_FIELD_NAMES = new Set([
   "PNPDeviceID",
+  // MSFT_NetAdapter and other CIM-derived classes spell it PnPDeviceID.
+  "PnPDeviceID",
   "DeviceID",
   "HardwareID",
   "CompatibleID",
@@ -145,10 +151,12 @@ function redactFile(filePath) {
 
   const sensitive = [];
   if (envelope?.results) {
+    // Generic scans first: MAC-shaped and PnP-instance replacements then win
+    // over the plain serial fallback an explicit path would otherwise pick.
+    collectGenericFields(envelope, sensitive);
     for (const field of spec?.sensitiveFields ?? []) {
       collectSensitiveField(envelope, field, sensitive);
     }
-    collectGenericFields(envelope, sensitive);
   }
 
   const replacements = sensitive
@@ -158,11 +166,21 @@ function redactFile(filePath) {
   // Replace whole JSON string tokens only. A substring match would rewrite
   // unrelated values that merely contain a short serial. The same value in
   // any other string field is still replaced, which keeps joins stable.
+  // Numeric sensitive values (for example Win32_Volume.SerialNumber, a
+  // uint32) keep their JSON number form and are replaced as digit-bounded
+  // tokens so they never match part of a longer number.
   for (const [value, replacement] of replacements) {
-    text = text.replaceAll(
-      new RegExp(`"${jsonTextPattern(value)}"`, "g"),
-      () => `"${escapeJson(replacement)}"`,
-    );
+    if (typeof value === "number") {
+      text = text.replaceAll(
+        new RegExp(`(?<![0-9.])${value}(?![0-9.])`, "gu"),
+        String(replacement),
+      );
+    } else {
+      text = text.replaceAll(
+        new RegExp(`"${jsonTextPattern(value)}"`, "g"),
+        () => `"${escapeJson(replacement)}"`,
+      );
+    }
   }
 
   for (const literal of literals) {
@@ -185,11 +203,15 @@ function redactFile(filePath) {
     ...collectRawInstanceSegments(envelope),
   ];
   return leftovers
-    .filter((value) => value.length > 4)
-    .filter((value) => new RegExp(jsonTextPattern(value), "u").test(text))
+    .filter((value) => String(value).length > 4)
+    .filter((value) =>
+      typeof value === "number"
+        ? new RegExp(`(?<![0-9.])${value}(?![0-9.])`, "u").test(text)
+        : new RegExp(jsonTextPattern(value), "u").test(text),
+    )
     .map(
       (value) =>
-        `${fileName(filePath)}.stdout: sensitive value (${value.length} chars) still present`,
+        `${fileName(filePath)}.stdout: sensitive value (${String(value).length} chars) still present`,
     );
 }
 
@@ -233,10 +255,10 @@ function collectSensitiveField(envelope, field, sensitive) {
   const name = field.slice(separator + 1);
   const transform = PNP_FIELD_NAMES.has(name) ? redactInstanceId : undefined;
   for (const item of [...(result?.items ?? [])]) {
-    collectFieldValue(item, name, sensitive, transform);
+    collectFieldValue(item, name, sensitive, transform, true);
   }
   if (result?.values) {
-    collectFieldValue(result.values, name, sensitive, transform);
+    collectFieldValue(result.values, name, sensitive, transform, true);
   }
 }
 
@@ -270,18 +292,42 @@ function collectGenericFields(envelope, sensitive) {
 }
 
 /**
- * Collect string values of one item field.
+ * Collect string and numeric values of one item field.
+ *
+ * Numeric sensitive values (uint32 serials such as
+ * `Win32_Volume.SerialNumber`) serialize as JSON numbers; they are redacted
+ * with the digit count preserved so the fixture keeps a number in that
+ * position. Numbers count as sensitive only at explicit `sensitiveFields`
+ * paths — the generic MAC-shape scan over `*Address*` field names must not
+ * swallow unrelated numbers such as `AddressWidth`.
  *
  * @param {object} item CIM instance object.
  * @param {string} name Field name.
  * @param {string[]} sensitive Collector array.
  * @param {(value: string) => string} [transform] Optional explicit replacement fn.
+ * @param {boolean} [allowNumbers=false] Whether numeric values are sensitive here.
  * @returns {void} Nothing.
  */
-function collectFieldValue(item, name, sensitive, transform = undefined) {
+function collectFieldValue(
+  item,
+  name,
+  sensitive,
+  transform = undefined,
+  allowNumbers = false,
+) {
   const value = item?.[name];
   const values = Array.isArray(value) ? value : [value];
   for (const entry of values) {
+    if (typeof entry === "number") {
+      if (
+        allowNumbers &&
+        Number.isFinite(entry) &&
+        replacementFor(entry) !== entry
+      ) {
+        sensitive.push(entry);
+      }
+      continue;
+    }
     if (typeof entry !== "string" || entry.trim().length === 0) {
       continue;
     }
@@ -302,12 +348,21 @@ function collectFieldValue(item, name, sensitive, transform = undefined) {
 /**
  * Compute (or look up) the deterministic replacement for a sensitive value.
  *
- * @param {string} value Raw value.
- * @returns {string} Replacement value.
+ * @param {string | number} value Raw value.
+ * @returns {string | number} Replacement value.
  */
 function replacementFor(value) {
   if (assignments.has(value)) {
     return assignments.get(value);
+  }
+
+  if (typeof value === "number") {
+    // Same digit count with every digit replaced by 4: type-stable,
+    // format-preserving and idempotent (an all-4s value maps to itself), at
+    // the cost of collapsing distinct numeric serials into one placeholder.
+    const replacement = Number(String(value).replace(/\d/gu, "4"));
+    assignments.set(value, replacement);
+    return replacement;
   }
 
   // Already-redacted values pass through unchanged, so re-running the

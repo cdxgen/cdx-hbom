@@ -234,3 +234,58 @@ test("redact-fixtures scrubs literals even in unparseable stdout files", () => {
   );
   rmSync(work, { recursive: true, force: true });
 });
+
+test("redact-fixtures redacts volume GUIDs and numeric serials", () => {
+  // Synthetic in-test envelope covering the two windows-cim-storage-network
+  // gaps: a Win32_Volume device path whose GUID must not survive, and a
+  // uint32 volume serial that serializes as a JSON number.
+  const volumeGuid = "1a2b3c4d-5e6f-4a5b-8c9d-0e1f2a3b4c5d";
+  const work = join(REPO_ROOT, "tmp", "redact-tool-volume");
+  rmSync(work, { recursive: true, force: true });
+  mkdirSync(work, { recursive: true });
+  writeFileSync(
+    join(work, "windows-cim-storage-network.stdout"),
+    JSON.stringify({
+      schema: "cdx-hbom/windows-envelope@1",
+      results: {
+        volume: {
+          ok: true,
+          items: [
+            {
+              DeviceID: `\\\\?\\Volume{${volumeGuid}}\\`,
+              DriveLetter: "C:",
+              DriveType: 3,
+              SerialNumber: 3081031936,
+              Capacity: 68719476736,
+            },
+          ],
+        },
+      },
+    }),
+    "utf8",
+  );
+
+  const result = runTool(REDACT_SCRIPT, [work]);
+  assert.equal(result.status, 0, result.stderr);
+  const envelope = JSON.parse(
+    readFileSync(join(work, "windows-cim-storage-network.stdout"), "utf8"),
+  );
+  const volume = envelope.results.volume.items[0];
+  assert.equal(volume.DeviceID, "\\\\?\\Volume{redacted:4c5d}\\");
+  // The numeric serial stays a number of the same magnitude...
+  assert.equal(typeof volume.SerialNumber, "number");
+  assert.equal(volume.SerialNumber, 4444444444);
+  // ...and unrelated numbers around it are untouched.
+  assert.equal(volume.Capacity, 68719476736);
+  assert.equal(volume.DriveType, 3);
+  // Re-running is stable and nothing raw survives.
+  const rawText = readFileSync(
+    join(work, "windows-cim-storage-network.stdout"),
+    "utf8",
+  );
+  assert.equal(rawText.includes(volumeGuid), false);
+  assert.equal(rawText.includes("3081031936"), false);
+  const second = runTool(REDACT_SCRIPT, [work]);
+  assert.equal(second.status, 0, second.stderr);
+  rmSync(work, { recursive: true, force: true });
+});
