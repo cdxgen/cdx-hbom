@@ -236,6 +236,10 @@ test("redactInstanceId redacts the instance segment and Bluetooth MACs", () => {
   );
   // Redaction is idempotent, so already-redacted fixture values stay stable.
   assert.equal(
+    redactInstanceId(redactInstanceId("ACPI\\PRL4005\\0")),
+    "ACPI\\PRL4005\\redacted",
+  );
+  assert.equal(
     redactInstanceId(
       "PCI\\VEN_8086&DEV_265C&SUBSYS_04001AB8&REV_02\\redacted:0&10",
     ),

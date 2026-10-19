@@ -309,8 +309,12 @@ export function redactInstanceId(id, options = {}) {
 
   const devicePart = text.slice(0, lastSeparator);
   const instanceSegment = text.slice(lastSeparator + 1);
+  // redactIdentifier turns short segments into a bare `redacted`; keep that
+  // as is so a second pass does not turn it into `redacted:cted`.
   const redactedInstance =
-    redactIdentifier(instanceSegment, options) ?? instanceSegment;
+    instanceSegment === "redacted"
+      ? instanceSegment
+      : (redactIdentifier(instanceSegment, options) ?? instanceSegment);
 
   const enumerator = text.slice(0, firstSeparator);
   const safeDevicePart = /^(BTHENUM|BTHLE)$/iu.test(enumerator)

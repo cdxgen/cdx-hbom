@@ -1,6 +1,13 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { cpSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  cpSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 import { join } from "node:path";
@@ -70,6 +77,31 @@ test("redact-fixtures scrubs literals, stays deterministic and idempotent", () =
       .commands,
   );
   rmSync(work, { recursive: true, force: true });
+});
+
+test("redact-fixtures leaves every committed fixture byte-identical", () => {
+  const fixturesRoot = fileURLToPath(
+    new URL("../fixtures/windows", import.meta.url),
+  );
+  for (const arch of readdirSync(fixturesRoot)) {
+    for (const label of readdirSync(join(fixturesRoot, arch))) {
+      const source = join(fixturesRoot, arch, label);
+      const work = join(REPO_ROOT, "tmp", "redact-fixed-point", arch, label);
+      rmSync(work, { recursive: true, force: true });
+      cpSync(source, work, { recursive: true });
+
+      const result = runTool(REDACT_SCRIPT, [work]);
+      assert.equal(result.status, 0, result.stderr);
+      for (const name of readdirSync(source)) {
+        assert.equal(
+          readFileSync(join(work, name), "utf8"),
+          readFileSync(join(source, name), "utf8"),
+          `${arch}/${label}/${name} changed when redacted again`,
+        );
+      }
+      rmSync(work, { recursive: true, force: true });
+    }
+  }
 });
 
 test("redact-fixtures replaces fresh serial, GUID, MAC and PnP values", () => {

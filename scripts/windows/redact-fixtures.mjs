@@ -24,6 +24,7 @@ import { existsSync, readFileSync, readdirSync, rmSync, writeFileSync } from "no
 import { join } from "node:path";
 import process from "node:process";
 
+import { isPlaceholderIdentity } from "../../src/common/shape.js";
 import {
   WINDOWS_COMMANDS,
   WINDOWS_SELFTEST_COMMAND,
@@ -149,13 +150,13 @@ function redactFile(filePath) {
     .map((value) => [value, replacementFor(value)])
     .filter(([value, replacement]) => value !== replacement);
 
-  // Longest first so a value that contains another targeted value as a
-  // substring is replaced before its inner part can match.
-  replacements.sort((a, b) => b[0].length - a[0].length);
+  // Replace whole JSON string tokens only. A substring match would rewrite
+  // unrelated values that merely contain a short serial. The same value in
+  // any other string field is still replaced, which keeps joins stable.
   for (const [value, replacement] of replacements) {
     text = text.replaceAll(
-      new RegExp(jsonTextPattern(value), "g"),
-      () => escapeJson(replacement),
+      new RegExp(`"${jsonTextPattern(value)}"`, "g"),
+      () => `"${escapeJson(replacement)}"`,
     );
   }
 
@@ -247,7 +248,9 @@ function collectFieldValue(item, name, sensitive, transform = undefined) {
         assignments.set(entry, replacement);
         sensitive.push(entry);
       }
-    } else {
+    } else if (!isPlaceholderIdentity(entry)) {
+      // Placeholders such as Hyper-V's `None` identify nothing, and many
+      // unrelated fields share them, so they stay as captured.
       sensitive.push(entry);
     }
   }

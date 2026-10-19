@@ -14,6 +14,30 @@
  * @property {HbomProperty[]} [properties] Additional metadata.
  */
 
+// Vendor placeholders that firmware tables report instead of a real identity
+// value (observed on Linux DMI and on Hyper-V CIM). They identify nothing.
+const PLACEHOLDER_IDENTITY_VALUES = new Set([
+  "default string",
+  "to be filled by o.e.m.",
+  "not specified",
+  "unknown",
+  "none",
+]);
+
+/**
+ * Report whether a string is a vendor placeholder rather than an identity.
+ *
+ * @param {string | undefined | null} value Candidate value.
+ * @returns {boolean} True for placeholder values, compared case-insensitively.
+ */
+export function isPlaceholderIdentity(value) {
+  return PLACEHOLDER_IDENTITY_VALUES.has(
+    String(value ?? "")
+      .trim()
+      .toLowerCase(),
+  );
+}
+
 /**
  * Return a redacted representation for sensitive identifiers unless explicitly allowed.
  *
