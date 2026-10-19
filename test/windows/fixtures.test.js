@@ -89,6 +89,15 @@ test("committed fixtures carry only redacted sensitive values", () => {
     /\{?00000000-0000-4000-8000-0000000000\d{2}\}?/iu;
   const rawGuid =
     /\{?[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}\}?/u;
+  // PnP identifier fields redact only the instance segment, not the whole
+  // value, so they get a segment-level check instead of a value-level one.
+  const pnpFieldNames = new Set([
+    "PNPDeviceID",
+    "DeviceID",
+    "HardwareID",
+    "CompatibleID",
+    "InstanceName",
+  ]);
 
   for (const label of fixtureLabels()) {
     const manifest = JSON.parse(
@@ -120,6 +129,17 @@ test("committed fixtures carry only redacted sensitive values", () => {
             if (typeof entry !== "string" || entry.trim().length === 0) {
               continue;
             }
+            if (pnpFieldNames.has(name)) {
+              const parts = entry.split("\\");
+              if (parts.length >= 3) {
+                assert.match(
+                  parts.at(-1),
+                  /^redacted/u,
+                  `${label}/${command.id}: ${field} carries a raw instance segment (${entry.slice(0, 16)}...)`,
+                );
+              }
+              continue;
+            }
             assert.ok(
               serialPattern.test(entry) ||
                 guidReplacement.test(entry) ||
@@ -128,9 +148,8 @@ test("committed fixtures carry only redacted sensitive values", () => {
             );
             // A raw GUID in a sensitive field means redaction missed it.
             if (/uuid|guid/iu.test(field)) {
-              assert.notMatch(
-                entry.replace(guidReplacement, ""),
-                rawGuid,
+              assert.ok(
+                !rawGuid.test(entry.replace(guidReplacement, "")),
                 `${label}/${command.id}: ${field} carries an unredacted GUID`,
               );
             }

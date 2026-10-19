@@ -90,11 +90,23 @@ test("parseWindowsEnvelope flags projection and depth bugs as warnings", () => {
 
   const envelope = parseWindowsEnvelope(JSON.stringify(base));
   assert.equal(envelope.warnings.length, 3);
-  assert.match(envelope.warnings[0], /results\.bios\.items\[0\]\.BIOSVersion/u);
-  assert.match(envelope.warnings[0], /System\.Collections\.Hashtable/u);
-  assert.match(envelope.warnings[1], /results\.computerSystem\.items\[0\]\.Embedded/u);
-  assert.match(envelope.warnings[1], /CimClass/u);
-  assert.match(envelope.warnings[2], /CimInstanceProperties/u);
+  // Warnings follow the envelope's result order (computerSystem precedes
+  // bios), so assert membership rather than ordering.
+  assert.ok(
+    envelope.warnings.some((warning) =>
+      /results\.bios\.items\[0\]\.BIOSVersion.*System\.Collections\.Hashtable/u.test(
+        warning,
+      ),
+    ),
+  );
+  assert.ok(
+    envelope.warnings.some((warning) =>
+      /results\.computerSystem\.items\[0\]\.Embedded.*CimClass/u.test(warning),
+    ),
+  );
+  assert.ok(
+    envelope.warnings.some((warning) => /CimInstanceProperties/u.test(warning)),
+  );
 });
 
 test("parseWindowsEnvelope strips a UTF-8 BOM", () => {
@@ -206,8 +218,11 @@ test("summarizeWindowsAccess detects the network-logon denial pattern", () => {
   );
   assert.deepEqual(summarizeWindowsAccess(elevated), { allWmiDenied: false });
 
-  // The selftest carries a readable registry result under a network logon;
-  // only WMI results count toward the summary.
+  // The selftest carries a readable registry result under a network logon,
+  // and its deliberately-absent namespace reports InvalidNamespace rather
+  // than AccessDenied (namespace validity is checked before access), so the
+  // summary is not an all-denied pattern even though every real query was
+  // denied.
   const selftestNetwork = parseWindowsEnvelope(
     readFixture("arm64/vm-parallels-std-network/windows-cim-selftest.stdout"),
   );
@@ -218,8 +233,17 @@ test("summarizeWindowsAccess detects the network-logon denial pattern", () => {
     shortCircuited.error.nativeErrorCode,
     "AccessDenied",
   );
+  assert.equal(
+    selftestNetwork.results.bios.error.nativeErrorCode,
+    "AccessDenied",
+  );
+  assert.equal(
+    selftestNetwork.results.missingNamespace.error.nativeErrorCode,
+    "InvalidNamespace",
+  );
+  assert.equal(selftestNetwork.results.missingRegistry.kind, "registry");
   assert.deepEqual(summarizeWindowsAccess(selftestNetwork), {
-    allWmiDenied: true,
+    allWmiDenied: false,
   });
 });
 
