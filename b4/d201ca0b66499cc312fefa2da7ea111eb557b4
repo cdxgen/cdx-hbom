@@ -1,0 +1,14 @@
+test/typec-fs.test.js
+  h_6a4cc5cdf68def 15,63,117
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b4d201ca0b66499cc312fefa2da7ea111eb557b4",
+  "prompts": {},
+  "humans": {
+    "h_6a4cc5cdf68def": {
+      "author": "Team AppThreat <cloud@appthreat.com>"
+    }
+  }
+}
