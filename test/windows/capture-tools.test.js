@@ -127,6 +127,12 @@ test("redact-fixtures replaces fresh serial, GUID, MAC and PnP values", () => {
           ok: true,
           items: [{ MACAddress: "AA:BB:CC:11:22:33" }],
         },
+        // Hyper-V (windows-2025-gha) reports `None` for the memory serial and
+        // for unrelated fields alike; the placeholder must stay untouched.
+        physicalMemory: {
+          ok: true,
+          items: [{ SerialNumber: "None", PartNumber: "None" }],
+        },
         pnpIds: {
           ok: true,
           items: [
@@ -169,10 +175,44 @@ test("redact-fixtures replaces fresh serial, GUID, MAC and PnP values", () => {
     "00000000-0000-4000-8000-000000000001",
   );
   assert.equal(envelope.results.nic.items[0].MACAddress, "02:00:00:00:00:01");
+  assert.deepEqual(envelope.results.physicalMemory.items[0], {
+    SerialNumber: "None",
+    PartNumber: "None",
+  });
   assert.equal(
     envelope.results.pnpIds.items[0].PNPDeviceID,
     "USB\\VID_203A&PID_FFFB\\redacted:D1.1",
   );
+  rmSync(work, { recursive: true, force: true });
+});
+
+test("redact-fixtures fails closed when a serial is embedded in another string", () => {
+  const work = join(REPO_ROOT, "tmp", "redact-tool-embedded");
+  rmSync(work, { recursive: true, force: true });
+  mkdirSync(work, { recursive: true });
+  // Synthetic in-test envelope: the serial also appears inside a longer,
+  // non-sensitive value, which whole-token replacement cannot reach.
+  writeFileSync(
+    join(work, "windows-cim-platform.stdout"),
+    JSON.stringify({
+      schema: "cdx-hbom/windows-envelope@1",
+      results: {
+        bios: {
+          ok: true,
+          items: [
+            { SerialNumber: "SER-123456", Version: "Build SER-123456 rev" },
+          ],
+        },
+      },
+    }),
+    "utf8",
+  );
+
+  const result = runTool(REDACT_SCRIPT, [work]);
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /sensitive value \(10 chars\) embedded/u);
+  // Messages reach public CI logs, so they never repeat the value.
+  assert.equal(result.stderr.includes("SER-123456"), false);
   rmSync(work, { recursive: true, force: true });
 });
 

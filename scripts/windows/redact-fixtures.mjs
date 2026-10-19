@@ -73,21 +73,22 @@ const counters = { serial: 0, guid: 0, mac: 0 };
 const files = readdirSync(directory).filter((name) =>
   name.endsWith(".stdout"),
 );
-for (const name of files) {
-  redactFile(join(directory, name));
-}
-
+// Messages describe survivors by position and length only: this script also
+// runs in public CI logs (windows-capture.yml), so it never prints a value.
 const survivors = [];
 for (const name of files) {
+  survivors.push(...redactFile(join(directory, name)));
+}
+for (const name of files) {
   const text = readFileSync(join(directory, name), "utf8");
-  for (const literal of literals) {
+  literals.forEach((literal, index) => {
     if (containsLiteral(text, literal)) {
-      survivors.push(`${name}: ${literal}`);
+      survivors.push(`${name}: literal #${index + 1} (${literal.length} chars)`);
     }
-  }
+  });
 }
 if (survivors.length > 0) {
-  console.error(`redact-fixtures: literals still present after redaction:`);
+  console.error(`redact-fixtures: raw values still present after redaction:`);
   for (const survivor of survivors) {
     console.error(`  ${survivor}`);
   }
@@ -124,7 +125,7 @@ function loadLiterals(directory, explicit) {
  * Redact one captured stdout file in place.
  *
  * @param {string} filePath File to redact.
- * @returns {void} Nothing.
+ * @returns {string[]} Survivors: sensitive values still present afterwards.
  */
 function redactFile(filePath) {
   const original = readFileSync(filePath, "utf8");
@@ -170,6 +171,17 @@ function redactFile(filePath) {
   if (text !== original) {
     writeFileSync(filePath, text, "utf8");
   }
+
+  // Token replacement misses a sensitive value embedded in a longer string,
+  // so fail closed instead. Values of 4 characters or fewer are skipped: they
+  // are too short to identify a host, and redactIdentifier treats them the same.
+  return replacements
+    .filter(([value]) => value.length > 4)
+    .filter(([value]) => new RegExp(jsonTextPattern(value), "u").test(text))
+    .map(
+      ([value]) =>
+        `${fileName(filePath)}.stdout: sensitive value (${value.length} chars) embedded in another string`,
+    );
 }
 
 /**
