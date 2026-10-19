@@ -4,6 +4,13 @@ import process from "node:process";
 
 import { getInstallHint, runCommand } from "../../common/command.js";
 import {
+  attemptCollection,
+  collectCommandDiagnosticProperties,
+  collectCommandProperties,
+  toCommandDiagnostic,
+  toEvidenceCommand,
+} from "../../common/evidence.js";
+import {
   safeExistsSync,
   safeReaddirSync,
   safeReadFileSync,
@@ -5041,69 +5048,6 @@ function createLshwCommunicationComponents(lshwNodes) {
         ]),
       }),
     );
-}
-
-function collectCommandProperties(commands) {
-  return commands.map((entry) =>
-    createProperty(
-      "cdx:hbom:evidence:command",
-      `${entry.id}|${entry.category}|${entry.command}${entry.args.length ? ` ${entry.args.join(" ")}` : ""}`,
-    ),
-  );
-}
-
-function collectCommandDiagnosticProperties(diagnostics) {
-  return diagnostics.map((entry) =>
-    createProperty(
-      "cdx:hbom:evidence:commandDiagnostic",
-      JSON.stringify(entry),
-    ),
-  );
-}
-
-async function attemptCollection(action, allowPartial, onError = undefined) {
-  try {
-    await action();
-  } catch (error) {
-    onError?.(error);
-    if (!allowPartial) {
-      throw error;
-    }
-  }
-}
-
-function toEvidenceCommand(spec) {
-  return {
-    id: spec.id,
-    category: spec.category,
-    command: spec.command,
-    args: [...spec.args],
-  };
-}
-
-function toCommandDiagnostic(error) {
-  if (
-    !error ||
-    typeof error !== "object" ||
-    error.suppressedDiagnostic === true
-  ) {
-    return undefined;
-  }
-
-  return compactObject({
-    id: getStringValue(error.commandId),
-    category: getStringValue(error.category),
-    command: getStringValue(error.command),
-    args: Array.isArray(error.args) ? error.args.join(" ") : undefined,
-    argumentName: getStringValue(error.argumentName),
-    argumentValue: getStringValue(error.argumentValue),
-    issue: getStringValue(error.issue),
-    code: getStringValue(error.code),
-    exitCode: getNumberValue(error.exitCode),
-    message: getStringValue(error.message),
-    installHint: getStringValue(error.installHint),
-    privilegeHint: getStringValue(error.privilegeHint),
-  });
 }
 
 function shouldRetainLinuxCommandDiagnostic(error) {

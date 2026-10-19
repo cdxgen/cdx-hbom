@@ -18,17 +18,11 @@ import process from "node:process";
 
 import { runCommand } from "../../src/common/command.js";
 import { parseWindowsEnvelope } from "../../src/windows/common/cim.js";
+import { WINDOWS_PROCESSOR_ARCHITECTURES } from "../../src/windows/common/enums.js";
 import {
   WINDOWS_COMMANDS,
   WINDOWS_SELFTEST_COMMAND,
 } from "../../src/windows/common/commands.js";
-
-// Win32_Processor.Architecture value map (MS Learn):
-// https://learn.microsoft.com/en-us/windows/win32/cimwin32prov/win32-processor
-const PROCESSOR_ARCHITECTURE_BY_CODE = new Map([
-  [9, "amd64"],
-  [12, "arm64"],
-]);
 
 const options = parseArgs(process.argv.slice(2));
 
@@ -200,9 +194,7 @@ function absorbEnvelopeMeta(stdout, spec) {
   }
 
   const architecture = envelope.results.processor?.items?.[0]?.Architecture;
-  const hardwareArch = PROCESSOR_ARCHITECTURE_BY_CODE.get(
-    Number(architecture),
-  );
+  const hardwareArch = WINDOWS_PROCESSOR_ARCHITECTURES[Number(architecture)];
   if (spec.id === "windows-cim-platform" && hardwareArch) {
     manifest.hardwareArch = hardwareArch;
   } else if (manifest.hardwareArch === undefined && hardwareArch) {
