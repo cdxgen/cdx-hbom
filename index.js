@@ -46,6 +46,7 @@ import {
   collectLinuxArm64Hardware,
   getLinuxArm64CommandPlan,
 } from "./src/linux/arm64/index.js";
+import { getWindowsCommandPlan } from "./src/windows/common/index.js";
 
 /**
  * Supported hardware discovery targets.
@@ -87,6 +88,9 @@ export function getCommandPlan(options = {}) {
   }
   if (platform === "linux" && architecture === "arm64") {
     return getLinuxArm64CommandPlan();
+  }
+  if (platform === "win32" && ["amd64", "arm64"].includes(architecture)) {
+    return getWindowsCommandPlan();
   }
 
   throw new Error(`Unsupported HBOM target: ${platform}/${architecture}`);
@@ -228,11 +232,14 @@ export function buildHardwareFromSources(options) {
 /**
  * Normalize a platform string for target routing.
  *
+ * `windows` is accepted as an alias of the Node.js `win32` platform value.
+ *
  * @param {string | undefined} platform Platform value.
  * @returns {string} Normalized platform.
  */
 function normalizePlatform(platform) {
-  return String(platform ?? "").toLowerCase();
+  const normalized = String(platform ?? "").toLowerCase();
+  return normalized === "windows" ? "win32" : normalized;
 }
 
 /**

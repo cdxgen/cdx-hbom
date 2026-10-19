@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import process from "node:process";
 
 import { safeSpawnSync } from "./safe.js";
@@ -6,7 +7,7 @@ import { recordCollectorTrace } from "./trace.js";
 // Windows 11 ships its own sudo.exe, so the Linux `sudo -n` elevation paths must
 // never run on win32. cdx-hbom never requests elevation there; users who need
 // privileged sources start from an elevated prompt themselves.
-const WINDOWS_PRIVILEGE_HINT =
+export const WINDOWS_PRIVILEGE_HINT =
   "Re-run from an elevated (Run as administrator) prompt; cdx-hbom never requests elevation on Windows.";
 const LINUX_PRIVILEGE_HINT =
   "Retry with --privileged to allow a non-interactive sudo attempt for permission-sensitive Linux commands.";
@@ -41,7 +42,7 @@ function getPrivilegeHint() {
  * @returns {Promise<string>} Trimmed stdout.
  */
 export async function runCommand(spec, options = {}) {
-  const timeoutMs = options.timeoutMs ?? 15000;
+  const timeoutMs = options.timeoutMs ?? spec.timeoutMs ?? 15000;
   const attemptedWithSudo = shouldRunWithSudo(spec, options);
   let result = executeCommand(spec, options, timeoutMs, attemptedWithSudo);
 
@@ -88,9 +89,32 @@ function executeCommand(spec, options, timeoutMs, useSudo) {
       purpose: spec.purpose,
       requestedCommand: spec.command,
       requestedArgs: [...spec.args],
+      target: formatSpecTarget(spec),
     },
     timeout: timeoutMs,
   });
+}
+
+/**
+ * Format the trace `target` of a spec.
+ *
+ * Windows CIM specs carry a multi-kilobyte PowerShell script as their last
+ * argument; replaying it in every trace row (and in consumers that copy
+ * `target` verbatim) hides the signal. Such specs summarize the script by its
+ * SHA-256 digest instead, while `args`/`requestedArgs` stay complete for
+ * auditing.
+ *
+ * @param {CommandSpec} spec Command descriptor.
+ * @returns {string} Trace target.
+ */
+function formatSpecTarget(spec) {
+  const args = [...(spec.args ?? [])];
+  if (spec.parser !== "windows-envelope" || args.length === 0) {
+    return `${spec.command}${args.length ? ` ${args.join(" ")}` : ""}`;
+  }
+  const script = String(args.at(-1));
+  const digest = createHash("sha256").update(script).digest("hex").slice(0, 12);
+  return `${spec.command} -Command ${spec.id} script sha256:${digest}`;
 }
 
 function shouldRunWithSudo(spec, options) {
@@ -108,6 +132,7 @@ function shouldRetryWithSudo(spec, options, result, attemptedWithSudo) {
   if (
     attemptedWithSudo ||
     isWindowsHost() ||
+    result.error?.code === "CDX_HBOM_DRY_RUN" ||
     options.includePrivilegedEnrichment !== true ||
     spec.sudoRetryOnPermissionDenied !== true ||
     result.status === 0
@@ -137,7 +162,7 @@ function recordSudoRetry(spec, options, result) {
     retryCommand: "sudo",
     retryArgs: ["-n", spec.command, ...spec.args],
     status: "scheduled",
-    target: `${spec.command}${spec.args.length ? ` ${spec.args.join(" ")}` : ""}`,
+    target: formatSpecTarget(spec),
   });
 }
 
@@ -157,7 +182,7 @@ function recordCommandWarning(spec, options, stdout, stderr) {
     kind: "command-warning",
     reason: summarizeCommandIssue(stderr),
     status: "warning",
-    target: `${spec.command}${spec.args.length ? ` ${spec.args.join(" ")}` : ""}`,
+    target: formatSpecTarget(spec),
   });
 }
 
@@ -199,11 +224,9 @@ function createCommandFailure(spec, result, options) {
   error.installHint = getInstallHint(spec.command);
   error.privilegeHint =
     privilegeMode === "none" ? undefined : getPrivilegeHint();
-  error.suppressedDiagnostic = shouldSuppressCommandDiagnostic(
-    spec,
-    errorType,
-    issueSummary,
-  );
+  error.suppressedDiagnostic =
+    errorType === "dry-run" ||
+    shouldSuppressCommandDiagnostic(spec, errorType, issueSummary);
 
   if (!error.suppressedDiagnostic) {
     recordCollectorTrace(options.trace, {
@@ -217,7 +240,7 @@ function createCommandFailure(spec, result, options) {
       kind: "command-diagnostic",
       reason: issueSummary,
       status: "failed",
-      target: `${spec.command}${spec.args.length ? ` ${spec.args.join(" ")}` : ""}`,
+      target: formatSpecTarget(spec),
     });
   }
 
@@ -255,6 +278,11 @@ function classifyCommandIssue({ error, stderr, stdout, status }) {
     .join("\n")
     .toLowerCase();
 
+  // A dry-run block is an intentional refusal to execute, not a collection
+  // failure: it must not surface as a diagnostic anywhere.
+  if (error?.code === "CDX_HBOM_DRY_RUN") {
+    return "dry-run";
+  }
   if (
     error?.code === "ENOENT" ||
     /command not found|not installed/u.test(text)
@@ -306,6 +334,8 @@ function summarizeCommandIssue(message) {
 
 function mapCommandFailureCode(errorType) {
   switch (errorType) {
+    case "dry-run":
+      return "CDX_HBOM_DRY_RUN";
     case "missing-command":
       return "CDX_HBOM_COMMAND_NOT_FOUND";
     case "permission-denied":
