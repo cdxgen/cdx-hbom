@@ -22,7 +22,7 @@
  * captured tree in tests.
  */
 
-import { join } from "node:path";
+import { posix } from "node:path";
 
 import {
   cableTrustNotes,
@@ -143,21 +143,21 @@ export function readTypecPorts(io) {
     .readDir(io.base)
     .filter((name) => /^port\d+$/u.test(name))
     .map((name) => {
-      const portPath = join(io.base, name);
-      const cablePath = join(io.base, `${name}-cable`);
-      const partnerPath = join(io.base, `${name}-partner`);
+      const portPath = posix.join(io.base, name);
+      const cablePath = posix.join(io.base, `${name}-cable`);
+      const partnerPath = posix.join(io.base, `${name}-partner`);
       const number = Number.parseInt(name.replace(/^port/u, ""), 10);
 
       return {
         name,
         number: Number.isNaN(number) ? undefined : number,
-        powerRole: io.readText(join(portPath, "power_role")),
-        dataRole: io.readText(join(portPath, "data_role")),
-        portType: io.readText(join(portPath, "port_type")),
-        pdRevision: io.readText(join(portPath, "usb_power_delivery_revision")),
-        typecRevision: io.readText(join(portPath, "usb_typec_revision")),
-        orientation: io.readText(join(portPath, "orientation")),
-        powerOperationMode: io.readText(join(portPath, "power_operation_mode")),
+        powerRole: io.readText(posix.join(portPath, "power_role")),
+        dataRole: io.readText(posix.join(portPath, "data_role")),
+        portType: io.readText(posix.join(portPath, "port_type")),
+        pdRevision: io.readText(posix.join(portPath, "usb_power_delivery_revision")),
+        typecRevision: io.readText(posix.join(portPath, "usb_typec_revision")),
+        orientation: io.readText(posix.join(portPath, "orientation")),
+        powerOperationMode: io.readText(posix.join(portPath, "power_operation_mode")),
         connected: io.exists(partnerPath) || io.exists(cablePath),
         cable: readTypecCable(name, cablePath, io),
         partner: readTypecPartner(name, partnerPath, io),
@@ -180,15 +180,15 @@ function readTypecCable(portName, cablePath, io) {
     return { present: false };
   }
 
-  const identityPath = join(cablePath, "identity");
+  const identityPath = posix.join(cablePath, "identity");
   return {
     present: true,
-    plugType: io.readText(join(cablePath, "plug_type")),
-    type: io.readText(join(cablePath, "type")),
-    idHeader: io.readText(join(identityPath, "id_header")),
-    certStat: io.readText(join(identityPath, "cert_stat")),
-    productTypeVdo1: io.readText(join(identityPath, "product_type_vdo1")),
-    productTypeVdo2: io.readText(join(identityPath, "product_type_vdo2")),
+    plugType: io.readText(posix.join(cablePath, "plug_type")),
+    type: io.readText(posix.join(cablePath, "type")),
+    idHeader: io.readText(posix.join(identityPath, "id_header")),
+    certStat: io.readText(posix.join(identityPath, "cert_stat")),
+    productTypeVdo1: io.readText(posix.join(identityPath, "product_type_vdo1")),
+    productTypeVdo2: io.readText(posix.join(identityPath, "product_type_vdo2")),
     altModes: readAltModes(io.base, `${portName}-cable`, io),
   };
 }
@@ -211,13 +211,13 @@ function readTypecPartner(portName, partnerPath, io) {
     return { present: false };
   }
 
-  const identityPath = join(partnerPath, "identity");
+  const identityPath = posix.join(partnerPath, "identity");
   return {
     present: true,
-    type: io.readText(join(partnerPath, "type")),
-    idHeader: io.readText(join(identityPath, "id_header")),
-    certStat: io.readText(join(identityPath, "cert_stat")),
-    productTypeVdo1: io.readText(join(identityPath, "product_type_vdo1")),
+    type: io.readText(posix.join(partnerPath, "type")),
+    idHeader: io.readText(posix.join(identityPath, "id_header")),
+    certStat: io.readText(posix.join(identityPath, "cert_stat")),
+    productTypeVdo1: io.readText(posix.join(identityPath, "product_type_vdo1")),
     usbName: findBusPortChild(partnerPath, io),
     pdName: readPdName(partnerPath, io),
     altModes: readAltModes(io.base, `${portName}-partner`, io),
@@ -265,7 +265,7 @@ export function isBusPortName(name) {
  * @returns {string | undefined} Power delivery node name, or undefined.
  */
 function readPdName(partnerPath, io) {
-  const linkTarget = io.readLink?.(join(partnerPath, "usb_power_delivery"));
+  const linkTarget = io.readLink?.(posix.join(partnerPath, "usb_power_delivery"));
   if (linkTarget) {
     return basename(linkTarget);
   }
@@ -293,12 +293,12 @@ function readAltModes(base, prefix, io) {
     .readDir(base)
     .filter((name) => pattern.test(name))
     .map((name) => {
-      const modePath = join(base, name);
-      const svid = toUint32(io.readText(join(modePath, "svid")));
-      const active = io.readText(join(modePath, "active"));
+      const modePath = posix.join(base, name);
+      const svid = toUint32(io.readText(posix.join(modePath, "svid")));
+      const active = io.readText(posix.join(modePath, "active"));
       return {
         svid,
-        mode: io.toNumber(io.readText(join(modePath, "mode"))),
+        mode: io.toNumber(io.readText(posix.join(modePath, "mode"))),
         active: active === "yes" || active === "1",
       };
     })
@@ -321,10 +321,10 @@ function readAltModes(base, prefix, io) {
  * @returns {TypecSourceCapability[]} Advertised supplies.
  */
 function readTypecSourceCapabilities(partnerPath, io) {
-  const pdPath = join(partnerPath, "usb_power_delivery");
+  const pdPath = posix.join(partnerPath, "usb_power_delivery");
   const capabilitiesPath = [
-    join(pdPath, "source-capabilities"),
-    join(pdPath, "source_capabilities"),
+    posix.join(pdPath, "source-capabilities"),
+    posix.join(pdPath, "source_capabilities"),
   ].find((candidate) => io.exists(candidate));
   if (!capabilitiesPath) {
     return [];
@@ -338,19 +338,19 @@ function readTypecSourceCapabilities(partnerPath, io) {
     .filter((name) => /^\d+:/u.test(name))
     .sort()
     .map((name) => {
-      const supplyPath = join(capabilitiesPath, name);
+      const supplyPath = posix.join(capabilitiesPath, name);
       const [indexPart, typePart = ""] = name.split(":");
       return {
         type: typePart || undefined,
         index: io.toNumber(indexPart),
         voltageMillivolt:
-          io.toNumber(io.readText(join(supplyPath, "voltage"))) ??
-          io.toNumber(io.readText(join(supplyPath, "minimum_voltage"))),
+          io.toNumber(io.readText(posix.join(supplyPath, "voltage"))) ??
+          io.toNumber(io.readText(posix.join(supplyPath, "minimum_voltage"))),
         maxVoltageMillivolt: io.toNumber(
-          io.readText(join(supplyPath, "maximum_voltage")),
+          io.readText(posix.join(supplyPath, "maximum_voltage")),
         ),
         maxCurrentMilliamp: io.toNumber(
-          io.readText(join(supplyPath, "maximum_current")),
+          io.readText(posix.join(supplyPath, "maximum_current")),
         ),
       };
     });
@@ -383,17 +383,17 @@ function readUcsiLiveSupply(portName, portPath, portNumber, io) {
 
   // UCSI numbers its source supplies from one, so port0 maps to supply one.
   const supplyName = `ucsi-source-psy-${controller}${portNumber + 1}`;
-  const supplyPath = join(io.powerSupplyBase, supplyName);
+  const supplyPath = posix.join(io.powerSupplyBase, supplyName);
   if (!io.exists(supplyPath)) {
     return undefined;
   }
 
   return {
-    online: io.toNumber(io.readText(join(supplyPath, "online"))) === 1,
-    voltageMicrovolt: io.toNumber(io.readText(join(supplyPath, "voltage_now"))),
-    currentMicroamp: io.toNumber(io.readText(join(supplyPath, "current_now"))),
+    online: io.toNumber(io.readText(posix.join(supplyPath, "online"))) === 1,
+    voltageMicrovolt: io.toNumber(io.readText(posix.join(supplyPath, "voltage_now"))),
+    currentMicroamp: io.toNumber(io.readText(posix.join(supplyPath, "current_now"))),
     currentMaxMicroamp: io.toNumber(
-      io.readText(join(supplyPath, "current_max")),
+      io.readText(posix.join(supplyPath, "current_max")),
     ),
   };
 }
