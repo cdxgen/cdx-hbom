@@ -1,0 +1,34 @@
+src/windows/common/index.js
+  s_c81cb3ef09afe3::t_ace319fd328c26 26
+  s_c81cb3ef09afe3::t_60fb40443d67ae 315-323,325-326,330-333,335,337,339,341-349
+  s_c81cb3ef09afe3::t_144b7a6b668c0c 8,227,231,244,248
+  s_c81cb3ef09afe3::t_2a1ebf60b19297 360-369
+test/windows/platform.test.js
+  s_c81cb3ef09afe3::t_814e910f4c51aa 328-343
+  s_c81cb3ef09afe3::t_ef00b476a890e7 7
+  s_c81cb3ef09afe3::t_60d6684aa499c5 308-310
+src/common/command.js
+  s_c81cb3ef09afe3::t_0d9674381b04d6 100,103-106,109,111,119-130
+  s_c81cb3ef09afe3::t_32b4028f100e86 237-238
+src/windows/common/platform.js
+  s_c81cb3ef09afe3::t_ca3b654cc5e64a 218-220,379-385,390-394,611,639-643
+src/common/evidence.js
+  s_c81cb3ef09afe3::t_657aaa03f88df2 31-34,42
+  s_c81cb3ef09afe3::t_b9bbb7c4f4d70a 6
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d723bb41cafc87b508e418c504a5c5f511c599cb",
+  "prompts": {},
+  "sessions": {
+    "s_c81cb3ef09afe3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2eb5ded0-f83f-4668-b459-e157774b0030",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Prabhu Subramanian <prabhu@appthreat.com>"
+    }
+  }
+}
