@@ -550,6 +550,7 @@ test("fixtures directory holds the expected capture labels", () => {
     "arm64/vm-parallels-elevated",
     "arm64/vm-parallels-std-local",
     "arm64/vm-parallels-std-network",
+    "arm64/vm-parallels-std-local-smp-stopped",
     "amd64/windows-2025-gha",
     "arm64/windows-11-arm-gha",
   ]) {

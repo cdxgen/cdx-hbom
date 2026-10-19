@@ -157,6 +157,53 @@ test("elevated VM fixture yields one SATA SSD storage component", () => {
   assert.equal(disk.manufacturer, undefined, "generic manufacturer dropped");
 });
 
+test("GitHub runner fixtures join two disks each and pick hardware NICs", () => {
+  // windows-2025: two NVMe disks (BusType 17) on the DeviceId = Index join.
+  const amd64 = buildFromFixture("amd64/windows-2025-gha");
+  const amd64Disks = byClass(amd64.bom, "storage");
+  assert.deepEqual(
+    amd64Disks.map((disk) => [
+      prop(disk, "cdx:hbom:diskNumber"),
+      prop(disk, "cdx:hbom:transport"),
+      prop(disk, "cdx:hbom:mediaType"),
+    ]),
+    [
+      ["0", "NVMe", "SSD"],
+      ["1", "NVMe", "SSD"],
+    ],
+  );
+  // The Azure MANA adapter reports HardwareInterface=false, so only the
+  // Hyper-V synthetic adapter (HardwareInterface=true) is listed.
+  const { excluded } = selectHardwareNetAdapters(
+    amd64.storage.results.netAdapter.items,
+  );
+  assert.deepEqual(
+    excluded.map((entry) => [entry.item.InterfaceDescription, entry.reason]),
+    [
+      ["Microsoft Azure Network Adapter", "HardwareInterface is not true"],
+      ["Hyper-V Virtual Ethernet Adapter", "HardwareInterface is not true"],
+    ],
+  );
+  assert.deepEqual(
+    byClass(amd64.bom, "network-interface").map((nic) => prop(nic, "cdx:hbom:driver")),
+    ["netvsc"],
+  );
+
+  // windows-11-arm: a SAS virtual disk without a serial plus an NVMe disk,
+  // and a Mellanox VF whose PCI segment 37452 renders as 924c.
+  const arm64 = buildFromFixture("arm64/windows-11-arm-gha");
+  const virtualDisk = byClass(arm64.bom, "storage").find(
+    (disk) => prop(disk, "cdx:hbom:transport") === "SAS",
+  );
+  assert.equal(prop(virtualDisk, "cdx:hbom:deviceSerial"), undefined);
+  assert.equal(prop(virtualDisk, "cdx:hbom:mediaType"), undefined);
+  const mellanox = byClass(arm64.bom, "network-interface").find(
+    (nic) => prop(nic, "cdx:hbom:driver") === "mlx5",
+  );
+  assert.equal(prop(mellanox, "cdx:hbom:pciAddress"), "924c:00:02.0");
+  assert.equal(prop(mellanox, "cdx:hbom:vendorId"), "15b3");
+});
+
 test("elevated VM fixture yields drive-lettered, system and boot volumes", () => {
   const { bom } = buildFromFixture("arm64/vm-parallels-elevated");
   const volumes = byClass(bom, "storage-volume");
@@ -223,9 +270,9 @@ test("std-local storage and NIC match the elevated output", () => {
   const elevated = buildFromFixture("arm64/vm-parallels-elevated");
   const stdLocal = buildFromFixture("arm64/vm-parallels-std-local");
 
-  // The 2026-10-19 capture returned full MSFT_PhysicalDisk data for the
-  // standard local token (the permissions matrix expected zero instances);
-  // DriverName stayed null, so the driver still comes from ServiceName.
+  // With smphost running, the standard local token gets full
+  // MSFT_PhysicalDisk data (see the smp-stopped fixture for the other case);
+  // DriverName stays null, so the driver still comes from ServiceName.
   const summarize = (bom) =>
     byClass(bom, "storage")
       .concat(byClass(bom, "network-interface"))
@@ -255,23 +302,15 @@ test("std-local storage and NIC match the elevated output", () => {
 });
 
 test("empty PhysicalDisk under a standard token explains the gap", () => {
-  const { storage } = buildFromFixture("arm64/vm-parallels-std-local");
-  const denied = {
-    ...storage,
-    results: {
-      ...storage.results,
-      physicalDisk: { ok: true, items: [] },
-    },
-  };
-  const bom = buildWindowsHbom({
-    architecture: "x64",
-    sources: {
-      baseline: TEST_BASELINE,
-      platformEnvelope: buildFromFixture("arm64/vm-parallels-std-local")
-        .platform,
-      storageNetworkEnvelope: denied,
-    },
-  });
+  // Captured as hbomstd (local logon) with the Storage Spaces SMP service
+  // (smphost) stopped: MSFT_PhysicalDisk is ok with zero instances, and a
+  // standard user cannot start the service. With smphost already running the
+  // same token gets full data (vm-parallels-std-local).
+  const { bom, storage } = buildFromFixture(
+    "arm64/vm-parallels-std-local-smp-stopped",
+  );
+  assert.deepEqual(storage.results.physicalDisk, { ok: true, items: [] });
+  assert.equal(storage.meta.elevated, false);
 
   const diagnostics = bom.properties
     .filter((entry) => entry.name === "cdx:hbom:evidence:commandDiagnostic")

@@ -61,10 +61,12 @@ export function parseStorageNetworkEnvelope(envelope) {
  * Build one `storage` component per physical disk (Win32_DiskDrive), enriched
  * from MSFT_PhysicalDisk when the join matches.
  *
- * A standard user gets zero MSFT_PhysicalDisk instances with no error
- * (PERMISSIONS-MATRIX.md), so DiskDrive is the base and PhysicalDisk the
- * enrichment: bus type, media type, health, sector sizes and spindle data
- * simply disappear instead of the disk disappearing.
+ * A standard user gets zero MSFT_PhysicalDisk instances, with no error,
+ * whenever the Storage Spaces SMP service (smphost) is not already running,
+ * because the token cannot start it; with smphost running the same token gets
+ * full data. So DiskDrive is the base and PhysicalDisk the enrichment: bus
+ * type, media type, health, sector sizes and spindle data disappear instead
+ * of the disk disappearing.
  *
  * @param {WindowsStorageNetworkSources} sources Storage sources.
  * @param {{ includeSensitiveIdentifiers?: boolean }} options Build options.
@@ -204,9 +206,9 @@ export function buildStorageVolumeComponents(sources, options = {}) {
 /**
  * Derive storage diagnostics for a parsed storage envelope.
  *
- * A non-elevated session gets zero MSFT_PhysicalDisk instances with no
- * error, which silently drops bus/media/health detail; one diagnostic says
- * so instead of leaving the gap unexplained.
+ * A non-elevated session can get zero MSFT_PhysicalDisk instances with no
+ * error (smphost stopped), which silently drops bus/media/health detail; one
+ * diagnostic says so instead of leaving the gap unexplained.
  *
  * @param {WindowsStorageNetworkSources} sources Storage sources.
  * @param {{ elevated?: boolean | null }} meta Envelope metadata.
