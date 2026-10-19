@@ -1,0 +1,31 @@
+test/fixtures/windows/arm64/windows-11-arm-gha/manifest.json
+  s_c81cb3ef09afe3::t_316c0754d93dbf 3,16,24-25
+  s_c81cb3ef09afe3::t_7966f9e038d4e1 1-2,4-15,17-23,26-29
+test/fixtures/windows/amd64/windows-2025-gha/windows-cim-platform.stdout
+  s_c81cb3ef09afe3::t_316c0754d93dbf 1
+test/fixtures/windows/arm64/windows-11-arm-gha/windows-cim-platform.stdout
+  s_c81cb3ef09afe3::t_7966f9e038d4e1 1
+test/fixtures/windows/amd64/windows-2025-gha/windows-cim-selftest.stdout
+  s_c81cb3ef09afe3::t_316c0754d93dbf 1
+test/fixtures/windows/arm64/windows-11-arm-gha/windows-cim-selftest.stdout
+  s_c81cb3ef09afe3::t_316c0754d93dbf 1
+test/fixtures/windows/amd64/windows-2025-gha/manifest.json
+  s_c81cb3ef09afe3::t_316c0754d93dbf 3,16,24-25
+  s_c81cb3ef09afe3::t_7966f9e038d4e1 1-2,4-15,17-23,26-29
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "abffb6a95772fb5c44734b0a6dd824a7b403206e",
+  "prompts": {},
+  "sessions": {
+    "s_c81cb3ef09afe3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2eb5ded0-f83f-4668-b459-e157774b0030",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Prabhu Subramanian <prabhu@appthreat.com>"
+    }
+  }
+}
