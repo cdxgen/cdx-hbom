@@ -1,0 +1,14 @@
+test/dry-run.test.js
+  h_6a4cc5cdf68def 85-98
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "50388d9e9671958ef48a0225836150276b55ab47",
+  "prompts": {},
+  "humans": {
+    "h_6a4cc5cdf68def": {
+      "author": "Team AppThreat <cloud@appthreat.com>"
+    }
+  }
+}
