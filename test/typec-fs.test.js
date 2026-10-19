@@ -12,6 +12,7 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import process from "node:process";
 import test from "node:test";
 
 import { readTypecPorts } from "../src/linux/common/typec.js";
@@ -59,7 +60,7 @@ function fsIo(base, powerSupplyBase) {
   };
 }
 
-test("readTypecPorts reads a captured sysfs tree from disk", () => {
+test("readTypecPorts reads a captured sysfs tree from disk", { skip: process.platform === "win32" ? "sysfs names contain ':' (not valid on NTFS)" : false }, () => {
   const root = mkdtempSync(join(tmpdir(), "cdx-typec-"));
   try {
     writeFile(join(root, "port0", "power_role"), "[sink] source\n");
@@ -113,7 +114,7 @@ test("readTypecPorts reads a captured sysfs tree from disk", () => {
   }
 });
 
-test("readTypecPorts reads partner correlation, alt modes, PPS and UCSI", () => {
+test("readTypecPorts reads partner correlation, alt modes, PPS and UCSI", { skip: process.platform === "win32" ? "sysfs names contain ':' (not valid on NTFS)" : false }, () => {
   const root = mkdtempSync(join(tmpdir(), "cdx-typec-"));
   const psy = mkdtempSync(join(tmpdir(), "cdx-psy-"));
   try {
