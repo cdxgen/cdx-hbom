@@ -33,7 +33,7 @@ function runTool(script, args) {
   };
 }
 
-test("capture-fixtures refuses to run off Windows", () => {
+test("capture-fixtures refuses to run off Windows", { skip: process.platform === "win32" }, () => {
   const result = runTool(CAPTURE_SCRIPT, ["--out", "tmp/nope", "--label", "x"]);
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /must run on Windows/u);

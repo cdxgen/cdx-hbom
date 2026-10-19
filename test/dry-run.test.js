@@ -9,24 +9,38 @@ import {
 } from "../index.js";
 
 /**
- * Override `process.platform` for the duration of a callback.
+ * Override `process.platform` and `process.arch` for a callback.
  *
  * @param {string} platform Fake platform value.
+ * @param {string} architecture Fake architecture value.
  * @param {() => unknown} callback Callback.
  * @returns {unknown} Callback result.
  */
-function withPlatform(platform, callback) {
-  const descriptor = Object.getOwnPropertyDescriptor(process, "platform");
-  Object.defineProperty(process, "platform", { ...descriptor, value: platform });
+function withTargetPlatform(platform, architecture, callback) {
+  const platformDescriptor = Object.getOwnPropertyDescriptor(
+    process,
+    "platform",
+  );
+  const archDescriptor = Object.getOwnPropertyDescriptor(process, "arch");
+  Object.defineProperty(process, "platform", {
+    ...platformDescriptor,
+    value: platform,
+  });
+  Object.defineProperty(process, "arch", { ...archDescriptor, value: architecture });
   try {
     return callback();
   } finally {
-    Object.defineProperty(process, "platform", descriptor);
+    Object.defineProperty(process, "platform", platformDescriptor);
+    Object.defineProperty(process, "arch", archDescriptor);
   }
 }
 
 test("dry-run blocks every Darwin command without recording failures", async () => {
-  const bom = await collectHardware({ dryRun: true });
+  // The Darwin collector guards on the host platform, so the test fakes
+  // darwin/arm64 to stay exercisable from Windows CI.
+  const bom = await withTargetPlatform("darwin", "arm64", () =>
+    collectHardware({ dryRun: true }),
+  );
   const trace = getCollectorTrace(bom);
   const kinds = new Set(trace.activities.map((entry) => entry.kind));
 
@@ -38,7 +52,7 @@ test("dry-run blocks every Darwin command without recording failures", async () 
 });
 
 test("dry-run leaves the Linux BOM free of phantom diagnostics", async () => {
-  await withPlatform("linux", async () => {
+  await withTargetPlatform("linux", "amd64", async () => {
     const bom = await collectHardware({
       platform: "linux",
       architecture: "amd64",
