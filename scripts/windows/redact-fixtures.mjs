@@ -29,7 +29,11 @@ import {
   WINDOWS_COMMANDS,
   WINDOWS_SELFTEST_COMMAND,
 } from "../../src/windows/common/commands.js";
-import { redactInstanceId } from "../../src/windows/common/pnp.js";
+import {
+  getInstanceSegment,
+  redactHardwareIds,
+  redactInstanceId,
+} from "../../src/windows/common/pnp.js";
 
 const GUID_PATTERN = /^\{?([0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12})\}?$/u;
 const MAC_PATTERN = /^([0-9A-Fa-f]{2}[:-]){5}[0-9A-Fa-f]{2}$/u;
@@ -173,15 +177,39 @@ function redactFile(filePath) {
   }
 
   // Token replacement misses a sensitive value embedded in a longer string,
-  // so fail closed instead. Values of 4 characters or fewer are skipped: they
-  // are too short to identify a host, and redactIdentifier treats them the same.
-  return replacements
-    .filter(([value]) => value.length > 4)
-    .filter(([value]) => new RegExp(jsonTextPattern(value), "u").test(text))
+  // and a raw PnP instance segment can be repeated in another field, so fail
+  // closed instead. Values of 4 characters or fewer are skipped: they are too
+  // short to identify a host, and redactIdentifier treats them the same.
+  const leftovers = [
+    ...replacements.map(([value]) => value),
+    ...collectRawInstanceSegments(envelope),
+  ];
+  return leftovers
+    .filter((value) => value.length > 4)
+    .filter((value) => new RegExp(jsonTextPattern(value), "u").test(text))
     .map(
-      ([value]) =>
-        `${fileName(filePath)}.stdout: sensitive value (${value.length} chars) embedded in another string`,
+      (value) =>
+        `${fileName(filePath)}.stdout: sensitive value (${value.length} chars) still present`,
     );
+}
+
+/**
+ * Collect the raw (not yet redacted) PnP instance segments of an envelope.
+ *
+ * @param {object | undefined} envelope Parsed envelope.
+ * @returns {string[]} Raw instance segments.
+ */
+function collectRawInstanceSegments(envelope) {
+  const segments = [];
+  for (const result of Object.values(envelope?.results ?? {})) {
+    for (const item of [...(result?.items ?? [])]) {
+      const segment = getInstanceSegment(item?.PNPDeviceID ?? item?.PnPDeviceID);
+      if (segment && !segment.startsWith("redacted")) {
+        segments.push(segment);
+      }
+    }
+  }
+  return segments;
 }
 
 /**
@@ -225,9 +253,12 @@ function collectGenericFields(envelope, sensitive) {
       if (!item || typeof item !== "object") {
         continue;
       }
+      const instanceId = item.PNPDeviceID ?? item.PnPDeviceID;
       for (const [name, value] of Object.entries(item)) {
         if (PNP_FIELD_NAMES.has(name)) {
-          collectFieldValue(item, name, sensitive, redactInstanceId);
+          collectFieldValue(item, name, sensitive, (entry) =>
+            redactHardwareIds([redactInstanceId(entry)], instanceId)[0],
+          );
           continue;
         }
         if (MAC_FIELD_PATTERN.test(name)) {

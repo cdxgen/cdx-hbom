@@ -210,7 +210,7 @@ test("redact-fixtures fails closed when a serial is embedded in another string",
 
   const result = runTool(REDACT_SCRIPT, [work]);
   assert.notEqual(result.status, 0);
-  assert.match(result.stderr, /sensitive value \(10 chars\) embedded/u);
+  assert.match(result.stderr, /sensitive value \(10 chars\) still present/u);
   // Messages reach public CI logs, so they never repeat the value.
   assert.equal(result.stderr.includes("SER-123456"), false);
   rmSync(work, { recursive: true, force: true });
