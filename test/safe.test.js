@@ -117,3 +117,21 @@ test("safeSpawnSync blocks commands during dry-run and records the attempted com
   assert.equal(trace.activities[0].id, "node-version");
   assert.match(trace.activities[0].target, /node/u);
 });
+
+test("safeSpawnSync allowlists absolute Windows paths by their win32 basename", () => {
+  const windowsPowerShell =
+    "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe";
+  // Dry-run keeps the probe from actually spawning a Windows binary on a
+  // POSIX host; reaching the dry-run block proves the allowlist matched.
+  const allowed = safeSpawnSync(windowsPowerShell, ["-NoProfile"], {
+    allowedCommands: ["powershell.exe"],
+    dryRun: true,
+  });
+  assert.equal(allowed.error?.code, "CDX_HBOM_DRY_RUN");
+
+  const blocked = safeSpawnSync(windowsPowerShell, ["-NoProfile"], {
+    allowedCommands: ["cmd.exe"],
+    dryRun: true,
+  });
+  assert.match(String(blocked.error?.message), /allowlist/u);
+});

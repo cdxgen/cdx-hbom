@@ -144,3 +144,95 @@ test("runCommand suppresses low-value diagnostics for unsupported ethtool interf
     false,
   );
 });
+
+test("runCommand prefers the spec timeout over the built-in default", async () => {
+  const trace = createCollectorTrace();
+  const startedAt = Date.now();
+
+  await assert.rejects(
+    () =>
+      runCommand(
+        {
+          id: "timeout-probe",
+          category: "platform",
+          command: process.execPath,
+          args: ["-e", "setTimeout(() => {}, 60000);"],
+          parser: "text",
+          purpose: "Test spec timeout precedence.",
+          phase: "collector-v1",
+          timeoutMs: 250,
+        },
+        { trace },
+      ),
+    (error) => {
+      assert.equal(error.issue, "timeout");
+      return true;
+    },
+  );
+
+  const activity = trace.activities.find((entry) => entry.kind === "command");
+  assert.ok(Date.now() - startedAt < 10000);
+  assert.ok(activity, "spawn activity recorded");
+});
+
+test("runCommand reports dry-run blocks without diagnostics or warnings", async () => {
+  const trace = createCollectorTrace();
+
+  await assert.rejects(
+    () =>
+      runCommand(
+        {
+          id: "dry-run-probe",
+          category: "platform",
+          command: process.execPath,
+          args: ["-e", "process.stdout.write('never runs');"],
+          parser: "text",
+          purpose: "Test dry-run classification.",
+          phase: "collector-v1",
+        },
+        { trace, dryRun: true },
+      ),
+    (error) => {
+      assert.equal(error.code, "CDX_HBOM_DRY_RUN");
+      assert.equal(error.issue, "dry-run");
+      assert.equal(error.suppressedDiagnostic, true);
+      assert.equal(error.privilegeHint, undefined);
+      return true;
+    },
+  );
+
+  assert.deepEqual(
+    trace.activities.map((entry) => `${entry.kind}:${entry.status}`),
+    ["command:blocked"],
+  );
+});
+
+test("runCommand summarizes windows-envelope targets by script digest", async () => {
+  const { WINDOWS_COMMANDS } = await import(
+    "../src/windows/common/commands.js"
+  );
+  const { createHash } = await import("node:crypto");
+  const trace = createCollectorTrace();
+  const spec = WINDOWS_COMMANDS[0];
+
+  await assert.rejects(
+    () => runCommand(spec, { trace, dryRun: true }),
+    (error) => {
+      assert.equal(error.issue, "dry-run");
+      return true;
+    },
+  );
+
+  const activity = trace.activities.find((entry) => entry.kind === "command");
+  const digest = createHash("sha256")
+    .update(spec.args.at(-1))
+    .digest("hex")
+    .slice(0, 12);
+  assert.equal(
+    activity.target,
+    `${spec.command} -Command ${spec.id} script sha256:${digest}`,
+  );
+  // The full script stays auditable through args/requestedArgs.
+  assert.deepEqual(activity.args, spec.args);
+  assert.deepEqual(activity.requestedArgs, spec.args);
+});
