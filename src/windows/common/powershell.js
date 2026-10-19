@@ -30,7 +30,7 @@ const MAX_SCRIPT_LENGTH = 8000;
 
 // Characters that would break out of the single-quoted PowerShell literals the
 // builder emits, or break the one-line invariant.
-const UNSAFE_MANIFEST_VALUE = /["`$;`\r\n\0]/u;
+const UNSAFE_MANIFEST_VALUE = /["`$;\r\n\0]/u;
 
 // A drive-absolute SystemRoot such as `C:\Windows`. Everything after the drive
 // colon must be a legal path segment; control characters and path wildcards

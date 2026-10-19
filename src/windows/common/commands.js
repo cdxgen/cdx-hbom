@@ -1,5 +1,4 @@
 import {
-  assertWindowsScriptInvariants,
   buildCimScript,
   resolveWindowsPowerShellPath,
   WINDOWS_POWERSHELL_BASE_ARGS,
@@ -334,8 +333,8 @@ export const WINDOWS_SELFTEST_COMMAND = toWindowsCommandSpec(
  * @returns {Readonly<import("../../common/command.js").CommandSpec>} Frozen spec.
  */
 function toWindowsCommandSpec(manifest, fields) {
+  // buildCimScript asserts the script invariants before returning.
   const script = buildCimScript(manifest);
-  assertWindowsScriptInvariants(script);
 
   return Object.freeze({
     id: manifest.commandId,

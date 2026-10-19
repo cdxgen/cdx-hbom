@@ -34,14 +34,17 @@ jobs:
           node-version: 24.x
           package-manager-cache: false
 
+      # The input reaches the shell through env, never by template expansion.
       - name: Capture fixtures
-        run: node scripts/windows/capture-fixtures.mjs --out capture --label ${{ matrix.os }}-${{ inputs.label_suffix }} --selftest
+        env:
+          CAPTURE_LABEL: ${{ matrix.os }}-${{ inputs.label_suffix }}
+        run: node scripts/windows/capture-fixtures.mjs --out capture --label "$env:CAPTURE_LABEL" --selftest
 
       - name: Redact fixtures
         run: node scripts/windows/redact-fixtures.mjs capture
 
       - name: Upload capture artifact
-        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08  # v4.6.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
         with:
           name: windows-fixtures-${{ matrix.os }}
           path: capture

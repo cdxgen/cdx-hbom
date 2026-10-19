@@ -89,14 +89,15 @@ function executeCommand(spec, options, timeoutMs, useSudo) {
       purpose: spec.purpose,
       requestedCommand: spec.command,
       requestedArgs: [...spec.args],
-      target: formatSpecTarget(spec),
+      // Other specs keep the spawned command line, including any `sudo -n`.
+      target: summarizeScriptTarget(spec),
     },
     timeout: timeoutMs,
   });
 }
 
 /**
- * Format the trace `target` of a spec.
+ * Summarize the trace `target` of a Windows CIM spec.
  *
  * Windows CIM specs carry a multi-kilobyte PowerShell script as their last
  * argument; replaying it in every trace row (and in consumers that copy
@@ -105,16 +106,24 @@ function executeCommand(spec, options, timeoutMs, useSudo) {
  * auditing.
  *
  * @param {CommandSpec} spec Command descriptor.
- * @returns {string} Trace target.
+ * @returns {string | undefined} Summarized target, or undefined for other specs.
  */
-function formatSpecTarget(spec) {
-  const args = [...(spec.args ?? [])];
-  if (spec.parser !== "windows-envelope" || args.length === 0) {
-    return `${spec.command}${args.length ? ` ${args.join(" ")}` : ""}`;
+function summarizeScriptTarget(spec) {
+  if (spec.parser !== "windows-envelope" || !spec.args?.length) {
+    return undefined;
   }
-  const script = String(args.at(-1));
-  const digest = createHash("sha256").update(script).digest("hex").slice(0, 12);
+  const digest = createHash("sha256")
+    .update(String(spec.args.at(-1)))
+    .digest("hex")
+    .slice(0, 12);
   return `${spec.command} -Command ${spec.id} script sha256:${digest}`;
+}
+
+function formatSpecTarget(spec) {
+  return (
+    summarizeScriptTarget(spec) ??
+    `${spec.command}${spec.args.length ? ` ${spec.args.join(" ")}` : ""}`
+  );
 }
 
 function shouldRunWithSudo(spec, options) {

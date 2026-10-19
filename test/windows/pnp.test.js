@@ -137,6 +137,8 @@ test("parseDeviceInstanceId decodes HD Audio, ACPI, UEFI and Bluetooth formats",
   assert.equal(bth.ids.vendorId, "12345678");
   assert.equal(bth.ids.productId, "abcd");
 
+  // Not from a capture or a doc page: the VM has no Bluetooth radio. Replace
+  // with a captured ID once a physical host (P3) is available.
   const bthDevice = parseDeviceInstanceId(
     "BTHENUM\\DEV_04E52FEA9B1F\\7&ffffffff&0&BluetoothDevice_04E52FEA9B1F",
   );
@@ -226,6 +228,12 @@ test("redactInstanceId redacts the instance segment and Bluetooth MACs", () => {
     "USB\\VID_203A&PID_FFFB\\KBD1.1",
   );
   assert.equal(redactInstanceId("USB\\COMPOSITE"), "USB\\COMPOSITE");
+  // Win32_DiskDrive.DeviceID as captured on win11-vm: a device path with no
+  // enumerator, so nothing is an instance segment.
+  assert.equal(
+    redactInstanceId("\\\\.\\PHYSICALDRIVE0"),
+    "\\\\.\\PHYSICALDRIVE0",
+  );
   // Redaction is idempotent, so already-redacted fixture values stay stable.
   assert.equal(
     redactInstanceId(

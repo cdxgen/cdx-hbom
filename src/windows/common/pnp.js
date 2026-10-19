@@ -43,8 +43,9 @@ const HID_TOKENS = [
   ["collection", /(?:^|&)COL_?([0-9a-fA-F]{2})(?=&|$)/iu],
 ];
 
-// HD Audio device IDs, as observed on Windows hosts:
-// HDAUDIO\FUNC_xx&VEN_vvvv&DEV_dddd&SUBSYS_ssssssss&REV_rrrr.
+// HD Audio device IDs:
+// https://learn.microsoft.com/en-us/windows-hardware/drivers/install/identifiers-for-hdaudio-devices
+// HDAUDIO\FUNC_nn&VEN_v(4)&DEV_d(4)&SUBSYS_s(8)&REV_r(4).
 const HDAUDIO_TOKENS = [
   ["functionCode", /(?:^|&)FUNC_([0-9a-fA-F]{2})(?=&|$)/u],
   ["vendorId", /(?:^|&)VEN_([0-9a-fA-F]{4})(?=&|$)/u],
@@ -296,7 +297,9 @@ export function redactInstanceId(id, options = {}) {
   const lastSeparator = text.lastIndexOf(INSTANCE_ID_SEPARATOR);
   const firstSeparator = text.indexOf(INSTANCE_ID_SEPARATOR);
   if (
-    lastSeparator === -1 ||
+    // No enumerator: a device path such as Win32_DiskDrive's
+    // `\\.\PHYSICALDRIVE0`, not a device instance ID.
+    firstSeparator <= 0 ||
     // Two-part strings are hardware/compatible IDs without an instance
     // segment; the instance segment starts at the third part.
     lastSeparator === firstSeparator

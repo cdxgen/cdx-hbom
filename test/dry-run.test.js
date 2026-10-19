@@ -14,9 +14,9 @@ import {
  * @param {string} platform Fake platform value.
  * @param {string} architecture Fake architecture value.
  * @param {() => unknown} callback Callback.
- * @returns {unknown} Callback result.
+ * @returns {Promise<unknown>} Callback result, awaited before restoring.
  */
-function withTargetPlatform(platform, architecture, callback) {
+async function withTargetPlatform(platform, architecture, callback) {
   const platformDescriptor = Object.getOwnPropertyDescriptor(
     process,
     "platform",
@@ -28,7 +28,7 @@ function withTargetPlatform(platform, architecture, callback) {
   });
   Object.defineProperty(process, "arch", { ...archDescriptor, value: architecture });
   try {
-    return callback();
+    return await callback();
   } finally {
     Object.defineProperty(process, "platform", platformDescriptor);
     Object.defineProperty(process, "arch", archDescriptor);

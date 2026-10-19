@@ -316,7 +316,10 @@ function toUtcDateString(date) {
  *
  * Classification uses only non-localized fields (`nativeErrorCode`,
  * `statusCode`, and the type names inside `fqid`/`category`); the exception
- * message is localized and never inspected.
+ * message is localized and never inspected. Status codes are `MI_Result`
+ * values: https://learn.microsoft.com/en-us/windows/win32/api/mi/ne-mi-mi_result
+ * (2 ACCESS_DENIED, 3 INVALID_NAMESPACE, 5 INVALID_CLASS, 6 NOT_FOUND,
+ * 7 NOT_SUPPORTED).
  *
  * @param {{ nativeErrorCode?: string | number, statusCode?: string | number, category?: string, fqid?: string }} error Captured error object.
  * @returns {"permission-denied" | "not-present" | "partial-support" | "command-error"} Issue.
