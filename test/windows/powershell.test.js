@@ -9,6 +9,7 @@ import {
 } from "../../src/windows/common/powershell.js";
 import {
   WINDOWS_COMMANDS,
+  WINDOWS_MANIFESTS,
   WINDOWS_PLATFORM_MANIFEST,
   WINDOWS_SELFTEST_COMMAND,
   WINDOWS_SELFTEST_MANIFEST,
@@ -216,7 +217,18 @@ test("privacy guard: manifests never select PII properties", () => {
     { className: "Win32_DeviceGuard", property: "InstanceIdentifier" },
   ];
 
-  for (const manifest of [WINDOWS_PLATFORM_MANIFEST, WINDOWS_SELFTEST_MANIFEST]) {
+  assert.ok(WINDOWS_MANIFESTS.includes(WINDOWS_PLATFORM_MANIFEST));
+  assert.ok(WINDOWS_MANIFESTS.includes(WINDOWS_SELFTEST_MANIFEST));
+  // Every registry command has a manifest in the scanned list (plus the
+  // selftest), so a new command cannot bypass the guard.
+  assert.equal(WINDOWS_MANIFESTS.length, WINDOWS_COMMANDS.length + 1);
+  for (const spec of WINDOWS_COMMANDS) {
+    assert.ok(
+      WINDOWS_MANIFESTS.some((manifest) => manifest.commandId === spec.id),
+      `${spec.id} is missing from WINDOWS_MANIFESTS`,
+    );
+  }
+  for (const manifest of WINDOWS_MANIFESTS) {
     for (const entry of manifest.entries) {
       for (const property of entry.properties ?? []) {
         for (const rule of banned) {

@@ -31,6 +31,16 @@ import {
 } from "./cim.js";
 import { WINDOWS_COMMANDS, getRequiredWindowsCommand } from "./commands.js";
 import {
+  buildDisplayAdapterComponents,
+  buildDisplayComponents,
+  parseDisplayMediaEnvelope,
+} from "./display.js";
+import {
+  buildAudioControllerComponents,
+  buildAudioEndpointComponents,
+  buildCameraComponents,
+} from "./media.js";
+import {
   buildNetworkComponents,
 } from "./network.js";
 import {
@@ -80,11 +90,30 @@ export {
 export { selectHardwareNetAdapters, buildNetworkComponents } from "./network.js";
 export { WINDOWS_STORAGE_NETWORK_MANIFEST } from "./commands.js";
 export {
+  parseDisplayMediaEnvelope,
+  buildDisplayAdapterComponents,
+  buildDisplayComponents,
+  monitorPnpInstanceId,
+} from "./display.js";
+export {
+  buildAudioControllerComponents,
+  buildAudioEndpointComponents,
+  buildCameraComponents,
+} from "./media.js";
+export {
+  WINDOWS_DISPLAY_MEDIA_MANIFEST,
+  WINDOWS_MEDIA_PNP_CLASS_GUIDS,
+} from "./commands.js";
+export {
   WINDOWS_PC_SYSTEM_TYPES_EX,
   WINDOWS_MEMORY_ERROR_CORRECTIONS,
   WINDOWS_MEMORY_FORM_FACTORS,
   WINDOWS_PROCESSOR_ARCHITECTURES,
+  WINDOWS_VIDEO_OUTPUT_TECHNOLOGIES,
+  WINDOWS_DEVICE_SETUP_CLASSES,
   windowsEnumName,
+  windowsVideoOutputTechnologyName,
+  windowsSetupClassName,
 } from "./enums.js";
 
 /**
@@ -118,7 +147,8 @@ export function getWindowsCommandPlan() {
  *   sources?: {
  *     baseline?: { cpuModel?: string, cpuCount?: number, totalMemoryBytes?: number, osRelease?: string, osName?: string },
  *     platformEnvelope?: ReturnType<parseWindowsEnvelope>,
- *     storageNetworkEnvelope?: ReturnType<parseWindowsEnvelope>
+ *     storageNetworkEnvelope?: ReturnType<parseWindowsEnvelope>,
+ *     displayMediaEnvelope?: ReturnType<parseWindowsEnvelope>
  *   },
  *   includeSensitiveIdentifiers?: boolean,
  *   executedCommands?: Array<{ id: string, category: string, command: string, args: string[] }>,
@@ -132,8 +162,12 @@ export function getWindowsCommandPlan() {
 export function buildWindowsHbom(options = {}) {
   const envelope = options.sources?.platformEnvelope;
   const storageEnvelope = options.sources?.storageNetworkEnvelope;
+  const displayEnvelope = options.sources?.displayMediaEnvelope;
   const storageSources = storageEnvelope
     ? parseStorageNetworkEnvelope(storageEnvelope)
+    : undefined;
+  const displaySources = displayEnvelope
+    ? parseDisplayMediaEnvelope(displayEnvelope)
     : undefined;
   const parsed = envelope
     ? parsePlatformEnvelope(envelope)
@@ -174,6 +208,7 @@ export function buildWindowsHbom(options = {}) {
     ...(storageSources
       ? storageNetworkDiagnostics(storageSources, storageEnvelope?.meta)
       : []),
+    ...envelopeDiagnostics(displayEnvelope),
   ];
   const executedCommands = options.executedCommands ?? [];
 
@@ -192,6 +227,15 @@ export function buildWindowsHbom(options = {}) {
             storageSources.legacyNetworkAdapters,
             options,
           ),
+        ]
+      : []),
+    ...(displaySources
+      ? [
+          ...buildDisplayAdapterComponents(displaySources, options),
+          ...buildDisplayComponents(displaySources, options),
+          ...buildAudioControllerComponents(displaySources, options),
+          ...buildAudioEndpointComponents(displaySources, options),
+          ...buildCameraComponents(displaySources, options),
         ]
       : []),
   ]);
@@ -364,6 +408,10 @@ const WINDOWS_ENRICHMENT_STEPS = Object.freeze([
   Object.freeze({
     id: "windows-cim-storage-network",
     sourceKey: "storageNetworkEnvelope",
+  }),
+  Object.freeze({
+    id: "windows-cim-display-media",
+    sourceKey: "displayMediaEnvelope",
   }),
 ]);
 

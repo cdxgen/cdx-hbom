@@ -5,6 +5,23 @@ import {
 } from "./powershell.js";
 
 /**
+ * Setup-class GUIDs that `windows-cim-display-media` selects from
+ * Win32_PnPEntity, in the braced form the class reports. Camera and Image are
+ * vendor classes from
+ * https://learn.microsoft.com/en-us/windows-hardware/drivers/install/system-defined-device-setup-classes-available-to-vendors
+ * and AudioEndpoint is a system class from
+ * https://learn.microsoft.com/en-us/windows-hardware/drivers/install/system-defined-device-setup-classes-reserved-for-system-use
+ * (the VM selftest capture lists one AudioEndpoint entity under SWD).
+ *
+ * @type {ReadonlyArray<string>}
+ */
+export const WINDOWS_MEDIA_PNP_CLASS_GUIDS = Object.freeze([
+  "{ca3e7ab9-b4c3-4ae6-8251-579ef933890f}",
+  "{6bdd1fc6-810f-11d0-bec7-08002be2092f}",
+  "{c166523c-fe0c-4a94-a586-f1a80cfbbf3e}",
+]);
+
+/**
  * Manifest of `windows-cim-platform`, the tier-1 CIM batch.
  *
  * Property lists are the union this collector projects; the generated script
@@ -341,6 +358,117 @@ export const WINDOWS_STORAGE_NETWORK_MANIFEST = Object.freeze({
 });
 
 /**
+ * Manifest of `windows-cim-display-media`, the tier-2 graphics, monitor,
+ * audio and camera enrichment batch (PLAN.md §4.2).
+ *
+ * `WmiMonitorBasicDisplayParams.SupportedDisplayFeatures` is an embedded
+ * instance (VM-FINDINGS §3) and is never selected. The `mediaPnp` entry
+ * filters Win32_PnPEntity to the Camera, Image and AudioEndpoint setup
+ * classes (GUIDs in {@link WINDOWS_MEDIA_PNP_CLASS_GUIDS}); the full PnP
+ * inventory belongs to `windows-pnp-devices`.
+ *
+ * @type {{
+ *   commandId: string,
+ *   entries: ReadonlyArray<Readonly<import("./powershell.js").CimManifestEntry>>
+ * }}
+ */
+export const WINDOWS_DISPLAY_MEDIA_MANIFEST = Object.freeze({
+  commandId: "windows-cim-display-media",
+  entries: Object.freeze([
+    Object.freeze({
+      key: "videoController",
+      kind: "cim",
+      namespace: "root/cimv2",
+      className: "Win32_VideoController",
+      properties: Object.freeze([
+        "Name",
+        "AdapterCompatibility",
+        "VideoProcessor",
+        "AdapterRAM",
+        "DriverVersion",
+        "DriverDate",
+        "PNPDeviceID",
+        "CurrentHorizontalResolution",
+        "CurrentVerticalResolution",
+        "CurrentRefreshRate",
+        "CurrentBitsPerPixel",
+        "Status",
+      ]),
+    }),
+    Object.freeze({
+      key: "monitorId",
+      kind: "cim",
+      namespace: "root/wmi",
+      className: "WmiMonitorID",
+      properties: Object.freeze([
+        "InstanceName",
+        "Active",
+        "ManufacturerName",
+        "ProductCodeID",
+        "SerialNumberID",
+        "UserFriendlyName",
+        "YearOfManufacture",
+        "WeekOfManufacture",
+      ]),
+    }),
+    Object.freeze({
+      key: "monitorBasic",
+      kind: "cim",
+      namespace: "root/wmi",
+      className: "WmiMonitorBasicDisplayParams",
+      properties: Object.freeze([
+        "InstanceName",
+        "MaxHorizontalImageSize",
+        "MaxVerticalImageSize",
+        "VideoInputType",
+        "DisplayTransferCharacteristic",
+      ]),
+    }),
+    Object.freeze({
+      key: "monitorConnection",
+      kind: "cim",
+      namespace: "root/wmi",
+      className: "WmiMonitorConnectionParams",
+      properties: Object.freeze(["InstanceName", "VideoOutputTechnology"]),
+    }),
+    Object.freeze({
+      key: "soundDevice",
+      kind: "cim",
+      namespace: "root/cimv2",
+      className: "Win32_SoundDevice",
+      properties: Object.freeze([
+        "Name",
+        "Manufacturer",
+        "ProductName",
+        "PNPDeviceID",
+        "Status",
+      ]),
+    }),
+    Object.freeze({
+      key: "mediaPnp",
+      kind: "cim",
+      namespace: "root/cimv2",
+      className: "Win32_PnPEntity",
+      properties: Object.freeze([
+        "Name",
+        "Manufacturer",
+        "PNPDeviceID",
+        "ClassGuid",
+        "HardwareID",
+        "CompatibleID",
+        "Present",
+        "Status",
+        "Service",
+      ]),
+      where: Object.freeze({
+        property: "ClassGuid",
+        in: WINDOWS_MEDIA_PNP_CLASS_GUIDS,
+      }),
+    }),
+  ]),
+});
+
+/**
  * Manifest of the Windows CIM selftest command.
  *
  * `WINDOWS_SELFTEST_COMMAND` is deliberately excluded from
@@ -462,6 +590,22 @@ export const WINDOWS_COMMANDS = Object.freeze([
       "networkAdapterLegacy.PNPDeviceID",
     ],
   }),
+  toWindowsCommandSpec(WINDOWS_DISPLAY_MEDIA_MANIFEST, {
+    category: "display-media",
+    purpose:
+      "Collect graphics adapter, monitor EDID, sound device, audio endpoint and camera inventory via CIM.",
+    sensitiveFields: [
+      "videoController.PNPDeviceID",
+      "monitorId.InstanceName",
+      "monitorId.SerialNumberID",
+      "monitorBasic.InstanceName",
+      "monitorConnection.InstanceName",
+      "soundDevice.PNPDeviceID",
+      "mediaPnp.PNPDeviceID",
+      "mediaPnp.HardwareID",
+      "mediaPnp.CompatibleID",
+    ],
+  }),
 ]);
 
 /**
@@ -483,6 +627,19 @@ export const WINDOWS_SELFTEST_COMMAND = toWindowsCommandSpec(
     ],
   },
 );
+
+/**
+ * Every Windows manifest, including the selftest, so privacy and invariant
+ * tests cover each one without being updated per command.
+ *
+ * @type {ReadonlyArray<Readonly<import("./powershell.js").CimManifest>>}
+ */
+export const WINDOWS_MANIFESTS = Object.freeze([
+  WINDOWS_PLATFORM_MANIFEST,
+  WINDOWS_STORAGE_NETWORK_MANIFEST,
+  WINDOWS_DISPLAY_MEDIA_MANIFEST,
+  WINDOWS_SELFTEST_MANIFEST,
+]);
 
 /**
  * Look up a Windows command spec by id.

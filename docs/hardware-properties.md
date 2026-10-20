@@ -99,6 +99,8 @@ These appear across multiple hardware classes.
 | `cdx:hbom:revision`         | Generic device revision string                                       |
 | `cdx:hbom:index`            | Linux device index when exported by the subsystem                    |
 | `cdx:hbom:roles`            | Reported role list for a multi-role component such as an APFS volume |
+| `cdx:hbom:pnpInstanceId`    | Windows: PnP device instance ID (`enumerator\device-id\instance`). The instance segment, which can be a USB serial or a Bluetooth address, is redacted by default |
+| `cdx:hbom:present`          | Windows: whether the PnP device is currently present (`Win32_PnPEntity.Present`); phantom devices report `false` |
 
 ## Processor and memory properties
 
@@ -229,8 +231,8 @@ These appear across multiple hardware classes.
 | `cdx:hbom:linkRateMbps`          | Current wireless link rate in Mbps                                |
 | `cdx:hbom:securityMode`          | Current wireless security mode                                    |
 | `cdx:hbom:interfaceName`         | Windows: connection name (`MSFT_NetAdapter.Name`, for example `Ethernet`) |
-| `cdx:hbom:driverProvider`        | Windows: NIC driver provider (`MSFT_NetAdapter.DriverProvider`)   |
-| `cdx:hbom:driverDate`            | Windows: NIC driver date (`MSFT_NetAdapter.DriverDate`)           |
+| `cdx:hbom:driverProvider`        | Windows: driver provider (`MSFT_NetAdapter.DriverProvider`)       |
+| `cdx:hbom:driverDate`            | Windows: driver date as `YYYY-MM-DD` (`MSFT_NetAdapter.DriverDate`, `Win32_VideoController.DriverDate`) |
 | `cdx:hbom:physicalMedium`        | Windows: NDIS physical medium name (`MSFT_NetAdapter.NdisPhysicalMedium`) |
 | `cdx:hbom:adapterType`           | Windows: legacy adapter type (`Win32_NetworkAdapter.AdapterType`) |
 
@@ -313,6 +315,19 @@ These appear across multiple hardware classes.
 | `cdx:hbom:bitsPerColorChannel`    | Bits-per-color-channel from EDID or connector capabilities  |
 | `cdx:hbom:colorFormats`           | Supported pixel/color formats from `edid-decode`            |
 | `cdx:hbom:hdrEotf`                | Supported HDR electro-optical transfer functions            |
+| `cdx:hbom:refreshRateHz`          | Windows: current refresh rate (`Win32_VideoController.CurrentRefreshRate`); the 0 (default) and 0xFFFFFFFF (optimal) sentinels are omitted |
+| `cdx:hbom:bitsPerPixel`           | Windows: current colour depth (`Win32_VideoController.CurrentBitsPerPixel`) |
+| `cdx:hbom:adapterRamBytes`        | Windows: video memory (`Win32_VideoController.AdapterRAM`). The class defines it as a uint32, so adapters with 4 GiB or more cannot report their true size |
+| `cdx:hbom:isActive`               | Windows: whether the monitor is the active one (`WmiMonitorID.Active`) |
+
+On Windows, `display` components come from the root/wmi `WmiMonitorID`,
+`WmiMonitorBasicDisplayParams` and `WmiMonitorConnectionParams` classes joined
+on `InstanceName`: `manufacturer` is the three-letter EDID PnP vendor ID as
+reported, `productId` and `version` carry the EDID product code, `physicalSize`
+is `W x H cm` from the basic display parameters, `manufactureWeek` is omitted
+for the documented unknown values 0 and 255, and `connectionType` is the
+lower-cased `D3DKMDT_VIDEO_OUTPUT_TECHNOLOGY` name (`hd15`, `hdmi`,
+`displayport`, `internal`, ...) with unknown codes passed through raw.
 
 ## Bluetooth properties
 
@@ -515,6 +530,7 @@ These properties may contain unique identifiers and remain redacted by default w
 - `cdx:hbom:macAddress`
 - `cdx:hbom:mmcSerialNumber`
 - `cdx:hbom:platformUuid`
+- `cdx:hbom:pnpInstanceId` (the instance segment only; the enumerator and device-ID segments identify the model, not the unit)
 - `cdx:hbom:serialNumber`
 - `cdx:hbom:serialNumberLeft`
 - `cdx:hbom:serialNumberRight`

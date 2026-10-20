@@ -278,3 +278,162 @@ export const WINDOWS_OPERATIONAL_STATUSES = Object.freeze({
   18: "Power Mode",
   19: "Relocating",
 });
+
+/**
+ * D3DKMDT_VIDEO_OUTPUT_TECHNOLOGY, the connector type behind
+ * WmiMonitorConnectionParams.VideoOutputTechnology, from
+ * https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/d3dkmdt/ne-d3dkmdt-_d3dkmdt_video_output_technology
+ * (UNINITIALIZED (-2), OTHER (-1), HD15 (0) ... INDIRECT_WIRED (16),
+ * INTERNAL (0x80000000)). The live root/wmi schema has no ValueMap for this
+ * property (VM-FINDINGS §5). Keys are the signed enum values; the uint32 forms
+ * the WMI class reports are normalized by {@link windowsVideoOutputTechnologyName}.
+ * The SVIDEO_4PIN/7PIN, RF, RCA_3COMPONENT and BNC constants alias 1 and 2
+ * and therefore need no rows.
+ *
+ * @type {Readonly<Record<number, string>>}
+ */
+export const WINDOWS_VIDEO_OUTPUT_TECHNOLOGIES = Object.freeze({
+  [-2]: "uninitialized",
+  [-1]: "other",
+  0: "hd15",
+  1: "svideo",
+  2: "composite-video",
+  3: "component-video",
+  4: "dvi",
+  5: "hdmi",
+  6: "lvds",
+  8: "d-jpn",
+  9: "sdi",
+  10: "displayport",
+  11: "displayport-embedded",
+  12: "udi",
+  13: "udi-embedded",
+  14: "sdtv-dongle",
+  15: "miracast",
+  16: "indirect-wired",
+  [-2147483648]: "internal",
+});
+
+/**
+ * Name a VideoOutputTechnology code, accepting the signed enum value or the
+ * uint32 form WMI serializes (4294967294 for -2, 4294967295 for -1,
+ * 2147483648 for INTERNAL). Unknown codes are returned raw.
+ *
+ * @param {number | string | null | undefined} code Observed code.
+ * @returns {string | undefined} Connector name, raw code, or undefined.
+ */
+export function windowsVideoOutputTechnologyName(code) {
+  if (code === undefined || code === null) {
+    return undefined;
+  }
+  let key = Number(code);
+  if (!Number.isFinite(key)) {
+    return undefined;
+  }
+  // uint32 → int32 reinterpretation for values with the top bit set.
+  if (key >= 2 ** 31) {
+    key -= 2 ** 32;
+  }
+  return WINDOWS_VIDEO_OUTPUT_TECHNOLOGIES[key] ?? String(Number(code));
+}
+
+/**
+ * Device setup classes keyed by lower-case ClassGuid (no braces), from
+ * https://learn.microsoft.com/en-us/windows-hardware/drivers/install/system-defined-device-setup-classes-available-to-vendors
+ * (vendor classes) and
+ * https://learn.microsoft.com/en-us/windows-hardware/drivers/install/system-defined-device-setup-classes-reserved-for-system-use
+ * (AudioEndpoint, Computer, PrintQueue, SoftwareDevice, USB, VolumeSnapshot).
+ * The Firmware class comes from the UEFI firmware update platform INF sample at
+ * https://learn.microsoft.com/en-us/windows-hardware/drivers/bringup/authoring-an-update-driver-package.
+ * Values are the documented `Class` INF names, so classification never
+ * depends on Win32_PnPEntity.PNPClass, which the MS Learn page says can be
+ * missing.
+ *
+ * @type {Readonly<Record<string, string>>}
+ */
+export const WINDOWS_DEVICE_SETUP_CLASSES = Object.freeze({
+  "5989fce8-9cd0-467d-8a6a-5419e31529d4": "AudioProcessingObject",
+  "c166523c-fe0c-4a94-a586-f1a80cfbbf3e": "AudioEndpoint",
+  "72631e54-78a4-11d0-bcf7-00aa00b7b32a": "Battery",
+  "53d29ef7-377c-4d14-864b-eb3a85769359": "Biometric",
+  "e0cbf06c-cd8b-4647-bb8a-263b43f0f974": "Bluetooth",
+  "ca3e7ab9-b4c3-4ae6-8251-579ef933890f": "Camera",
+  "4d36e965-e325-11ce-bfc1-08002be10318": "CDROM",
+  "4d36e966-e325-11ce-bfc1-08002be10318": "Computer",
+  "4d36e967-e325-11ce-bfc1-08002be10318": "DiskDrive",
+  "4d36e968-e325-11ce-bfc1-08002be10318": "Display",
+  "48721b56-6795-11d2-b1a8-0080c72e74a2": "Dot4",
+  "49ce6ac8-6f86-11d2-b1e5-0080c72e74a2": "Dot4Print",
+  "e2f84ce7-8efa-411c-aa69-97454ca4cb57": "Extension",
+  "4d36e969-e325-11ce-bfc1-08002be10318": "FDC",
+  "f2e7dd72-6468-4e36-b6f1-6488f42c1b52": "Firmware",
+  "4d36e980-e325-11ce-bfc1-08002be10318": "FloppyDisk",
+  "4d36e96a-e325-11ce-bfc1-08002be10318": "HDC",
+  "745a17a0-74d3-11d0-b6fe-00a0c90f57da": "HIDClass",
+  "6bdd1fc1-810f-11d0-bec7-08002be2092f": "1394",
+  "6bdd1fc6-810f-11d0-bec7-08002be2092f": "Image",
+  "6bdd1fc5-810f-11d0-bec7-08002be2092f": "Infrared",
+  "4d36e96b-e325-11ce-bfc1-08002be10318": "Keyboard",
+  "ce5939ae-ebde-11d0-b181-0000f8753ec4": "MediumChanger",
+  "4d36e970-e325-11ce-bfc1-08002be10318": "MTD",
+  "4d36e96d-e325-11ce-bfc1-08002be10318": "Modem",
+  "4d36e96e-e325-11ce-bfc1-08002be10318": "Monitor",
+  "4d36e96f-e325-11ce-bfc1-08002be10318": "Mouse",
+  "4d36e971-e325-11ce-bfc1-08002be10318": "Multifunction",
+  "4d36e96c-e325-11ce-bfc1-08002be10318": "Media",
+  "50906cb8-ba12-11d1-bf5d-0000f805f530": "MultiportSerial",
+  "4d36e972-e325-11ce-bfc1-08002be10318": "Net",
+  "4d36e973-e325-11ce-bfc1-08002be10318": "NetClient",
+  "4d36e974-e325-11ce-bfc1-08002be10318": "NetService",
+  "4d36e975-e325-11ce-bfc1-08002be10318": "NetTrans",
+  "75416e63-5912-4dfa-ae8f-3efaccaffb14": "NvmeDisk",
+  "4d36e977-e325-11ce-bfc1-08002be10318": "PCMCIA",
+  "4d36e978-e325-11ce-bfc1-08002be10318": "Ports",
+  "4d36e979-e325-11ce-bfc1-08002be10318": "Printer",
+  "1ed2bbf9-11f0-4084-b21f-ad83a8e6dcdc": "PrintQueue",
+  "4658ee7e-f050-11d1-b6bd-00c04fa372a7": "PNPPrinters",
+  "50127dc3-0f36-415e-a6cc-4cb3be910b65": "Processor",
+  "4d36e97b-e325-11ce-bfc1-08002be10318": "SCSIAdapter",
+  "268c95a1-edfe-11d3-95c3-0010dc4050a5": "SecurityAccelerator",
+  "d94ee5d8-d189-4994-83d2-f68d7d41b0e6": "SecurityDevices",
+  "5175d334-c371-4806-b3ba-71fd53c9258d": "Sensor",
+  "50dd5230-ba8a-11d1-bf5d-0000f805f530": "SmartCardReader",
+  "5c4c3332-344d-483c-8739-259e934c9cc8": "SoftwareComponent",
+  "62f9c741-b25a-46ce-b54c-9bccce08b6f2": "SoftwareDevice",
+  "4d36e97d-e325-11ce-bfc1-08002be10318": "System",
+  "6d807884-7d21-11cf-801c-08002be10318": "TapeDrive",
+  "e6f1aa1c-7f3b-4473-b2e8-c97d8ac71d53": "UCM",
+  "36fc9e60-c465-11cf-8056-444553540000": "USB",
+  "88bae032-5a81-49f0-bc3d-a4ff138216d6": "USBDevice",
+  "71a27cdd-812a-11d0-bec7-08002be2092f": "Volume",
+  "533c5b84-ec70-11d2-9505-00c04f79deaf": "VolumeSnapshot",
+  "25dbce51-6c8f-4a72-8a6d-b54c2b4fc835": "WCEUSBS",
+  "eec5ad98-8080-425f-922a-dabf3de3f69a": "WPD",
+});
+
+/**
+ * Resolve the documented setup-class name of a ClassGuid.
+ *
+ * @param {string | null | undefined} classGuid GUID with or without braces, any case.
+ * @returns {string | undefined} Class name or undefined for unknown GUIDs.
+ */
+export function windowsSetupClassName(classGuid) {
+  const key = normalizeGuid(classGuid);
+  return key === undefined ? undefined : WINDOWS_DEVICE_SETUP_CLASSES[key];
+}
+
+/**
+ * Normalize a GUID to lower-case without braces.
+ *
+ * @param {string | null | undefined} value Candidate GUID.
+ * @returns {string | undefined} Normalized GUID or undefined.
+ */
+export function normalizeGuid(value) {
+  if (typeof value !== "string") {
+    return undefined;
+  }
+  const text = value.trim().replace(/^\{/u, "").replace(/\}$/u, "").toLowerCase();
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u.test(text)
+    ? text
+    : undefined;
+}

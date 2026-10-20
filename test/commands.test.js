@@ -97,10 +97,14 @@ test("getCommandPlan returns the Windows collector plan for both architectures",
     const planByAlias = getCommandPlan({ platform: "windows", architecture });
 
     assert.ok(Array.isArray(plan));
-    assert.equal(plan.length, 2);
+    assert.equal(plan.length, 3);
     assert.deepEqual(
       plan.map((entry) => entry.id),
-      ["windows-cim-platform", "windows-cim-storage-network"],
+      [
+        "windows-cim-platform",
+        "windows-cim-storage-network",
+        "windows-cim-display-media",
+      ],
     );
     for (const entry of plan) {
       assert.equal(entry.phase, "collector-v1");
