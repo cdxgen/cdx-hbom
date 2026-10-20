@@ -1,0 +1,26 @@
+test/fixtures/windows/arm64/vm-parallels-elevated/manifest.json
+  h_6a4cc5cdf68def 35-42
+test/fixtures/windows/arm64/vm-parallels-elevated/windows-cim-display-media.stdout
+  h_6a4cc5cdf68def 1
+test/fixtures/windows/arm64/vm-parallels-std-local/manifest.json
+  h_6a4cc5cdf68def 35-42
+test/fixtures/windows/arm64/vm-parallels-std-local/windows-cim-display-media.stdout
+  h_6a4cc5cdf68def 1
+test/fixtures/windows/arm64/vm-parallels-std-network/manifest.json
+  h_6a4cc5cdf68def 34-41
+test/fixtures/windows/arm64/vm-parallels-std-network/windows-cim-display-media.stdout
+  h_6a4cc5cdf68def 1
+test/windows/display-media.test.js
+  h_6a4cc5cdf68def 1-502
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "e4c5e4809216e46db21d5de3439412eb083be027",
+  "prompts": {},
+  "humans": {
+    "h_6a4cc5cdf68def": {
+      "author": "Team AppThreat <cloud@appthreat.com>"
+    }
+  }
+}
