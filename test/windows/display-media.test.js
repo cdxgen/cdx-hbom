@@ -500,3 +500,15 @@ function encodeUint16Text(text) {
   }
   return codes;
 }
+
+test("Hyper-V refresh rate 1 is the default-rate sentinel, not 1 Hz", () => {
+  // Both GitHub runners report CurrentRefreshRate 1 for Hyper-V Video;
+  // DEVMODE documents 0 and 1 as the hardware's default refresh rate.
+  for (const label of ["amd64/windows-2025-gha", "arm64/windows-11-arm-gha"]) {
+    const { bom } = buildFromFixture(label);
+    const adapter = byClass(bom, "display-adapter")[0];
+    assert.equal(adapter.name, "Microsoft Hyper-V Video");
+    assert.equal(prop(adapter, "cdx:hbom:refreshRateHz"), undefined, label);
+    assert.equal(prop(adapter, "cdx:hbom:resolution"), "1024x768");
+  }
+});
