@@ -1,0 +1,17 @@
+HKEY_LOCAL_MACHINE\HARDWARE\DESCRIPTION\System\BIOS
+    BiosMajorRelease    REG_DWORD    0x0
+    BiosMinorRelease    REG_DWORD    0x1
+    ECFirmwareMajorRelease    REG_DWORD    0xff
+    ECFirmwareMinorRelease    REG_DWORD    0xff
+    EnclosureType    REG_DWORD    0x2
+    BaseBoardManufacturer    REG_SZ    Parallels ARM Virtual Machine
+    BaseBoardProduct    REG_SZ    Parallels ARM Virtual Platform
+    BaseBoardVersion    REG_SZ    0.1
+    BIOSReleaseDate    REG_SZ    Tue, 11 Aug 2026 15:56:20
+    BIOSVendor    REG_SZ    Parallels International GmbH.
+    BIOSVersion    REG_SZ    27.0.0 (58628)
+    SystemFamily    REG_SZ    Parallels VM
+    SystemManufacturer    REG_SZ    Parallels International GmbH.
+    SystemProductName    REG_SZ    Parallels ARM Virtual Machine
+    SystemSKU    REG_SZ    Parallels_ARM_VM
+    SystemVersion    REG_SZ    0.1

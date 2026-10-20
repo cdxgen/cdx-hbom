@@ -23,6 +23,7 @@ import {
   WINDOWS_COMMANDS,
   WINDOWS_SELFTEST_COMMAND,
 } from "../../src/windows/common/commands.js";
+import { WINDOWS_FALLBACK_COMMANDS } from "../../src/windows/common/fallback.js";
 
 const options = parseArgs(process.argv.slice(2));
 
@@ -134,11 +135,14 @@ function parseArgs(argv) {
  * @returns {ReadonlyArray<object>} Selected specs.
  */
 function selectSpecs(requested, selftest) {
-  let specs = WINDOWS_COMMANDS;
+  // The no-PowerShell fallback commands (C10) are captured alongside the CIM
+  // batches so one capture covers both paths.
+  const available = [...WINDOWS_COMMANDS, ...WINDOWS_FALLBACK_COMMANDS];
+  let specs = available;
   if (requested) {
-    specs = WINDOWS_COMMANDS.filter((spec) => requested.includes(spec.id));
+    specs = available.filter((spec) => requested.includes(spec.id));
     const unknown = requested.filter(
-      (id) => !WINDOWS_COMMANDS.some((spec) => spec.id === id),
+      (id) => !available.some((spec) => spec.id === id),
     );
     if (unknown.length > 0) {
       console.error(`Unknown Windows command ids: ${unknown.join(", ")}`);

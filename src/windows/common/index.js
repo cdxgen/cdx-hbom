@@ -33,6 +33,15 @@ import {
 } from "./cim.js";
 import { WINDOWS_COMMANDS, getRequiredWindowsCommand } from "./commands.js";
 import {
+  getWindowsFallbackCommand,
+  parsePnputilDevices,
+  parseRegQuery,
+  parseWindowsBuild,
+  selectPnputilCommand,
+  toFallbackPlatformEnvelope,
+  toFallbackPnpEnvelope,
+} from "./fallback.js";
+import {
   buildPnpComponents,
   buildPnpDeviceIndex,
   buildPnpTopologyEdges,
@@ -470,8 +479,24 @@ export async function collectWindowsHardware(options = {}) {
             step.privileged !== true || options.includePrivilegedEnrichment === true,
         )),
   ];
+  let powershellIssue;
   for (const step of steps) {
     const spec = getRequiredWindowsCommand(step.id);
+    if (powershellIssue !== undefined) {
+      // PowerShell itself failed to start for the platform batch, so every
+      // later batch would fail the same way.
+      recordCollectorTrace(options.trace, {
+        args: [...spec.args],
+        category: spec.category,
+        command: spec.command,
+        id: spec.id,
+        kind: "command",
+        reason: `PowerShell unavailable (${powershellIssue}); later PowerShell commands are skipped`,
+        status: "skipped",
+        target: summarizeScriptTarget(spec),
+      });
+      continue;
+    }
     if (
       sources.platformEnvelope !== undefined &&
       summarizeWindowsAccess(sources.platformEnvelope).allWmiDenied
@@ -497,8 +522,34 @@ export async function collectWindowsHardware(options = {}) {
         sources[step.sourceKey] = parseWindowsEnvelope(stdout);
       },
       allowPartial,
-      recordCommandError,
+      (error) => {
+        recordCommandError(error);
+        if (step.id === "windows-cim-platform") {
+          powershellIssue = powershellFailureIssue(error);
+        }
+      },
     );
+  }
+
+  const languageMode = sources.platformEnvelope?.meta?.languageMode;
+  const degradedReason =
+    powershellIssue !== undefined
+      ? `PowerShell unavailable (${powershellIssue})`
+      : languageMode && languageMode !== "FullLanguage"
+        ? `PowerShell language mode is ${languageMode}`
+        : undefined;
+  if (degradedReason) {
+    await collectWindowsFallback(sources, {
+      ...options,
+      allowPartial,
+      executedCommands,
+      recordCommandError,
+    });
+    commandDiagnostics.push({
+      id: "windows-fallback",
+      issue: "partial-support",
+      message: `${degradedReason}: board, firmware and processor come from reg.exe and the device inventory from pnputil; storage, network, display, media and trust details are missing`,
+    });
   }
 
   return buildWindowsHbom({
@@ -507,6 +558,84 @@ export async function collectWindowsHardware(options = {}) {
     executedCommands,
     commandDiagnostics,
   });
+}
+
+/**
+ * Classify a `windows-cim-platform` failure as PowerShell being unusable.
+ *
+ * A dry run, a timeout or a script error is not: PowerShell started, so the
+ * fallback would add nothing the trace does not already explain. Anything
+ * that stops the process from starting (missing binary, AppLocker or WDAC
+ * denial, allowlist block) or yields unparseable output is.
+ *
+ * @param {{ issue?: string, suppressedDiagnostic?: boolean } | undefined} error Command error.
+ * @returns {string | undefined} Issue name, or undefined when PowerShell ran.
+ */
+function powershellFailureIssue(error) {
+  const issue = error?.issue;
+  if (error?.suppressedDiagnostic === true || issue === "dry-run" || issue === "timeout") {
+    return undefined;
+  }
+  return issue ?? "command-error";
+}
+
+/**
+ * Fill missing sources from the T4 fallback (C10): reg.exe for the platform
+ * envelope, pnputil for the PnP envelope. Existing envelopes win, so a CLM
+ * session that still returned CIM data keeps it. pnputil is enrichment and
+ * honours `includeCommandEnrichment: false`.
+ *
+ * @param {Record<string, unknown>} sources Collector sources (mutated).
+ * @param {object} options Collector options plus `executedCommands` and `recordCommandError`.
+ * @returns {Promise<void>} Nothing.
+ */
+async function collectWindowsFallback(sources, options) {
+  const run = async (spec, parse) => {
+    await attemptCollection(
+      async () => {
+        const stdout = await runCommand(spec, options);
+        options.executedCommands.push(toEvidenceCommand(spec));
+        parse(stdout);
+      },
+      options.allowPartial,
+      options.recordCommandError,
+    );
+  };
+
+  const platformItems = sources.platformEnvelope?.results?.bios?.ok === true;
+  if (!platformItems) {
+    const values = {};
+    await run(getWindowsFallbackCommand("windows-reg-bios"), (stdout) => {
+      values.bios = Object.values(parseRegQuery(stdout))[0];
+    });
+    await run(getWindowsFallbackCommand("windows-reg-cpu"), (stdout) => {
+      values.cpu = Object.values(parseRegQuery(stdout))[0];
+    });
+    if (values.bios || values.cpu) {
+      sources.platformEnvelope = toFallbackPlatformEnvelope(values.bios, values.cpu);
+    }
+  }
+
+  if (sources.pnpDevicesEnvelope === undefined && options.includeCommandEnrichment !== false) {
+    const spec = selectPnputilCommand(parseWindowsBuild(sources.baseline?.osRelease));
+    if (!spec) {
+      return;
+    }
+    await run(spec, (stdout) => {
+      const { devices, recognized } = parsePnputilDevices(stdout);
+      if (!recognized) {
+        options.recordCommandError({
+          commandId: spec.id,
+          category: spec.category,
+          command: spec.command,
+          issue: "partial-support",
+          message: "pnputil output has no English field labels; the PnP device inventory was skipped",
+        });
+        return;
+      }
+      sources.pnpDevicesEnvelope = toFallbackPnpEnvelope(devices);
+    });
+  }
 }
 
 // Enrichment batches run after `windows-cim-platform`, in order, and are
