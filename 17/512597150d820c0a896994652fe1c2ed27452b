@@ -1,0 +1,57 @@
+src/windows/common/display.js
+  s_c81cb3ef09afe3::t_e59cadb9618090 30-34
+test/fixtures/windows/amd64/windows-2025-gha/manifest.json
+  s_c81cb3ef09afe3::t_453eac30d14328 3,16,24-57,64-65
+test/fixtures/windows/amd64/windows-2025-gha/windows-cim-display-media.stdout
+  s_c81cb3ef09afe3::t_4d94a8a84ccd2d 1
+test/fixtures/windows/amd64/windows-2025-gha/windows-cim-platform.stdout
+  s_c81cb3ef09afe3::t_965ca6446a496d 1
+test/fixtures/windows/amd64/windows-2025-gha/windows-cim-privileged.stdout
+  s_c81cb3ef09afe3::t_7aca7265ca0a14 1
+test/fixtures/windows/amd64/windows-2025-gha/windows-cim-selftest.stdout
+  s_c81cb3ef09afe3::t_784d76fa92dc22 1
+test/fixtures/windows/amd64/windows-2025-gha/windows-cim-storage-network.stdout
+  s_c81cb3ef09afe3::t_9624faaf78f59c 1
+test/fixtures/windows/amd64/windows-2025-gha/windows-cim-trust.stdout
+  s_c81cb3ef09afe3::t_029925fbcc0279 1
+test/fixtures/windows/amd64/windows-2025-gha/windows-pnp-devices.stdout
+  s_c81cb3ef09afe3::t_206689259b700f 1
+test/fixtures/windows/arm64/windows-11-arm-gha/manifest.json
+  s_c81cb3ef09afe3::t_a6334bf392dfe8 3,16,24-57,64-65
+test/fixtures/windows/arm64/windows-11-arm-gha/windows-cim-display-media.stdout
+  s_c81cb3ef09afe3::t_85347d3bcd3d68 1
+test/fixtures/windows/arm64/windows-11-arm-gha/windows-cim-platform.stdout
+  s_c81cb3ef09afe3::t_a4000e81839753 1
+test/fixtures/windows/arm64/windows-11-arm-gha/windows-cim-privileged.stdout
+  s_c81cb3ef09afe3::t_0f30739e68943f 1
+test/fixtures/windows/arm64/windows-11-arm-gha/windows-cim-selftest.stdout
+  s_c81cb3ef09afe3::t_8e1c61a2964ec1 1
+test/fixtures/windows/arm64/windows-11-arm-gha/windows-cim-storage-network.stdout
+  s_c81cb3ef09afe3::t_ecdda0c2faef92 1
+test/fixtures/windows/arm64/windows-11-arm-gha/windows-cim-trust.stdout
+  s_c81cb3ef09afe3::t_3ab4271325d745 1
+test/fixtures/windows/arm64/windows-11-arm-gha/windows-pnp-devices.stdout
+  s_c81cb3ef09afe3::t_3582fe012c8be7 1
+test/windows/platform.test.js
+  s_c81cb3ef09afe3::t_21cd5236ce1085 281
+test/windows/storage-network.test.js
+  s_c81cb3ef09afe3::t_5d0e130ef12764 161-165,168,174-175,178-181,183-184,186-187,189-192,194
+windows-troubleshooting.md
+  s_c81cb3ef09afe3::t_ad30c166448f3a 105-121
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "17512597150d820c0a896994652fe1c2ed27452b",
+  "prompts": {},
+  "sessions": {
+    "s_c81cb3ef09afe3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2eb5ded0-f83f-4668-b459-e157774b0030",
+        "model": "unknown"
+      },
+      "human_author": "Prabhu Subramanian <prabhu@appthreat.com>"
+    }
+  }
+}
