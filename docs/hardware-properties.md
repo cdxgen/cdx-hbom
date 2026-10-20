@@ -590,6 +590,7 @@ These properties may contain unique identifiers and remain redacted by default w
 - `cdx:hbom:mmcSerialNumber`
 - `cdx:hbom:platformUuid`
 - `cdx:hbom:pnpInstanceId` (the instance segment only; the enumerator and device-ID segments identify the model, not the unit)
+- `cdx:hbom:hardwareIds` and `cdx:hbom:compatibleIds` (only entries that echo the device's instance segment or embed a Bluetooth address; the rest identify the model)
 - `cdx:hbom:serialNumber`
 - `cdx:hbom:serialNumberLeft`
 - `cdx:hbom:serialNumberRight`

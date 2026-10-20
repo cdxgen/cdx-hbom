@@ -19,6 +19,8 @@ Current supported live-collection targets:
 - `darwin/arm64`
 - `linux/amd64`
 - `linux/arm64`
+- `win32/amd64`
+- `win32/arm64`
 
 Collection sources are intentionally local:
 
@@ -26,6 +28,8 @@ Collection sources are intentionally local:
 - **Linux optional enrichment**: `lscpu`, `lsblk`, `ip`, `lsmem`, `hostnamectl`, `lshw`, `lspci`, `lsusb`, `ethtool`, `cpupower`, `drm_info`, `upower`, `fwupdmgr`, `boltctl`, `mmcli`, `edid-decode`, and optionally `dmidecode`
 - **Darwin baseline**: `system_profiler`, `sysctl`, `networksetup`, `pmset`, and per-interface `ifconfig`
 - **Darwin optional enrichment**: `diskutil`, `diskutil apfs list -plist`, and `ioreg`
+- **Windows baseline**: the Node `os` module
+- **Windows enrichment**: Windows PowerShell 5.1 at `%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe` running six fixed CIM/registry batches (`windows-cim-platform`, `windows-cim-storage-network`, `windows-cim-display-media`, `windows-pnp-devices`, `windows-cim-trust`, and with `--privileged` `windows-cim-privileged`); every script is generated at module load from a frozen manifest and listed by `getCommandPlan({ platform: "win32" })`
 
 Output is a CycloneDX 1.7 BOM with `cdx:hbom:*` custom properties. Privacy-sensitive identifiers are redacted by default unless the caller explicitly enables `--sensitive` / `includeSensitiveIdentifiers: true`.
 
@@ -52,7 +56,9 @@ Output is a CycloneDX 1.7 BOM with `cdx:hbom:*` custom properties. Privacy-sensi
 ┌────────────────────────────┐     ┌───────────────────────────┐
 │ Host files and kernel data │     │ Host utilities / commands │
 │ /proc, /sys, /etc, ioreg   │     │ system_profiler, lsblk,   │
-│ diskutil plist output, ... │     │ dmidecode, ifconfig, ...  │
+│ diskutil plist output, ... │     │ dmidecode, ifconfig,      │
+│                            │     │ powershell.exe (WMI/CIM,  │
+│                            │     │ registry), ...            │
 └────────────────────────────┘     └───────────────────────────┘
 
 Trust boundary 4: published package / CI/CD pipeline ←→ registries and release consumers
@@ -85,6 +91,7 @@ Trust boundary 4: published package / CI/CD pipeline ←→ registries and relea
 - Linux collectors use a fixed internal command registry rather than caller-supplied command strings
 - Executed commands are tracked through `commandsExecuted` and surfaced in BOM evidence properties
 - Darwin uses absolute paths for system utilities, reducing ambiguity about which binary is executed
+- Windows runs only `powershell.exe` by absolute path with static, single-quoted scripts generated from frozen manifests; manifest values that could break out of a single-quoted literal (`"`, backtick, `$`, `;`, newlines) are rejected when the registry is built, and no caller input ever reaches a script (see section 5)
 - upstream wrappers and integrators are expected to enforce any stricter command allowlisting or trusted-`PATH` policy around the collector process
 
 **Residual risk:** Medium. Linux enrichment commands such as `lscpu` and `lsblk` are resolved by executable name unless the surrounding environment constrains them. A hostile local environment can still influence command resolution if the upstream caller or integrator has not locked down `PATH` and execution policy.
@@ -166,6 +173,7 @@ Trust boundary 4: published package / CI/CD pipeline ←→ registries and relea
 **Mitigations:**
 
 - Darwin commands use explicit absolute paths such as `/usr/sbin/system_profiler` and `/usr/bin/pmset`
+- Windows resolves `powershell.exe` under `SystemRoot` without a `PATH` lookup; the value is validated against a drive-absolute path pattern and falls back to `C:\Windows`, so `SystemRoot` is the one environment variable that is a trust input on Windows (T5.1)
 - `shell: false` prevents shell metacharacter expansion
 - the safe wrapper contains a Windows shell-hijack guard for current-working-directory shadowing when shell mode is enabled
 - upstream wrappers and integrators are responsible for enforcing strict command allowlisting and a trusted `PATH` where deployment policy requires it
@@ -238,6 +246,72 @@ Trust boundary 4: published package / CI/CD pipeline ←→ registries and relea
 
 **Residual risk:** Low. Downstream ecosystem understanding varies, but the package uses explicit namespaced metadata rather than ambiguous hidden fields.
 
+### 5. Windows collector (`src/windows/*`)
+
+#### T5.1: `powershell.exe` as the only Windows executable
+
+**Threat:** The Windows collector is redirected to a substituted PowerShell, or its scripts are altered to run something else.
+
+**Mitigations:**
+
+- the executable is `<SystemRoot>\System32\WindowsPowerShell\v1.0\powershell.exe`, an absolute path with no `PATH` lookup; `SystemRoot` is read from the environment, validated (`^[A-Za-z]:\[^\0-\x1f"*?<>|/:]+$`) and otherwise replaced by `C:\Windows`, which makes `SystemRoot` the Windows counterpart of the `PATH` trust input
+- every script is built once, at module load, from a frozen manifest by `buildCimScript()`; the registry is frozen and `getCommandPlan({ platform: "win32" })` returns the exact command lines, so an integrator can allowlist or audit them before anything runs
+- scripts are one line, at most 8,000 characters, contain no double quotes and are passed with `-NoLogo -NoProfile -NonInteractive -Command`; `-EncodedCommand` (opaque to reviewers and EDR) and `-ExecutionPolicy` (unnecessary for `-Command`, often flagged) are never used
+- the scripts only call read-only cmdlets: `Get-CimClass`, `Get-CimInstance`, `Get-ItemProperty`, `Get-ChildItem`, `Get-PnpDevice`, `Get-PnpDeviceProperty`, `Confirm-SecureBootUEFI`, `ConvertTo-Json`; the `cmdlet-scalar` manifest kind accepts only an allowlisted cmdlet name and no arguments
+- `--dry-run` blocks every PowerShell spawn and traces the planned command lines
+
+**Residual risk:** Medium. Allowlisting `powershell.exe` by path is coarse: it admits any PowerShell invocation, not only cdx-hbom's. Integrators who need a tight policy should allowlist the exact command lines from the plan. A `SystemRoot` pointing at an attacker-controlled drive-absolute directory would be honoured; that requires control of the collector's environment, which already implies control of the process.
+
+#### T5.2: No elevation path
+
+**Threat:** The collector escalates privileges, or is used to launder an elevation request.
+
+**Mitigations:**
+
+- every Windows command carries `privilege: "none"` and `sudoRetryOnPermissionDenied: false`, and `runCommand()` never wraps a Windows command in `sudo`; Windows 11 ships a `sudo.exe`, and this is the reason it is never reached
+- `--privileged` only adds the `windows-cim-privileged` batch (Win32_Tpm, Win32_EncryptableVolume, MSFT_StorageReliabilityCounter, `Confirm-SecureBootUEFI`); it does not trigger UAC or any token change
+- the envelope reports whether the PowerShell process was already elevated (`cdx:hbom:evidence:elevated`), and a non-elevated privileged run yields `permission-denied` diagnostics with the hint to re-run from an elevated prompt
+
+**Residual risk:** Low. The user decides what token cdx-hbom runs under; the tool cannot change it.
+
+#### T5.3: Restricted PowerShell (Constrained Language Mode, AppLocker, WDAC)
+
+**Threat:** A hardened host blocks or restricts PowerShell and the collector fails unsafely or misreports.
+
+**Mitigations:**
+
+- the scripts use only cmdlets and syntax permitted in Constrained Language Mode; the two `.NET` touches (switching the console to UTF-8, probing the Administrator role) sit in their own `try/catch` and degrade to `outputEncoding='default'` and `elevated=null`
+- the envelope records `psVersion`, `languageMode` and `outputEncoding`; the BOM carries them as `cdx:hbom:evidence:powershellVersion` and `cdx:hbom:evidence:languageMode`, and a non-UTF-8 console adds a `partial-support` diagnostic
+- when `powershell.exe` cannot start at all, each batch records a `missing-command` or `command-error` diagnostic and the BOM is built from the Node baseline
+
+**Residual risk:** Low. Behaviour under a real WDAC policy was reasoned from the language-mode rules and not exercised on the test VM.
+
+#### T5.4: PII and per-machine identifiers in CIM data
+
+**Threat:** WMI classes carry host names, user names and device serials that end up in the BOM.
+
+**Mitigations:**
+
+- PII properties are never selected: `Win32_ComputerSystem.{Name, DNSHostName, Domain, Workgroup, UserName, PrimaryOwnerName, PrimaryOwnerContact, Roles}`, `Win32_OperatingSystem.{CSName, RegisteredUser, Organization, SerialNumber}`, `Win32_DeviceGuard.InstanceIdentifier`, `Win32_Battery.DeviceID` and `SystemName` on every class; a test scans every manifest for them
+- serials, UUIDs and MAC addresses go through `redactIdentifier()`; PnP device instance IDs go through `redactInstanceId()`, which keeps the enumerator and device-ID segments (model identity) and redacts the instance segment (a USB serial, a Bluetooth address or an instance GUID); hardware IDs that echo the instance segment and Bluetooth hardware IDs that embed the radio address go through `redactHardwareIds()`; EDID serials stored as uint16 code arrays are decoded and redacted
+- `bom-ref` values are built from the redacted device-ID segment plus an ordinal, never from the instance segment, so the dependency graph carries no identifier
+- fixtures are redacted by `scripts/windows/redact-fixtures.mjs`, which fails closed when a literal or instance segment survives
+
+**Residual risk:** Medium. Redaction keeps the last four characters of an identifier, and device names, driver INF names and location paths are emitted as reported.
+
+#### T5.5: Slow or denied WMI as a denial of service
+
+**Threat:** A standard user over a network logon (SSH, WinRM) is denied every WMI class, and each denial costs about five seconds; a slow third-party WMI provider stalls a batch.
+
+**Mitigations:**
+
+- the script records the first `AccessDenied` per namespace and short-circuits the remaining classes in that namespace without querying
+- the collector detects an all-denied platform batch and skips the later WMI batches entirely, emitting one diagnostic with the network-logon hint
+- every batch has its own timeout (60 s for CIM batches, 90 s for `windows-pnp-devices`), overridable with `--timeout`, and a timed-out batch records a `timeout` diagnostic while the rest continues
+- PnP properties are read per device, because the bulk `Get-PnpDeviceProperty` form was measured to return duplicated and missing rows; the per-device loop is bounded by the present-device count
+
+**Residual risk:** Low. Worst case is a bounded delay and a baseline-only BOM.
+
 ## Data Flow Diagram
 
 ```text
@@ -258,6 +332,8 @@ Trust boundary 4: published package / CI/CD pipeline ←→ registries and relea
 │ /proc /sys    │        │ system_profiler    │
 │ /etc / plist  │        │ diskutil / ifconfig│
 │ device tree   │        │ lsblk / dmidecode  │
+│ Node os (win) │        │ powershell.exe     │
+│               │        │  (CIM, registry)   │
 └───────────────┘        └────────────────────┘
         \                       /
          \                     /
@@ -275,6 +351,11 @@ Trust boundary 4: published package / CI/CD pipeline ←→ registries and relea
 | Default identifier redaction       | `redactIdentifier()` and explicit `--sensitive` opt-in                                                              | T1.2, T4.1                          |
 | Fixed Linux discovery roots        | Local reads limited to known `/proc`, `/sys`, `/etc`, and device-tree paths                                         | T2.1                                |
 | Absolute Darwin command paths      | `/usr/sbin/*`, `/usr/bin/*`, `/sbin/*` in command registry                                                          | T2.2                                |
+| Absolute, validated PowerShell path | `<SystemRoot>\System32\WindowsPowerShell\v1.0\powershell.exe`, `SystemRoot` validated with fallback `C:\Windows` | T2.2, T5.1                          |
+| Static Windows scripts             | Frozen manifests, `buildCimScript()` invariants (one line, no `"`, ≤ 8,000 chars, allowlisted cmdlets), `getCommandPlan()` | T1.1, T5.1                          |
+| No Windows elevation               | `privilege: "none"`, `sudoRetryOnPermissionDenied: false`, `--privileged` adds a batch only                          | T5.2                                |
+| PII never selected, instance IDs redacted | Manifest PII guard test, `redactInstanceId()`, `redactHardwareIds()`, redacted `bom-ref`s                      | T1.2, T5.4                          |
+| WMI denial short-circuit           | Per-namespace `AccessDenied` memo in the script, batch skip after an all-denied platform batch                      | T5.5                                |
 | Partial collection mode            | `allowPartial` default behavior                                                                                     | T1.3, T1.4                          |
 | Evidence tracking                  | `commandsExecuted`, `cdx:hbom:evidence:file*`, `cdx:hbom:evidence:command*`, `cdx:hbom:evidence:commandDiagnostic*` | Auditability across runtime actions |
 | Minimal runtime dependency surface | dependency-free package design                                                                                      | T3.1                                |
@@ -286,9 +367,10 @@ Trust boundary 4: published package / CI/CD pipeline ←→ registries and relea
 2. **Keep default redaction enabled**: only use `--sensitive` when you have a clear need for raw identifiers.
 3. **Review output before sharing**: especially `cdx:hbom:evidence:file*`, `cdx:hbom:evidence:command*`, `cdx:hbom:evidence:commandDiagnostic*`, serial-like properties, and topology details.
 4. **Enforce command policy in the parent environment**: if your deployment requires strict execution control, apply command allowlisting and a trusted `PATH` in the calling wrapper, CI job, or parent application.
-5. **Use Linux privileged enrichment sparingly**: enable `--privileged` only when additional SMBIOS or permission-gated hardware detail is required and the environment is appropriately hardened for `sudo -n`.
-6. **Prefer `buildHardwareFromSources()` for offline reconstruction**: when live command execution is undesirable, capture and vet the source data first.
-7. **Pin package and Node.js versions in CI**: combine reproducible installs with provenance verification where available.
-8. **Stay current**: use the latest published `cdx-hbom` release for security fixes.
+5. **Use privileged enrichment sparingly**: on Linux enable `--privileged` only when additional SMBIOS or permission-gated hardware detail is required and the environment is appropriately hardened for `sudo -n`; on Windows it only adds the admin-only batch, so decide deliberately whether to run cdx-hbom from an elevated session.
+6. **On Windows, allowlist the command lines, not just `powershell.exe`**: `cdx-hbom --dry-run` and `getCommandPlan({ platform: "win32" })` give the exact static scripts; treat `SystemRoot` as a trust input of the collector's environment.
+7. **Prefer `buildHardwareFromSources()` for offline reconstruction**: when live command execution is undesirable, capture and vet the source data first.
+8. **Pin package and Node.js versions in CI**: combine reproducible installs with provenance verification where available.
+9. **Stay current**: use the latest published `cdx-hbom` release for security fixes.
 
 For coordinated vulnerability disclosure, see [`../SECURITY.md`](../SECURITY.md).

@@ -1,6 +1,6 @@
 {
   "name": "@cdxgen/cdx-hbom",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "description": "Dependency-free hardware bill of materials discovery library.",
   "homepage": "https://github.com/cdxgen/cdx-hbom",
   "bugs": {
@@ -42,6 +42,8 @@
     "cyclonedx",
     "darwin",
     "linux",
+    "windows",
+    "win32",
     "arm64",
     "amd64"
   ],
