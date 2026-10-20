@@ -1,0 +1,21 @@
+scripts/windows/redact-fixtures.mjs
+  s_c81cb3ef09afe3::t_2aa4bf7abe467d 228-233,242-245
+  s_c81cb3ef09afe3::t_d58eb0b9150c3d 256-291
+  s_c81cb3ef09afe3::t_9d2a4c1ab8ca93 255
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "0705dd7b167ed9dda890793d257d4562c210cf1b",
+  "prompts": {},
+  "sessions": {
+    "s_c81cb3ef09afe3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2eb5ded0-f83f-4668-b459-e157774b0030",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Prabhu Subramanian <prabhu@appthreat.com>"
+    }
+  }
+}
