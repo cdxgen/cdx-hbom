@@ -1,0 +1,38 @@
+README.md
+  h_6a4cc5cdf68def 42-43
+bin/cdx-hbom.js
+  h_6a4cc5cdf68def 24-27,37
+docs/hardware-properties.md
+  h_6a4cc5cdf68def 62-71,236-240,452-458,509-517,519,530-539
+src/windows/common/commands.js
+  h_6a4cc5cdf68def 551-683,841-851,885-886
+src/windows/common/enums.js
+  h_6a4cc5cdf68def 440-636
+src/windows/common/index.js
+  h_6a4cc5cdf68def 71,73-83,142-157,203-205,231-246,274-277,293-298,302-305,336-338,436,468-471,514-516,530-538,616,619,625-628
+src/windows/common/platform.js
+  h_6a4cc5cdf68def 117-118,209-211
+src/windows/common/power.js
+  h_6a4cc5cdf68def 1-118
+src/windows/common/storage.js
+  h_6a4cc5cdf68def 73,161-165,179,195-204,224
+src/windows/common/trust.js
+  h_6a4cc5cdf68def 1-529
+test/commands.test.js
+  h_6a4cc5cdf68def 100-103,111-112
+test/dry-run.test.js
+  h_6a4cc5cdf68def 113,128-156
+test/windows/capture-tools.test.js
+  h_6a4cc5cdf68def 86-93
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "eb0290359b2add5085febe0bfc95a9f57e42f149",
+  "prompts": {},
+  "humans": {
+    "h_6a4cc5cdf68def": {
+      "author": "Team AppThreat <cloud@appthreat.com>"
+    }
+  }
+}
