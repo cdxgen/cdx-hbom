@@ -1,0 +1,20 @@
+scripts/windows/redact-fixtures.mjs
+  h_6a4cc5cdf68def 55-56,58-59,311-316,321-330,402,410-415
+src/windows/common/pnp.js
+  h_6a4cc5cdf68def 23-24,34,224-226,257-266,364-365,371-373,382,385,389-399,402
+test/windows/fixtures.test.js
+  h_6a4cc5cdf68def 103,176-201
+test/windows/pnp.test.js
+  h_6a4cc5cdf68def 190-193,195-199
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "6aa8bd035a21528814b39a1a66b24241cab4f602",
+  "prompts": {},
+  "humans": {
+    "h_6a4cc5cdf68def": {
+      "author": "Team AppThreat <cloud@appthreat.com>"
+    }
+  }
+}
