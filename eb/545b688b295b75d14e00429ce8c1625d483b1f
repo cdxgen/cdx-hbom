@@ -1,0 +1,18 @@
+scripts/windows/permissions-matrix.mjs
+  h_6a4cc5cdf68def 1-239
+test/windows/permissions-matrix.test.js
+  h_6a4cc5cdf68def 1-77
+windows-troubleshooting.md
+  h_6a4cc5cdf68def 1-243
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "eb545b688b295b75d14e00429ce8c1625d483b1f",
+  "prompts": {},
+  "humans": {
+    "h_6a4cc5cdf68def": {
+      "author": "Team AppThreat <cloud@appthreat.com>"
+    }
+  }
+}
