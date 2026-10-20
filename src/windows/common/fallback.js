@@ -4,32 +4,18 @@ import { resolveWindowsSystemPath } from "./powershell.js";
  * T4 fallback sources for hosts where `powershell.exe` is missing, blocked
  * (AppLocker, WDAC) or forced into Constrained Language Mode (C10).
  *
- * Neither source needs PowerShell. Their text is translated into the same
- * envelope shape the CIM batches produce, so the existing builders emit the
- * components and nothing downstream knows which source was used.
- *
- * - `reg.exe query` on two keys under `HKLM\HARDWARE\DESCRIPTION\System`.
- *   Microsoft documents the volatile `HARDWARE\DESCRIPTION` hive as hardware
- *   data detected at boot, but not the value names of the `BIOS` subkey, so
- *   this is an undocumented source (PLAN.md §6); the value names are SMBIOS
- *   field names and have been stable since Windows 8.
- * - `pnputil /enum-devices /connected /relations /drivers` (documented on MS
- *   Learn, Windows 10 1903+ for `/relations` and 2004+ for `/drivers`). The
- *   text format is used: `/format` is documented only for `/enum-containers`.
- *   pnputil labels are localized, so a non-English host yields no records and
- *   a diagnostic instead of a misparse.
+ * The source is `pnputil /enum-devices /connected /relations /drivers`
+ * (documented on MS Learn, Windows 10 1903+ for `/relations` and 2004+ for
+ * `/drivers`), which needs no PowerShell. Its text is translated into the
+ * envelope shape `windows-pnp-devices` produces, so the existing builders emit
+ * the components. The text format is used: `/format` is documented only for
+ * `/enum-containers`. pnputil labels are localized, so a non-English host
+ * yields no records and a diagnostic instead of a misparse.
  */
-
-const REG_BIOS_KEY = "HKLM\\HARDWARE\\DESCRIPTION\\System\\BIOS";
-const REG_CPU_KEY = "HKLM\\HARDWARE\\DESCRIPTION\\System\\CentralProcessor\\0";
 
 // Windows 10 builds that introduced the pnputil flags used here.
 const PNPUTIL_RELATIONS_MIN_BUILD = 18362;
 const PNPUTIL_DRIVERS_MIN_BUILD = 19041;
-
-// Win32_Processor.Architecture codes (see enums.js).
-const ARCHITECTURE_AMD64 = 9;
-const ARCHITECTURE_ARM64 = 12;
 
 function toFallbackCommandSpec(fields) {
   return Object.freeze({
@@ -52,27 +38,11 @@ function toFallbackCommandSpec(fields) {
 /**
  * Fallback command specs. They are not part of the command plan: they run
  * only when the PowerShell batches cannot, and an allowlist that should
- * permit them must list `reg.exe` and `pnputil.exe` explicitly.
+ * permit them must list `pnputil.exe` explicitly.
  *
  * @type {ReadonlyArray<Readonly<import("../../common/command.js").CommandSpec>>}
  */
 export const WINDOWS_FALLBACK_COMMANDS = Object.freeze([
-  toFallbackCommandSpec({
-    id: "windows-reg-bios",
-    category: "platform",
-    relativePath: "System32\\reg.exe",
-    args: ["query", REG_BIOS_KEY],
-    purpose:
-      "Read SMBIOS system, board and firmware strings from the boot-time hardware description when PowerShell is unavailable.",
-  }),
-  toFallbackCommandSpec({
-    id: "windows-reg-cpu",
-    category: "platform",
-    relativePath: "System32\\reg.exe",
-    args: ["query", REG_CPU_KEY],
-    purpose:
-      "Read the processor name, vendor and clock from the boot-time hardware description when PowerShell is unavailable.",
-  }),
   toFallbackCommandSpec({
     id: "windows-pnputil-devices",
     category: "pnp-devices",
@@ -129,105 +99,6 @@ export function selectPnputilCommand(build) {
 export function parseWindowsBuild(release) {
   const match = String(release ?? "").match(/^\d+\.\d+\.(\d+)/u);
   return match ? Number(match[1]) : undefined;
-}
-
-/**
- * Parse `reg.exe query` output.
- *
- * Value lines have the fixed form `    <Name>    <REG_TYPE>    <Value>`; names
- * may contain single spaces (`Component Information`). DWORD and QWORD values
- * print as `0x` hex and are returned as numbers; binary and resource values
- * are dropped.
- *
- * @param {string} text reg.exe stdout.
- * @returns {Record<string, Record<string, string | number>>} Values by key path.
- */
-export function parseRegQuery(text) {
-  const keys = {};
-  let current;
-  for (const line of String(text ?? "").split(/\r?\n/u)) {
-    if (/^HKEY_/u.test(line)) {
-      current = {};
-      keys[line.trim()] = current;
-      continue;
-    }
-    const match = line.match(/^ {4}(\S(?:.*?\S)?) {4}(REG_[A-Z_]+)(?: {4}(.*))?$/u);
-    if (!current || !match) {
-      continue;
-    }
-    const [, name, type, raw = ""] = match;
-    if (type === "REG_DWORD" || type === "REG_QWORD") {
-      const value = Number.parseInt(raw.trim(), 16);
-      if (Number.isFinite(value)) {
-        current[name] = value;
-      }
-    } else if (type === "REG_SZ" || type === "REG_EXPAND_SZ") {
-      const value = raw.trim();
-      if (value) {
-        current[name] = value;
-      }
-    }
-  }
-  return keys;
-}
-
-/**
- * Translate the two registry keys into a `windows-cim-platform`-shaped
- * envelope (CIM property names), so `parsePlatformEnvelope` reads it.
- *
- * @param {Record<string, string | number> | undefined} bios BIOS key values.
- * @param {Record<string, string | number> | undefined} cpu CentralProcessor\0 values.
- * @returns {{ meta: object, results: Record<string, { ok: boolean, items: object[] }>, warnings: string[] }} Envelope.
- */
-export function toFallbackPlatformEnvelope(bios, cpu) {
-  const results = {};
-  const put = (key, item) => {
-    const entries = Object.entries(item).filter(([, value]) => value !== undefined);
-    if (entries.length > 0) {
-      results[key] = { ok: true, items: [Object.fromEntries(entries)] };
-    }
-  };
-  if (bios) {
-    put("computerSystem", {
-      Manufacturer: bios.SystemManufacturer,
-      Model: bios.SystemProductName,
-      SystemFamily: bios.SystemFamily,
-      SystemSKUNumber: bios.SystemSKU,
-    });
-    put("computerSystemProduct", {
-      Name: bios.SystemProductName,
-      Vendor: bios.SystemManufacturer,
-      Version: bios.SystemVersion,
-    });
-    put("bios", {
-      Manufacturer: bios.BIOSVendor,
-      SMBIOSBIOSVersion: bios.BIOSVersion,
-      SystemBiosMajorVersion: bios.BiosMajorRelease,
-      SystemBiosMinorVersion: bios.BiosMinorRelease,
-      ReleaseDate: toIsoDate(bios.BIOSReleaseDate),
-    });
-    put("baseBoard", {
-      Manufacturer: bios.BaseBoardManufacturer,
-      Product: bios.BaseBoardProduct,
-      Version: bios.BaseBoardVersion,
-    });
-    if (typeof bios.EnclosureType === "number") {
-      put("systemEnclosure", { ChassisTypes: [bios.EnclosureType] });
-    }
-  }
-  if (cpu) {
-    put("processor", {
-      Name: cpu.ProcessorNameString,
-      Manufacturer: cpu.VendorIdentifier,
-      MaxClockSpeed: cpu["~MHz"],
-      Architecture: architectureFromIdentifier(cpu.Identifier),
-    });
-  }
-  return {
-    meta: { commandId: "windows-reg-platform" },
-    results,
-    warnings: [],
-  };
 }
 
 /**
@@ -440,15 +311,4 @@ function compactObject(value) {
 function toIsoDate(value) {
   const match = String(value ?? "").match(/^(\d{2})\/(\d{2})\/(\d{4})$/u);
   return match ? `${match[3]}-${match[1]}-${match[2]}` : undefined;
-}
-
-function architectureFromIdentifier(identifier) {
-  const text = String(identifier ?? "");
-  if (/^(?:ARMv8|ARM64)\b/iu.test(text)) {
-    return ARCHITECTURE_ARM64;
-  }
-  if (/^(?:Intel64|AMD64|EM64T)\b/iu.test(text)) {
-    return ARCHITECTURE_AMD64;
-  }
-  return undefined;
 }

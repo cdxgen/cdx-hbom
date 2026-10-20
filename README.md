@@ -216,15 +216,12 @@ Option semantics on Windows:
 - `--timeout <ms>` overrides the per-batch timeouts (60 s per CIM batch,
   90 s for `windows-pnp-devices`).
 - When `powershell.exe` cannot start (missing, blocked by AppLocker, WDAC or
-  the command allowlist) or runs in Constrained Language Mode, a fallback
-  reads board, firmware and processor from `reg.exe query
-  HKLM\HARDWARE\DESCRIPTION\System\{BIOS,CentralProcessor\0}` and the
-  device inventory from `pnputil /enum-devices /connected /relations
-  /drivers`, and records a `windows-fallback` `partial-support` diagnostic.
-  The registry value names are not documented by Microsoft. pnputil labels are
-  localized, so on a non-English host only the registry part applies. The
-  fallback commands are not in the command plan; an allowlist must name
-  `reg.exe` and `pnputil.exe` to permit them.
+  the command allowlist) or runs in Constrained Language Mode, the device
+  inventory comes from `pnputil /enum-devices /connected /relations /drivers`
+  and a `windows-fallback` `partial-support` diagnostic is recorded. pnputil
+  labels are localized, so a non-English host gets the Node baseline only.
+  The fallback command is not in the command plan; an allowlist must name
+  `pnputil.exe` to permit it.
 - Command allowlist entries match Windows commands case-insensitively
   (`POWERSHELL.EXE` allows `powershell.exe`); POSIX commands match exactly.
 
