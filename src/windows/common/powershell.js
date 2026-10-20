@@ -107,9 +107,16 @@ export function assertWindowsScriptInvariants(script) {
  */
 
 /**
+ * @typedef {object} PnpPropertiesManifestEntry
+ * @property {string} key Result key inside the envelope's `results` table.
+ * @property {"pnp-properties"} kind Entry kind.
+ * @property {string[]} keys DEVPKEY names, each fetched in one bulk call.
+ */
+
+/**
  * @typedef {object} CimManifest
  * @property {string} commandId Command identifier recorded in the envelope.
- * @property {ReadonlyArray<CimManifestEntry | RegistryManifestEntry>} entries Ordered entries.
+ * @property {ReadonlyArray<CimManifestEntry | RegistryManifestEntry | PnpPropertiesManifestEntry>} entries Ordered entries.
  */
 
 /**
@@ -156,6 +163,35 @@ export function buildCimScript(manifest) {
     "function R($k,$path,$n){try{$v=Get-ItemProperty -Path $path -ErrorAction Stop;$r=[ordered]@{};foreach($x in $n){if($v.PSObject.Properties.Name -contains $x){$r[$x]=$v.$x}};$o.results[$k]=@{ok=$true;kind='registry';values=$r}}catch{E $k $_;$o.results[$k].kind='registry'}}",
   ];
 
+  // Kind-specific helpers are declared only when a manifest uses the kind, so
+  // the scripts (and therefore the argsSha256) of earlier commands never
+  // change when a new kind is added.
+  const kinds = new Set(entries.map((entry) => entry?.kind));
+  if (kinds.has("pnp-properties")) {
+    parts.push(
+      "Remove-Item Alias:p -ErrorAction SilentlyContinue",
+      // Get-PnpDevice reads root/cimv2 Win32_PnPEntity, so a denial recorded
+      // for that namespace short-circuits the whole entry.
+      //
+      // Properties are read one device at a time, piping each device object
+      // into Get-PnpDeviceProperty with every key. Measured on win11-vm
+      // (26200.9457, 74 devices, fresh processes, tmp/probe-pnp2..13):
+      // - passing the instance IDs as an `-InstanceId` array (one call per
+      //   key, or all keys at once) returns the right row count but
+      //   duplicates some devices' rows and omits others', 7-24 bad rows per
+      //   run, nondeterministically;
+      // - piping the whole device array into one call is correct but takes
+      //   3.5-4.2 s;
+      // - piping one device per call is correct and takes about 1.6 s.
+      //
+      // One rejected key fails every call that carries it (VM-FINDINGS §6),
+      // so the key set is probed once against the first device; rejected
+      // keys are recorded in keyErrors and the loop runs with the rest.
+      // Device-specific failures are counted in errorCount.
+      "function P($k,$keys){try{if($denied.ContainsKey('root/cimv2')){$o.results[$k]=@{ok=$false;error=$denied['root/cimv2'];shortCircuited=$true;kind='pnp-properties'};return};$devs=@(Get-PnpDevice -PresentOnly -ErrorAction Stop);$ke=[ordered]@{};$valid=@($keys);$mode='per-device';if($devs.Count -gt 0){try{$null=@($devs[0]|Get-PnpDeviceProperty -KeyName $keys -ErrorAction Stop)}catch{$mode='per-device-retry';$valid=@();foreach($kn in $keys){try{$null=@($devs[0]|Get-PnpDeviceProperty -KeyName $kn -ErrorAction Stop);$valid+=$kn}catch{$ke[$kn]=@{nativeErrorCode=[string]$_.Exception.NativeErrorCode;statusCode=$_.Exception.StatusCode;category=[string]$_.CategoryInfo.Category;fqid=[string]$_.FullyQualifiedErrorId;message=[string]$_.Exception.Message}}}}};$rows=@();$pe=@();if($valid.Count -gt 0){foreach($d in $devs){$rows+=@($d|Get-PnpDeviceProperty -KeyName $valid -ErrorAction SilentlyContinue -ErrorVariable +pe)}};$o.results[$k]=@{ok=$true;kind='pnp-properties';mode=$mode;deviceCount=$devs.Count;errorCount=$pe.Count;items=@($rows|Select-Object -Property InstanceId,KeyName,Type,Data);keyErrors=$ke}}catch{E $k $_;$o.results[$k].kind='pnp-properties'}}",
+    );
+  }
+
   for (const entry of entries) {
     parts.push(buildEntryCall(entry));
   }
@@ -181,6 +217,22 @@ function buildEntryCall(entry) {
     const names = requireManifestStringArray(entry.names, `${key} registry names`);
     return `R '${escapePowerShellSingleQuoted(key)}' '${escapePowerShellSingleQuoted(path)}' @(${names
       .map((name) => `'${escapePowerShellSingleQuoted(name)}'`)
+      .join(",")})`;
+  }
+
+  if (entry?.kind === "pnp-properties") {
+    const keys = requireManifestStringArray(entry.keys, `${key} pnp keys`);
+    // DEVPKEY names are plain identifiers; anything else would be a typo that
+    // Get-PnpDeviceProperty rejects at runtime for every key in the call.
+    for (const name of keys) {
+      if (!/^DEVPKEY_[A-Za-z0-9_]+$/u.test(name)) {
+        throw new Error(
+          `Windows CIM manifest ${key} pnp key '${name}' must be a DEVPKEY_ identifier`,
+        );
+      }
+    }
+    return `P '${escapePowerShellSingleQuoted(key)}' @(${keys
+      .map((name) => `'${name}'`)
       .join(",")})`;
   }
 

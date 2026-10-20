@@ -11,6 +11,7 @@ import {
   redactIdentifier,
 } from "../../common/shape.js";
 import { cimArray, cimBool, cimNumber, cimString } from "./cim.js";
+import { pnpBomRef, pnpEnrichmentProperties } from "./devices.js";
 import {
   WINDOWS_OPERATIONAL_STATUSES,
   WINDOWS_STORAGE_BUS_TYPES,
@@ -76,82 +77,89 @@ export function buildStorageComponents(sources, options = {}) {
   return sources.diskDrives.map((drive) => {
     const disk = matchPhysicalDisk(sources.physicalDisks, drive);
     const index = cimNumber(drive.Index);
-    const pnpIds = parseDeviceInstanceId(drive.PNPDeviceID).ids;
+    const pnpId = cimString(drive.PNPDeviceID);
+    const pnpIds = parseDeviceInstanceId(pnpId).ids;
     const mediaTypeCode = cimNumber(disk?.MediaType);
     const busTypeName = disk
       ? windowsEnumName(WINDOWS_STORAGE_BUS_TYPES, cimNumber(disk.BusType))
       : undefined;
+    const ref = pnpBomRef(options.pnpIndex, pnpId);
+    const properties = compact([
+      createProperty("cdx:hbom:diskNumber", index),
+      createProperty(
+        "cdx:hbom:capacityBytes",
+        cimNumber(disk?.Size) ?? cimNumber(drive.Size),
+      ),
+      createProperty(
+        "cdx:hbom:capacity",
+        formatBytes(cimNumber(disk?.Size) ?? cimNumber(drive.Size)),
+      ),
+      createProperty(
+        "cdx:hbom:deviceSerial",
+        redactSerial(disk?.SerialNumber ?? drive.SerialNumber, options),
+      ),
+      createProperty(
+        "cdx:hbom:firmwareVersion",
+        cimString(disk?.FirmwareVersion) ?? cimString(drive.FirmwareRevision),
+      ),
+      // InterfaceType is the documented coarse fallback (SCSI, IDE, USB,
+      // 1394, HDC); NVMe disks often surface as SCSI there.
+      createProperty("cdx:hbom:transport", busTypeName ?? cimString(drive.InterfaceType)),
+      createProperty(
+        "cdx:hbom:mediaType",
+        mediaTypeCode === 0
+          ? undefined
+          : windowsEnumName(WINDOWS_STORAGE_MEDIA_TYPES, mediaTypeCode),
+      ),
+      createProperty("cdx:hbom:isRotational", isRotational(disk, mediaTypeCode)),
+      createProperty(
+        "cdx:hbom:isRemovable",
+        cimArray(drive.Capabilities).some(
+          (capability) => cimNumber(capability) === CAPABILITY_REMOVABLE_MEDIA,
+        )
+          ? true
+          : undefined,
+      ),
+      createProperty(
+        "cdx:hbom:blockSize",
+        cimNumber(disk?.LogicalSectorSize) ?? cimNumber(drive.BytesPerSector),
+      ),
+      createProperty(
+        "cdx:hbom:physicalBlockSize",
+        cimNumber(disk?.PhysicalSectorSize),
+      ),
+      createProperty(
+        "cdx:hbom:healthStatus",
+        windowsEnumName(
+          WINDOWS_STORAGE_HEALTH_STATUSES,
+          cimNumber(disk?.HealthStatus),
+        ),
+      ),
+      createProperty(
+        "cdx:hbom:operationalStatus",
+        cimArray(disk?.OperationalStatus)
+          .map((code) =>
+            windowsEnumName(WINDOWS_OPERATIONAL_STATUSES, cimNumber(code)),
+          )
+          .filter(Boolean)
+          .join(", "),
+      ),
+      createProperty("cdx:hbom:vendorId", pnpIds.vendorId),
+      createProperty("cdx:hbom:productId", pnpIds.productId ?? pnpIds.deviceId),
+    ]);
 
     return createHardwareComponent("storage", {
+      ...(ref ? { "bom-ref": ref } : {}),
       name:
         cimString(disk?.FriendlyName) ??
         cimString(drive.Model) ??
         "Disk Drive",
       manufacturer: diskOrDriveManufacturer(disk, drive),
       version: index === undefined ? undefined : `disk${index}`,
-      properties: compact([
-        createProperty("cdx:hbom:diskNumber", index),
-        createProperty(
-          "cdx:hbom:capacityBytes",
-          cimNumber(disk?.Size) ?? cimNumber(drive.Size),
-        ),
-        createProperty(
-          "cdx:hbom:capacity",
-          formatBytes(cimNumber(disk?.Size) ?? cimNumber(drive.Size)),
-        ),
-        createProperty(
-          "cdx:hbom:deviceSerial",
-          redactSerial(disk?.SerialNumber ?? drive.SerialNumber, options),
-        ),
-        createProperty(
-          "cdx:hbom:firmwareVersion",
-          cimString(disk?.FirmwareVersion) ?? cimString(drive.FirmwareRevision),
-        ),
-        // InterfaceType is the documented coarse fallback (SCSI, IDE, USB,
-        // 1394, HDC); NVMe disks often surface as SCSI there.
-        createProperty("cdx:hbom:transport", busTypeName ?? cimString(drive.InterfaceType)),
-        createProperty(
-          "cdx:hbom:mediaType",
-          mediaTypeCode === 0
-            ? undefined
-            : windowsEnumName(WINDOWS_STORAGE_MEDIA_TYPES, mediaTypeCode),
-        ),
-        createProperty("cdx:hbom:isRotational", isRotational(disk, mediaTypeCode)),
-        createProperty(
-          "cdx:hbom:isRemovable",
-          cimArray(drive.Capabilities).some(
-            (capability) => cimNumber(capability) === CAPABILITY_REMOVABLE_MEDIA,
-          )
-            ? true
-            : undefined,
-        ),
-        createProperty(
-          "cdx:hbom:blockSize",
-          cimNumber(disk?.LogicalSectorSize) ?? cimNumber(drive.BytesPerSector),
-        ),
-        createProperty(
-          "cdx:hbom:physicalBlockSize",
-          cimNumber(disk?.PhysicalSectorSize),
-        ),
-        createProperty(
-          "cdx:hbom:healthStatus",
-          windowsEnumName(
-            WINDOWS_STORAGE_HEALTH_STATUSES,
-            cimNumber(disk?.HealthStatus),
-          ),
-        ),
-        createProperty(
-          "cdx:hbom:operationalStatus",
-          cimArray(disk?.OperationalStatus)
-            .map((code) =>
-              windowsEnumName(WINDOWS_OPERATIONAL_STATUSES, cimNumber(code)),
-            )
-            .filter(Boolean)
-            .join(", "),
-        ),
-        createProperty("cdx:hbom:vendorId", pnpIds.vendorId),
-        createProperty("cdx:hbom:productId", pnpIds.productId ?? pnpIds.deviceId),
-      ]),
+      properties: [
+        ...properties,
+        ...pnpEnrichmentProperties(options.pnpIndex, pnpId, options, properties),
+      ],
     });
   });
 }

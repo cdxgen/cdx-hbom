@@ -110,7 +110,7 @@ test("dry-run on win32 builds a T0 BOM with only blocked command activities", as
     assert.equal(activity.status, "blocked");
     assert.match(
       activity.target,
-      /windows-cim-(platform|storage-network|display-media) script sha256:[0-9a-f]{12}$/u,
+      /windows-(?:cim-platform|cim-storage-network|cim-display-media|pnp-devices) script sha256:[0-9a-f]{12}$/u,
       "trace target uses the C02 short script form",
     );
   }

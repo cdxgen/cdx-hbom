@@ -469,6 +469,86 @@ export const WINDOWS_DISPLAY_MEDIA_MANIFEST = Object.freeze({
 });
 
 /**
+ * DEVPKEY names fetched by `windows-pnp-devices` in one pipelined
+ * `Get-PnpDeviceProperty` call. All eight were verified valid on win11-vm;
+ * `DEVPKEY_Device_Removable` is rejected there with InvalidParameter and is
+ * therefore not requested. BusNumber/Address were cross-checked against
+ * MSFT_NetAdapterHardwareInfoSettingData for the VM's PCI NIC (bus 0,
+ * Address 327680 = device 5 << 16 | function 0).
+ * Documentation: https://learn.microsoft.com/en-us/windows-hardware/drivers/install/devpkey-device-parent
+ * and the sibling devpkey-device-* pages.
+ *
+ * @type {ReadonlyArray<string>}
+ */
+export const WINDOWS_PNP_DEVICE_PROPERTY_KEYS = Object.freeze([
+  "DEVPKEY_Device_Parent",
+  "DEVPKEY_Device_LocationPaths",
+  "DEVPKEY_Device_DriverVersion",
+  "DEVPKEY_Device_DriverProvider",
+  "DEVPKEY_Device_DriverDate",
+  "DEVPKEY_Device_BusReportedDeviceDesc",
+  "DEVPKEY_Device_BusNumber",
+  "DEVPKEY_Device_Address",
+]);
+
+/**
+ * Manifest of `windows-pnp-devices`, the tier-2 PnP inventory batch: every
+ * Win32_PnPEntity, the DEVPKEY properties of every present device (parent
+ * links, location paths, driver identity, bus address) and the signed-driver
+ * rows. `PNPClass` is selected for display only; classification uses
+ * `ClassGuid`, because the MS Learn page documents PNPClass as optional.
+ *
+ * @type {{
+ *   commandId: string,
+ *   entries: ReadonlyArray<Readonly<import("./powershell.js").CimManifestEntry | import("./powershell.js").PnpPropertiesManifestEntry>>
+ * }}
+ */
+export const WINDOWS_PNP_DEVICES_MANIFEST = Object.freeze({
+  commandId: "windows-pnp-devices",
+  entries: Object.freeze([
+    Object.freeze({
+      key: "pnpEntity",
+      kind: "cim",
+      namespace: "root/cimv2",
+      className: "Win32_PnPEntity",
+      properties: Object.freeze([
+        "Name",
+        "Manufacturer",
+        "PNPDeviceID",
+        "ClassGuid",
+        "PNPClass",
+        "HardwareID",
+        "CompatibleID",
+        "Present",
+        "Service",
+        "Status",
+        "ConfigManagerErrorCode",
+      ]),
+    }),
+    Object.freeze({
+      key: "pnpProperties",
+      kind: "pnp-properties",
+      keys: WINDOWS_PNP_DEVICE_PROPERTY_KEYS,
+    }),
+    Object.freeze({
+      key: "signedDriver",
+      kind: "cim",
+      namespace: "root/cimv2",
+      className: "Win32_PnPSignedDriver",
+      properties: Object.freeze([
+        "DeviceID",
+        "DriverVersion",
+        "DriverDate",
+        "DriverProviderName",
+        "InfName",
+        "IsSigned",
+        "Signer",
+      ]),
+    }),
+  ]),
+});
+
+/**
  * Manifest of the Windows CIM selftest command.
  *
  * `WINDOWS_SELFTEST_COMMAND` is deliberately excluded from
@@ -606,6 +686,25 @@ export const WINDOWS_COMMANDS = Object.freeze([
       "mediaPnp.CompatibleID",
     ],
   }),
+  toWindowsCommandSpec(WINDOWS_PNP_DEVICES_MANIFEST, {
+    category: "pnp-devices",
+    purpose:
+      "Collect the PnP device tree (entities, parent links, bus addresses, driver versions and signing) for USB, PCI and Bluetooth inventory and topology.",
+    // `pnpProperties.Data` is sensitive only for the Parent key (it is an
+    // instance ID); the redactor and the fixture test handle that key by
+    // name, so the field is not listed here where every Data value would be
+    // treated as a serial.
+    sensitiveFields: [
+      "pnpEntity.PNPDeviceID",
+      "pnpEntity.HardwareID",
+      "pnpEntity.CompatibleID",
+      "pnpProperties.InstanceId",
+      "signedDriver.DeviceID",
+    ],
+    // Hosts with many devices or slow providers: the batch runs ten CIM
+    // round trips rather than one.
+    timeoutMs: 90000,
+  }),
 ]);
 
 /**
@@ -638,6 +737,7 @@ export const WINDOWS_MANIFESTS = Object.freeze([
   WINDOWS_PLATFORM_MANIFEST,
   WINDOWS_STORAGE_NETWORK_MANIFEST,
   WINDOWS_DISPLAY_MEDIA_MANIFEST,
+  WINDOWS_PNP_DEVICES_MANIFEST,
   WINDOWS_SELFTEST_MANIFEST,
 ]);
 
@@ -663,7 +763,7 @@ export function getRequiredWindowsCommand(id) {
  * oversized manifest fails on import, not on a collector run.
  *
  * @param {import("./powershell.js").CimManifest} manifest CIM manifest.
- * @param {{ category: string, purpose: string, sensitiveFields?: string[] }} fields Spec fields.
+ * @param {{ category: string, purpose: string, sensitiveFields?: string[], timeoutMs?: number }} fields Spec fields.
  * @returns {Readonly<import("../../common/command.js").CommandSpec>} Frozen spec.
  */
 function toWindowsCommandSpec(manifest, fields) {
@@ -680,7 +780,7 @@ function toWindowsCommandSpec(manifest, fields) {
     phase: "collector-v1",
     privilege: "none",
     sudoRetryOnPermissionDenied: false,
-    timeoutMs: 60000,
+    timeoutMs: fields.timeoutMs ?? 60000,
     ...(fields.sensitiveFields
       ? { sensitiveFields: Object.freeze([...fields.sensitiveFields]) }
       : {}),

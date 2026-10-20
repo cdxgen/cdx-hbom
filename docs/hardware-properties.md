@@ -101,6 +101,23 @@ These appear across multiple hardware classes.
 | `cdx:hbom:roles`            | Reported role list for a multi-role component such as an APFS volume |
 | `cdx:hbom:pnpInstanceId`    | Windows: PnP device instance ID (`enumerator\device-id\instance`). The instance segment, which can be a USB serial or a Bluetooth address, is redacted by default |
 | `cdx:hbom:present`          | Windows: whether the PnP device is currently present (`Win32_PnPEntity.Present`); phantom devices report `false` |
+| `cdx:hbom:driverSigned`     | Windows: whether the bound driver package is signed (`Win32_PnPSignedDriver.IsSigned`) |
+| `cdx:hbom:driverSigner`     | Windows: signer of the driver package (`Win32_PnPSignedDriver.Signer`), for example `Microsoft Windows` |
+| `cdx:hbom:infName`          | Windows: INF file of the bound driver package (`Win32_PnPSignedDriver.InfName`) |
+| `cdx:hbom:problemCode`      | Windows: Device Manager problem code (`Win32_PnPEntity.ConfigManagerErrorCode`), only when non-zero; 22 is "disabled", 28 is "drivers not installed" |
+| `cdx:hbom:busReportedName`  | Windows: description reported by the bus or the device itself (`DEVPKEY_Device_BusReportedDeviceDesc`), when it differs from the driver-supplied name |
+| `cdx:hbom:locationPath`     | Windows: first `DEVPKEY_Device_LocationPaths` entry, the bus-relative device path such as `PCIROOT(0)#PCI(0300)#USBROOT(0)#USB(2)` |
+| `cdx:hbom:hardwareIds`      | Windows: PnP hardware IDs, most specific first, comma-separated; IDs that echo the instance segment are redacted |
+| `cdx:hbom:compatibleIds`    | Windows: PnP compatible IDs, comma-separated, redacted the same way |
+
+On Windows every component backed by a PnP device instance carries a
+deterministic `bom-ref` of the form `windows-pnp:<enumerator>:<device-id>:<n>`
+(lower-cased, `n` the 1-based ordinal among identical enumerator/device-ID
+pairs), and `dependencies` follow `DEVPKEY_Device_Parent` with the parent
+depending on the child, the same direction as the Linux USB topology. Ancestors
+without a component (ACPI nodes, root-enumerated and software devices) are
+skipped transitively. USB interface functions (`&MI_xx`) fold into their
+composite device as `usbInterfaceCount` and `usbInterfaceDrivers`.
 
 ## Processor and memory properties
 
@@ -385,6 +402,7 @@ lower-cased `D3DKMDT_VIDEO_OUTPUT_TECHNOLOGY` name (`hd15`, `hdmi`,
 | `cdx:hbom:usbInterfaceClasses`       | USB interface class names from verbose descriptors    |
 | `cdx:hbom:usbConfigurationCount`     | Number of USB configurations reported                 |
 | `cdx:hbom:usbInterfaceCount`         | Number of USB interfaces reported                     |
+| `cdx:hbom:usbInterfaceDrivers`       | Drivers bound per interface as `<number>:<driver>` entries, for example `0:HidUsb, 1:HidUsb` (Linux sysfs interfaces; Windows `&MI_xx` functions folded into the composite device) |
 | `cdx:hbom:maxPowerMilliAmps`         | USB maximum advertised bus power in mA                |
 | `cdx:hbom:selfPowered`               | Whether the USB device reports self-powered operation |
 | `cdx:hbom:remoteWakeup`              | Whether the USB device reports remote wakeup support  |
@@ -422,9 +440,9 @@ lower-cased `D3DKMDT_VIDEO_OUTPUT_TECHNOLOGY` name (`hd15`, `hdmi`,
 | Property                     | Meaning                         |
 | ---------------------------- | ------------------------------- |
 | `cdx:hbom:pciSlot`           | PCI slot / address summary      |
-| `cdx:hbom:pciAddress`        | PCI address                     |
+| `cdx:hbom:pciAddress`        | PCI address as `SSSS:BB:DD.F`. Windows: emitted for network adapters from `MSFT_NetAdapterHardwareInfoSettingData`, which carries the segment; PnP-derived PCI components carry `locationPath` instead because `DEVPKEY_Device_BusNumber`/`Address` have no segment |
 | `cdx:hbom:pciClass`          | PCI class description           |
-| `cdx:hbom:pciClassCode`      | PCI class code                  |
+| `cdx:hbom:pciClassCode`      | PCI class code (class and subclass, four hex digits). Windows: from the `CC_` compatible ID |
 | `cdx:hbom:subsystemVendor`   | PCI subsystem vendor            |
 | `cdx:hbom:subsystemDevice`   | PCI subsystem device            |
 | `cdx:hbom:subsystemVendorId` | PCI subsystem vendor identifier |

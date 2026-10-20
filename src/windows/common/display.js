@@ -17,6 +17,7 @@ import {
   cimString,
   cimUint16String,
 } from "./cim.js";
+import { pnpBomRef, pnpEnrichmentProperties } from "./devices.js";
 import { windowsVideoOutputTechnologyName } from "./enums.js";
 import { parseDeviceInstanceId, redactInstanceId } from "./pnp.js";
 
@@ -85,49 +86,55 @@ export function buildDisplayAdapterComponents(sources, options = {}) {
     const manufacturer = normalizeIdentityString(
       cimString(controller.AdapterCompatibility),
     );
+    const ref = pnpBomRef(options.pnpIndex, pnpId);
+    const properties = compact([
+      createProperty("cdx:hbom:driverVersion", cimString(controller.DriverVersion)),
+      createProperty(
+        "cdx:hbom:driverDate",
+        cimDate(cimString(controller.DriverDate)),
+      ),
+      createProperty(
+        "cdx:hbom:resolution",
+        formatResolution(
+          controller.CurrentHorizontalResolution,
+          controller.CurrentVerticalResolution,
+        ),
+      ),
+      createProperty(
+        "cdx:hbom:refreshRateHz",
+        refreshRate !== undefined && !REFRESH_RATE_SENTINELS.has(refreshRate)
+          ? refreshRate
+          : undefined,
+      ),
+      createProperty(
+        "cdx:hbom:bitsPerPixel",
+        positiveNumber(controller.CurrentBitsPerPixel),
+      ),
+      // AdapterRAM is a uint32, so adapters with 4 GiB or more of memory
+      // cannot report their true size through this class.
+      createProperty(
+        "cdx:hbom:adapterRamBytes",
+        adapterRam !== undefined && adapterRam > 0 ? adapterRam : undefined,
+      ),
+      createProperty("cdx:hbom:vendorId", ids.vendorId),
+      createProperty("cdx:hbom:productId", ids.productId ?? ids.deviceId),
+      createProperty("cdx:hbom:subsystemDeviceId", ids.subsystemId),
+      createProperty("cdx:hbom:subsystemVendorId", ids.subsystemVendorId),
+      createProperty(
+        "cdx:hbom:pnpInstanceId",
+        pnpId === undefined ? undefined : redactInstanceId(pnpId, options),
+      ),
+    ]);
 
     return createHardwareComponent("display-adapter", {
+      ...(ref ? { "bom-ref": ref } : {}),
       name: cimString(controller.Name) ?? "Display Adapter",
       manufacturer: manufacturer ? { name: manufacturer } : undefined,
       description: cimString(controller.VideoProcessor),
-      properties: compact([
-        createProperty("cdx:hbom:driverVersion", cimString(controller.DriverVersion)),
-        createProperty(
-          "cdx:hbom:driverDate",
-          cimDate(cimString(controller.DriverDate)),
-        ),
-        createProperty(
-          "cdx:hbom:resolution",
-          formatResolution(
-            controller.CurrentHorizontalResolution,
-            controller.CurrentVerticalResolution,
-          ),
-        ),
-        createProperty(
-          "cdx:hbom:refreshRateHz",
-          refreshRate !== undefined && !REFRESH_RATE_SENTINELS.has(refreshRate)
-            ? refreshRate
-            : undefined,
-        ),
-        createProperty(
-          "cdx:hbom:bitsPerPixel",
-          positiveNumber(controller.CurrentBitsPerPixel),
-        ),
-        // AdapterRAM is a uint32, so adapters with 4 GiB or more of memory
-        // cannot report their true size through this class.
-        createProperty(
-          "cdx:hbom:adapterRamBytes",
-          adapterRam !== undefined && adapterRam > 0 ? adapterRam : undefined,
-        ),
-        createProperty("cdx:hbom:vendorId", ids.vendorId),
-        createProperty("cdx:hbom:productId", ids.productId ?? ids.deviceId),
-        createProperty("cdx:hbom:subsystemDeviceId", ids.subsystemId),
-        createProperty("cdx:hbom:subsystemVendorId", ids.subsystemVendorId),
-        createProperty(
-          "cdx:hbom:pnpInstanceId",
-          pnpId === undefined ? undefined : redactInstanceId(pnpId, options),
-        ),
-      ]),
+      properties: [
+        ...properties,
+        ...pnpEnrichmentProperties(options.pnpIndex, pnpId, options, properties),
+      ],
     });
   });
 }
@@ -159,46 +166,52 @@ export function buildDisplayComponents(sources, options = {}) {
     const serial = cimUint16String(monitor.SerialNumberID);
     const week = cimNumber(monitor.WeekOfManufacture);
     const pnpId = monitorPnpInstanceId(instanceName);
+    const ref = pnpBomRef(options.pnpIndex, pnpId);
+    const properties = compact([
+      createProperty("cdx:hbom:productId", productCode),
+      createProperty(
+        "cdx:hbom:displaySerialNumber",
+        serial === undefined ? undefined : redactIdentifier(serial, options),
+      ),
+      createProperty(
+        "cdx:hbom:manufactureYear",
+        positiveNumber(monitor.YearOfManufacture),
+      ),
+      createProperty(
+        "cdx:hbom:manufactureWeek",
+        week !== undefined && !UNKNOWN_MANUFACTURE_WEEKS.has(week)
+          ? week
+          : undefined,
+      ),
+      createProperty(
+        "cdx:hbom:physicalSize",
+        formatDisplayPhysicalSize(
+          positiveNumber(basic?.MaxHorizontalImageSize),
+          positiveNumber(basic?.MaxVerticalImageSize),
+        ),
+      ),
+      createProperty(
+        "cdx:hbom:connectionType",
+        windowsVideoOutputTechnologyName(
+          cimNumber(connection?.VideoOutputTechnology),
+        ),
+      ),
+      createProperty("cdx:hbom:isActive", cimBool(monitor.Active)),
+      createProperty(
+        "cdx:hbom:pnpInstanceId",
+        pnpId === undefined ? undefined : redactInstanceId(pnpId, options),
+      ),
+    ]);
 
     return createHardwareComponent("display", {
+      ...(ref ? { "bom-ref": ref } : {}),
       name: cimUint16String(monitor.UserFriendlyName) ?? "Display",
       version: productCode,
       manufacturer: manufacturerId ? { name: manufacturerId } : undefined,
-      properties: compact([
-        createProperty("cdx:hbom:productId", productCode),
-        createProperty(
-          "cdx:hbom:displaySerialNumber",
-          serial === undefined ? undefined : redactIdentifier(serial, options),
-        ),
-        createProperty(
-          "cdx:hbom:manufactureYear",
-          positiveNumber(monitor.YearOfManufacture),
-        ),
-        createProperty(
-          "cdx:hbom:manufactureWeek",
-          week !== undefined && !UNKNOWN_MANUFACTURE_WEEKS.has(week)
-            ? week
-            : undefined,
-        ),
-        createProperty(
-          "cdx:hbom:physicalSize",
-          formatDisplayPhysicalSize(
-            positiveNumber(basic?.MaxHorizontalImageSize),
-            positiveNumber(basic?.MaxVerticalImageSize),
-          ),
-        ),
-        createProperty(
-          "cdx:hbom:connectionType",
-          windowsVideoOutputTechnologyName(
-            cimNumber(connection?.VideoOutputTechnology),
-          ),
-        ),
-        createProperty("cdx:hbom:isActive", cimBool(monitor.Active)),
-        createProperty(
-          "cdx:hbom:pnpInstanceId",
-          pnpId === undefined ? undefined : redactInstanceId(pnpId, options),
-        ),
-      ]),
+      properties: [
+        ...properties,
+        ...pnpEnrichmentProperties(options.pnpIndex, pnpId, options, properties),
+      ],
     });
   });
 }

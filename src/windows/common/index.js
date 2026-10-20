@@ -14,6 +14,7 @@ import {
   toEvidenceCommand,
 } from "../../common/evidence.js";
 import {
+  buildDependencyGraph,
   compact,
   createProperty,
 } from "../../common/shape.js";
@@ -23,6 +24,7 @@ import {
 } from "../../common/targets.js";
 import { attachCollectorTrace, recordCollectorTrace } from "../../common/trace.js";
 import {
+  cimBool,
   cimString,
   parseWindowsEnvelope,
   summarizeWindowsAccess,
@@ -31,8 +33,16 @@ import {
 } from "./cim.js";
 import { WINDOWS_COMMANDS, getRequiredWindowsCommand } from "./commands.js";
 import {
+  buildPnpComponents,
+  buildPnpDeviceIndex,
+  buildPnpTopologyEdges,
+  parsePnpDevicesEnvelope,
+  pnpDevicesDiagnostics,
+} from "./devices.js";
+import {
   buildDisplayAdapterComponents,
   buildDisplayComponents,
+  monitorPnpInstanceId,
   parseDisplayMediaEnvelope,
 } from "./display.js";
 import {
@@ -42,6 +52,7 @@ import {
 } from "./media.js";
 import {
   buildNetworkComponents,
+  selectHardwareNetAdapters,
 } from "./network.js";
 import {
   buildStorageComponents,
@@ -103,7 +114,19 @@ export {
 export {
   WINDOWS_DISPLAY_MEDIA_MANIFEST,
   WINDOWS_MEDIA_PNP_CLASS_GUIDS,
+  WINDOWS_PNP_DEVICES_MANIFEST,
+  WINDOWS_PNP_DEVICE_PROPERTY_KEYS,
 } from "./commands.js";
+export {
+  parsePnpDevicesEnvelope,
+  buildPnpDeviceIndex,
+  classifyPnpDevice,
+  buildPnpComponents,
+  buildPnpTopologyEdges,
+  pnpBomRef,
+  pnpEnrichmentProperties,
+  pnpDevicesDiagnostics,
+} from "./devices.js";
 export {
   WINDOWS_PC_SYSTEM_TYPES_EX,
   WINDOWS_MEMORY_ERROR_CORRECTIONS,
@@ -148,7 +171,8 @@ export function getWindowsCommandPlan() {
  *     baseline?: { cpuModel?: string, cpuCount?: number, totalMemoryBytes?: number, osRelease?: string, osName?: string },
  *     platformEnvelope?: ReturnType<parseWindowsEnvelope>,
  *     storageNetworkEnvelope?: ReturnType<parseWindowsEnvelope>,
- *     displayMediaEnvelope?: ReturnType<parseWindowsEnvelope>
+ *     displayMediaEnvelope?: ReturnType<parseWindowsEnvelope>,
+ *     pnpDevicesEnvelope?: ReturnType<parseWindowsEnvelope>
  *   },
  *   includeSensitiveIdentifiers?: boolean,
  *   executedCommands?: Array<{ id: string, category: string, command: string, args: string[] }>,
@@ -163,12 +187,18 @@ export function buildWindowsHbom(options = {}) {
   const envelope = options.sources?.platformEnvelope;
   const storageEnvelope = options.sources?.storageNetworkEnvelope;
   const displayEnvelope = options.sources?.displayMediaEnvelope;
+  const pnpEnvelope = options.sources?.pnpDevicesEnvelope;
   const storageSources = storageEnvelope
     ? parseStorageNetworkEnvelope(storageEnvelope)
     : undefined;
   const displaySources = displayEnvelope
     ? parseDisplayMediaEnvelope(displayEnvelope)
     : undefined;
+  const pnpSources = pnpEnvelope ? parsePnpDevicesEnvelope(pnpEnvelope) : undefined;
+  // The PnP index is built first so every other builder can attach its
+  // bom-ref and PnP-derived driver properties by raw instance ID.
+  const pnpIndex = pnpSources ? buildPnpDeviceIndex(pnpSources) : undefined;
+  const buildOptions = pnpIndex ? { ...options, pnpIndex } : options;
   const parsed = envelope
     ? parsePlatformEnvelope(envelope)
     : {
@@ -209,8 +239,15 @@ export function buildWindowsHbom(options = {}) {
       ? storageNetworkDiagnostics(storageSources, storageEnvelope?.meta)
       : []),
     ...envelopeDiagnostics(displayEnvelope),
+    ...envelopeDiagnostics(pnpEnvelope),
+    ...(pnpSources ? pnpDevicesDiagnostics(pnpSources) : []),
   ];
   const executedCommands = options.executedCommands ?? [];
+
+  const represented = representedPnpIds(storageSources, storageEnvelope, displaySources);
+  const pnp = pnpIndex
+    ? buildPnpComponents(pnpIndex, { ...buildOptions, represented })
+    : undefined;
 
   const components = compact([
     buildWindowsProcessorComponent(context),
@@ -218,28 +255,33 @@ export function buildWindowsHbom(options = {}) {
     ...buildWindowsBoardFirmwareChassisComponents(context),
     ...(storageSources
       ? [
-          ...buildStorageComponents(storageSources, options),
-          ...buildStorageVolumeComponents(storageSources, options),
+          ...buildStorageComponents(storageSources, buildOptions),
+          ...buildStorageVolumeComponents(storageSources, buildOptions),
           ...buildNetworkComponents(
             storageSources.netAdapters,
             storageSources.netAdapterHardware,
             storageEnvelope?.results?.netAdapter ?? { ok: false },
             storageSources.legacyNetworkAdapters,
-            options,
+            buildOptions,
           ),
         ]
       : []),
     ...(displaySources
       ? [
-          ...buildDisplayAdapterComponents(displaySources, options),
-          ...buildDisplayComponents(displaySources, options),
-          ...buildAudioControllerComponents(displaySources, options),
-          ...buildAudioEndpointComponents(displaySources, options),
-          ...buildCameraComponents(displaySources, options),
+          ...buildDisplayAdapterComponents(displaySources, buildOptions),
+          ...buildDisplayComponents(displaySources, buildOptions),
+          ...buildAudioControllerComponents(displaySources, buildOptions),
+          ...buildAudioEndpointComponents(displaySources, buildOptions),
+          ...buildCameraComponents(displaySources, buildOptions),
         ]
       : []),
+    ...(pnp ? pnp.components : []),
   ]);
   const hostComponent = buildWindowsHostComponent(context);
+  const knownRefs = compact(components.map((component) => component["bom-ref"]));
+  const dependencies = pnpIndex
+    ? buildDependencyGraph(buildPnpTopologyEdges(pnpIndex, knownRefs), knownRefs)
+    : [];
 
   return attachCollectorTrace(
     createHbomDocument({
@@ -258,6 +300,7 @@ export function buildWindowsHbom(options = {}) {
         properties: [],
       },
       components,
+      dependencies,
       properties: compact([
         createProperty("cdx:hbom:targetPlatform", "windows"),
         createProperty("cdx:hbom:targetArchitecture", detected.architecture),
@@ -413,7 +456,57 @@ const WINDOWS_ENRICHMENT_STEPS = Object.freeze([
     id: "windows-cim-display-media",
     sourceKey: "displayMediaEnvelope",
   }),
+  Object.freeze({
+    id: "windows-pnp-devices",
+    sourceKey: "pnpDevicesEnvelope",
+  }),
 ]);
+
+/**
+ * Collect the PnP instance IDs of devices that the storage, network, display
+ * and media builders already turn into components, so the PnP builder enriches
+ * those components instead of emitting a second one for the same device.
+ *
+ * Only adapters that `buildNetworkComponents` would actually emit count:
+ * an excluded adapter's PCI function must still surface as a pci-device.
+ *
+ * @param {import("./storage.js").WindowsStorageNetworkSources | undefined} storageSources Storage/network sources.
+ * @param {{ results?: Record<string, { ok?: boolean }> } | undefined} storageEnvelope Storage envelope.
+ * @param {import("./display.js").WindowsDisplayMediaSources | undefined} displaySources Display/media sources.
+ * @returns {Set<string>} Lower-cased instance IDs.
+ */
+function representedPnpIds(storageSources, storageEnvelope, displaySources) {
+  const ids = [];
+  if (storageSources) {
+    ids.push(...storageSources.diskDrives.map((drive) => drive.PNPDeviceID));
+    if (storageEnvelope?.results?.netAdapter?.ok) {
+      ids.push(
+        ...selectHardwareNetAdapters(storageSources.netAdapters).selected.map(
+          (adapter) => adapter.PnPDeviceID,
+        ),
+      );
+    } else {
+      ids.push(
+        ...storageSources.legacyNetworkAdapters
+          .filter((adapter) => cimBool(adapter.PhysicalAdapter) === true)
+          .map((adapter) => adapter.PNPDeviceID),
+      );
+    }
+  }
+  if (displaySources) {
+    ids.push(
+      ...displaySources.videoControllers.map((controller) => controller.PNPDeviceID),
+      ...displaySources.monitorIds.map((monitor) =>
+        monitorPnpInstanceId(cimString(monitor.InstanceName)),
+      ),
+      ...displaySources.soundDevices.map((device) => device.PNPDeviceID),
+      ...displaySources.mediaPnp.map((entity) => entity.PNPDeviceID),
+    );
+  }
+  return new Set(
+    ids.map((id) => cimString(id)?.toLowerCase()).filter((id) => id !== undefined),
+  );
+}
 
 /**
  * Read the T0 baseline from the Node `os` module.

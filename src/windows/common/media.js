@@ -9,6 +9,7 @@ import {
   normalizeIdentityString,
 } from "../../common/shape.js";
 import { cimArray, cimBool, cimString } from "./cim.js";
+import { pnpBomRef, pnpEnrichmentProperties } from "./devices.js";
 import { windowsSetupClassName } from "./enums.js";
 import {
   parseDeviceInstanceId,
@@ -29,7 +30,7 @@ const VIRTUAL_ENUMERATORS = new Set(["SWD", "ROOT"]);
  * the HD Audio (`HDAUDIO\FUNC_..&VEN_..&DEV_..`), PCI or USB instance ID.
  *
  * @param {import("./display.js").WindowsDisplayMediaSources} sources Media sources.
- * @param {{ includeSensitiveIdentifiers?: boolean }} [options={}] Build options.
+ * @param {{ includeSensitiveIdentifiers?: boolean, pnpIndex?: Map<string, object> }} [options={}] Build options.
  * @returns {object[]} Audio controller components.
  */
 export function buildAudioControllerComponents(sources, options = {}) {
@@ -37,21 +38,22 @@ export function buildAudioControllerComponents(sources, options = {}) {
     const pnpId = cimString(device.PNPDeviceID);
     const ids = parseDeviceInstanceId(pnpId).ids;
     const manufacturer = normalizeIdentityString(cimString(device.Manufacturer));
-    return createHardwareComponent("audio-controller", {
+    const properties = compact([
+      createProperty("cdx:hbom:vendorId", ids.vendorId),
+      createProperty("cdx:hbom:productId", ids.productId ?? ids.deviceId),
+      createProperty("cdx:hbom:subsystemDeviceId", ids.subsystemId),
+      createProperty(
+        "cdx:hbom:pnpInstanceId",
+        pnpId === undefined ? undefined : redactInstanceId(pnpId, options),
+      ),
+    ]);
+    return withPnp("audio-controller", pnpId, options, {
       name:
         cimString(device.Name) ??
         cimString(device.ProductName) ??
         "Sound Device",
       manufacturer: manufacturer ? { name: manufacturer } : undefined,
-      properties: compact([
-        createProperty("cdx:hbom:vendorId", ids.vendorId),
-        createProperty("cdx:hbom:productId", ids.productId ?? ids.deviceId),
-        createProperty("cdx:hbom:subsystemDeviceId", ids.subsystemId),
-        createProperty(
-          "cdx:hbom:pnpInstanceId",
-          pnpId === undefined ? undefined : redactInstanceId(pnpId, options),
-        ),
-      ]),
+      properties,
     });
   });
 }
@@ -63,7 +65,7 @@ export function buildAudioControllerComponents(sources, options = {}) {
  * recorded: they need the Core Audio COM API, which is out of scope.
  *
  * @param {import("./display.js").WindowsDisplayMediaSources} sources Media sources.
- * @param {{ includeSensitiveIdentifiers?: boolean }} [options={}] Build options.
+ * @param {{ includeSensitiveIdentifiers?: boolean, pnpIndex?: Map<string, object> }} [options={}] Build options.
  * @returns {object[]} Audio endpoint components.
  */
 export function buildAudioEndpointComponents(sources, options = {}) {
@@ -71,16 +73,17 @@ export function buildAudioEndpointComponents(sources, options = {}) {
     .filter((entity) => windowsSetupClassName(entity.ClassGuid) === "AudioEndpoint")
     .map((entity) => {
       const pnpId = cimString(entity.PNPDeviceID);
-      return createHardwareComponent("audio-device", {
+      const properties = compact([
+        createProperty("cdx:hbom:driver", cimString(entity.Service)),
+        createProperty("cdx:hbom:present", cimBool(entity.Present)),
+        createProperty(
+          "cdx:hbom:pnpInstanceId",
+          pnpId === undefined ? undefined : redactInstanceId(pnpId, options),
+        ),
+      ]);
+      return withPnp("audio-device", pnpId, options, {
         name: cimString(entity.Name) ?? "Audio Endpoint",
-        properties: compact([
-          createProperty("cdx:hbom:driver", cimString(entity.Service)),
-          createProperty("cdx:hbom:present", cimBool(entity.Present)),
-          createProperty(
-            "cdx:hbom:pnpInstanceId",
-            pnpId === undefined ? undefined : redactInstanceId(pnpId, options),
-          ),
-        ]),
+        properties,
       });
     });
 }
@@ -93,7 +96,7 @@ export function buildAudioEndpointComponents(sources, options = {}) {
  * camera emitter's property for the same idea.
  *
  * @param {import("./display.js").WindowsDisplayMediaSources} sources Media sources.
- * @param {{ includeSensitiveIdentifiers?: boolean }} [options={}] Build options.
+ * @param {{ includeSensitiveIdentifiers?: boolean, pnpIndex?: Map<string, object> }} [options={}] Build options.
  * @returns {object[]} Camera components.
  */
 export function buildCameraComponents(sources, options = {}) {
@@ -110,26 +113,49 @@ export function buildCameraComponents(sources, options = {}) {
         pnpId,
         options,
       );
-      const ids = parseHardwareIds([pnpId, ...hardwareIds]);
+      const ids = parseHardwareIds([...hardwareIds, pnpId]);
       const manufacturer = normalizeIdentityString(cimString(entity.Manufacturer));
       const enumerator = String(parsed.enumerator ?? "").toUpperCase();
-      return createHardwareComponent("camera", {
+      const properties = compact([
+        createProperty("cdx:hbom:vendorId", ids.vendorId),
+        createProperty("cdx:hbom:productId", ids.productId),
+        createProperty(
+          "cdx:hbom:isVirtual",
+          VIRTUAL_ENUMERATORS.has(enumerator) ? true : undefined,
+        ),
+        createProperty("cdx:hbom:driver", cimString(entity.Service)),
+        createProperty("cdx:hbom:present", cimBool(entity.Present)),
+        createProperty(
+          "cdx:hbom:pnpInstanceId",
+          pnpId === undefined ? undefined : redactInstanceId(pnpId, options),
+        ),
+      ]);
+      return withPnp("camera", pnpId, options, {
         name: cimString(entity.Name) ?? "Camera",
         manufacturer: manufacturer ? { name: manufacturer } : undefined,
-        properties: compact([
-          createProperty("cdx:hbom:vendorId", ids.vendorId),
-          createProperty("cdx:hbom:productId", ids.productId),
-          createProperty(
-            "cdx:hbom:isVirtual",
-            VIRTUAL_ENUMERATORS.has(enumerator) ? true : undefined,
-          ),
-          createProperty("cdx:hbom:driver", cimString(entity.Service)),
-          createProperty("cdx:hbom:present", cimBool(entity.Present)),
-          createProperty(
-            "cdx:hbom:pnpInstanceId",
-            pnpId === undefined ? undefined : redactInstanceId(pnpId, options),
-          ),
-        ]),
+        properties,
       });
     });
+}
+
+/**
+ * Create a hardware component carrying its PnP bom-ref and the PnP-derived
+ * driver properties when the PnP index knows the device.
+ *
+ * @param {string} hardwareClass Hardware class.
+ * @param {string | undefined} pnpId Raw device instance ID.
+ * @param {{ includeSensitiveIdentifiers?: boolean, pnpIndex?: Map<string, object> }} options Build options.
+ * @param {{ name: string, manufacturer?: { name: string }, properties: object[] }} component Component fields.
+ * @returns {object} Component.
+ */
+function withPnp(hardwareClass, pnpId, options, component) {
+  const ref = pnpBomRef(options.pnpIndex, pnpId);
+  return createHardwareComponent(hardwareClass, {
+    ...(ref ? { "bom-ref": ref } : {}),
+    ...component,
+    properties: [
+      ...component.properties,
+      ...pnpEnrichmentProperties(options.pnpIndex, pnpId, options, component.properties),
+    ],
+  });
 }

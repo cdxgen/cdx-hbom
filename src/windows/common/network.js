@@ -9,6 +9,7 @@ import {
   redactIdentifier,
 } from "../../common/shape.js";
 import { cimBool, cimDate, cimNumber, cimString } from "./cim.js";
+import { pnpBomRef, pnpEnrichmentProperties } from "./devices.js";
 import { WINDOWS_NDIS_PHYSICAL_MEDIA, windowsEnumName } from "./enums.js";
 import { parseDeviceInstanceId } from "./pnp.js";
 
@@ -120,66 +121,73 @@ function buildNetAdapterComponent(
   const componentId = parseDeviceInstanceId(adapter.ComponentID).ids;
   const legacy = findLegacyByInstanceId(legacyAdapters, adapter.PnPDeviceID);
   const connectState = cimNumber(adapter.MediaConnectState);
+  const pnpId = cimString(adapter.PnPDeviceID);
+  const ref = pnpBomRef(options.pnpIndex, pnpId);
+  const properties = compact([
+    createProperty("cdx:hbom:interfaceName", cimString(adapter.Name)),
+    createProperty("cdx:hbom:driver", netAdapterDriver(adapter, legacy)),
+    createProperty(
+      "cdx:hbom:driverVersion",
+      cimString(adapter.DriverVersionString),
+    ),
+    createProperty("cdx:hbom:driverProvider", cimString(adapter.DriverProvider)),
+    createProperty("cdx:hbom:driverDate", cimDate(cimString(adapter.DriverDate))),
+    createProperty(
+      "cdx:hbom:macAddress",
+      redactMacAddress(adapter.PermanentAddress, options),
+    ),
+    createProperty("cdx:hbom:mtu", cimNumber(adapter.MtuSize)),
+    createProperty(
+      "cdx:hbom:speedMbps",
+      connectState === MEDIA_CONNECT_STATE_CONNECTED
+        ? Math.round((cimNumber(adapter.ReceiveLinkSpeed) ?? 0) / 1e6) || undefined
+        : undefined,
+    ),
+    createProperty(
+      "cdx:hbom:duplex",
+      cimBool(adapter.FullDuplex) === undefined
+        ? undefined
+        : cimBool(adapter.FullDuplex)
+          ? "full"
+          : "half",
+    ),
+    createProperty(
+      "cdx:hbom:operState",
+      connectState === MEDIA_CONNECT_STATE_CONNECTED
+        ? "up"
+        : connectState === MEDIA_CONNECT_STATE_DISCONNECTED
+          ? "down"
+          : undefined,
+    ),
+    createProperty("cdx:hbom:ifindex", cimNumber(adapter.InterfaceIndex)),
+    createProperty(
+      "cdx:hbom:physicalMedium",
+      windowsEnumName(WINDOWS_NDIS_PHYSICAL_MEDIA, ndisMedium),
+    ),
+    createProperty("cdx:hbom:vendorId", componentId.vendorId),
+    createProperty(
+      "cdx:hbom:productId",
+      componentId.productId ?? componentId.deviceId,
+    ),
+    createProperty("cdx:hbom:subsystemDeviceId", componentId.subsystemId),
+    createProperty("cdx:hbom:subsystemVendorId", componentId.subsystemVendorId),
+    createProperty(
+      "cdx:hbom:pciAddress",
+      pciAddressFor(cimString(adapter.Name), netAdapterHardware),
+    ),
+  ]);
 
   return createHardwareComponent(hardwareClass, {
+    ...(ref ? { "bom-ref": ref } : {}),
     name: cimString(adapter.InterfaceDescription) ?? cimString(adapter.DriverDescription) ?? "Network Adapter",
     version: cimString(adapter.Name),
     manufacturer: cimString(legacy?.Manufacturer)
       ? { name: cimString(legacy.Manufacturer) }
       : undefined,
-    properties: compact([
-      createProperty("cdx:hbom:interfaceName", cimString(adapter.Name)),
-      createProperty("cdx:hbom:driver", netAdapterDriver(adapter, legacy)),
-      createProperty(
-        "cdx:hbom:driverVersion",
-        cimString(adapter.DriverVersionString),
-      ),
-      createProperty("cdx:hbom:driverProvider", cimString(adapter.DriverProvider)),
-      createProperty("cdx:hbom:driverDate", cimDate(cimString(adapter.DriverDate))),
-      createProperty(
-        "cdx:hbom:macAddress",
-        redactMacAddress(adapter.PermanentAddress, options),
-      ),
-      createProperty("cdx:hbom:mtu", cimNumber(adapter.MtuSize)),
-      createProperty(
-        "cdx:hbom:speedMbps",
-        connectState === MEDIA_CONNECT_STATE_CONNECTED
-          ? Math.round((cimNumber(adapter.ReceiveLinkSpeed) ?? 0) / 1e6) || undefined
-          : undefined,
-      ),
-      createProperty(
-        "cdx:hbom:duplex",
-        cimBool(adapter.FullDuplex) === undefined
-          ? undefined
-          : cimBool(adapter.FullDuplex)
-            ? "full"
-            : "half",
-      ),
-      createProperty(
-        "cdx:hbom:operState",
-        connectState === MEDIA_CONNECT_STATE_CONNECTED
-          ? "up"
-          : connectState === MEDIA_CONNECT_STATE_DISCONNECTED
-            ? "down"
-            : undefined,
-      ),
-      createProperty("cdx:hbom:ifindex", cimNumber(adapter.InterfaceIndex)),
-      createProperty(
-        "cdx:hbom:physicalMedium",
-        windowsEnumName(WINDOWS_NDIS_PHYSICAL_MEDIA, ndisMedium),
-      ),
-      createProperty("cdx:hbom:vendorId", componentId.vendorId),
-      createProperty(
-        "cdx:hbom:productId",
-        componentId.productId ?? componentId.deviceId,
-      ),
-      createProperty("cdx:hbom:subsystemDeviceId", componentId.subsystemId),
-      createProperty("cdx:hbom:subsystemVendorId", componentId.subsystemVendorId),
-      createProperty(
-        "cdx:hbom:pciAddress",
-        pciAddressFor(cimString(adapter.Name), netAdapterHardware),
-      ),
-    ]),
+    properties: [
+      ...properties,
+      ...pnpEnrichmentProperties(options.pnpIndex, pnpId, options, properties),
+    ],
   });
 }
 
@@ -195,34 +203,41 @@ function buildNetAdapterComponent(
  */
 function buildLegacyAdapterComponent(adapter, options) {
   const connectionStatus = cimNumber(adapter.NetConnectionStatus);
+  const pnpId = cimString(adapter.PNPDeviceID);
+  const ref = pnpBomRef(options.pnpIndex, pnpId);
+  const properties = compact([
+    createProperty("cdx:hbom:driver", cimString(adapter.ServiceName)),
+    createProperty(
+      "cdx:hbom:macAddress",
+      redactMacAddress(adapter.MACAddress, options),
+    ),
+    createProperty("cdx:hbom:ifindex", cimNumber(adapter.InterfaceIndex)),
+    createProperty(
+      "cdx:hbom:speedMbps",
+      connectionStatus === NET_CONNECTION_STATUS_CONNECTED
+        ? Math.round((cimNumber(adapter.Speed) ?? 0) / 1e6) || undefined
+        : undefined,
+    ),
+    createProperty(
+      "cdx:hbom:operState",
+      connectionStatus === NET_CONNECTION_STATUS_CONNECTED
+        ? "up"
+        : DOWN_NET_CONNECTION_STATUSES.has(connectionStatus)
+          ? "down"
+          : undefined,
+    ),
+    createProperty("cdx:hbom:adapterType", cimString(adapter.AdapterType)),
+  ]);
   return createHardwareComponent("network-interface", {
+    ...(ref ? { "bom-ref": ref } : {}),
     name: cimString(adapter.Name) ?? "Network Adapter",
     manufacturer: cimString(adapter.Manufacturer)
       ? { name: cimString(adapter.Manufacturer) }
       : undefined,
-    properties: compact([
-      createProperty("cdx:hbom:driver", cimString(adapter.ServiceName)),
-      createProperty(
-        "cdx:hbom:macAddress",
-        redactMacAddress(adapter.MACAddress, options),
-      ),
-      createProperty("cdx:hbom:ifindex", cimNumber(adapter.InterfaceIndex)),
-      createProperty(
-        "cdx:hbom:speedMbps",
-        connectionStatus === NET_CONNECTION_STATUS_CONNECTED
-          ? Math.round((cimNumber(adapter.Speed) ?? 0) / 1e6) || undefined
-          : undefined,
-      ),
-      createProperty(
-        "cdx:hbom:operState",
-        connectionStatus === NET_CONNECTION_STATUS_CONNECTED
-          ? "up"
-          : DOWN_NET_CONNECTION_STATUSES.has(connectionStatus)
-            ? "down"
-            : undefined,
-      ),
-      createProperty("cdx:hbom:adapterType", cimString(adapter.AdapterType)),
-    ]),
+    properties: [
+      ...properties,
+      ...pnpEnrichmentProperties(options.pnpIndex, pnpId, options, properties),
+    ],
   });
 }
 
