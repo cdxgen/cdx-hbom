@@ -40,6 +40,14 @@
       "durationMs": 1739,
       "bytes": 2066,
       "provenance": "captured"
+    },
+    {
+      "id": "windows-pnp-devices",
+      "argsSha256": "58d8b7e85fa006bdb9a0e3cff8fc7e2564189c26e4901a037efe2bc69d8485be",
+      "exitCode": 0,
+      "durationMs": 3324,
+      "bytes": 137191,
+      "provenance": "captured"
     }
   ]
 }
