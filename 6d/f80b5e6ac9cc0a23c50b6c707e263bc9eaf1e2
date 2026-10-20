@@ -1,0 +1,46 @@
+src/windows/common/storage.js
+  s_c81cb3ef09afe3::t_eeb38886e3ac48 14-20,58-63,163,169-170
+  s_c81cb3ef09afe3::t_9f3279729a2b8c 13
+scripts/windows/redact-fixtures.mjs
+  s_c81cb3ef09afe3::t_cb57d1bef9ed66 209-223
+  s_c81cb3ef09afe3::t_7599a36ed139b2 31
+src/windows/common/network.js
+  s_c81cb3ef09afe3::t_6082243a8abb8d 12,185,230
+src/windows/common/media.js
+  s_c81cb3ef09afe3::t_eeb38886e3ac48 12,154
+test/windows/pnp-devices.test.js
+  s_c81cb3ef09afe3::t_ff97278281174c 558-614
+src/windows/common/cim.js
+  s_c81cb3ef09afe3::t_434b0dd1cfc91b 310-341
+src/windows/common/devices.js
+  s_c81cb3ef09afe3::t_ef89d9b0536f04 392
+  s_c81cb3ef09afe3::t_fddddab8819e13 121,123,387,393-413,554,598,600,602,605
+  s_c81cb3ef09afe3::t_2c5d747676b9bd 17-24,27,65-71,122,198,314,445,449,503,512,516,521-523,568-597,599,601,603-604,606-608
+src/windows/common/display.js
+  s_c81cb3ef09afe3::t_6082243a8abb8d 17-18,22,62-67,112,134,174,185-186,206,232-233
+test/windows/capture-tools.test.js
+  s_c81cb3ef09afe3::t_b4da4313152267 219-222,228-275
+  s_c81cb3ef09afe3::t_4086cf07d73a7c 276-277
+src/windows/common/platform.js
+  s_c81cb3ef09afe3::t_2118bc0ad1796d 20-28,77-86
+src/windows/common/power.js
+  s_c81cb3ef09afe3::t_99c658b583ae9a 13,66
+src/windows/common/trust.js
+  s_c81cb3ef09afe3::t_cbdc3bb70e620f 13-21,75,79-80,93,95-96,209,263
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "6df80b5e6ac9cc0a23c50b6c707e263bc9eaf1e2",
+  "prompts": {},
+  "sessions": {
+    "s_c81cb3ef09afe3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2eb5ded0-f83f-4668-b459-e157774b0030",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Prabhu Subramanian <prabhu@appthreat.com>"
+    }
+  }
+}
