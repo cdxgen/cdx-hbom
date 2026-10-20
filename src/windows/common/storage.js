@@ -251,7 +251,7 @@ export function storageNetworkDiagnostics(sources, meta = {}) {
       {
         id: "windows-cim-storage-network:physical-disk",
         issue: "partial-support",
-        message: "Storage bus/media/health details need an elevated session",
+        message: "No disk bus, media or health details: Windows returns them to a standard user only while the Storage Spaces SMP service (smphost) is running, and never to a network logon; an elevated run starts it",
       },
     ];
   }

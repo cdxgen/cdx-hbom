@@ -215,6 +215,9 @@ test("privacy guard: manifests never select PII properties", () => {
     { className: undefined, property: "SystemName" },
     // https://learn.microsoft.com/en-us/windows/win32/devguard/win32-deviceguard
     { className: "Win32_DeviceGuard", property: "InstanceIdentifier" },
+    // https://learn.microsoft.com/en-us/windows/win32/cimwin32prov/win32-battery
+    // (DeviceID often embeds the battery serial number).
+    { className: "Win32_Battery", property: "DeviceID" },
   ];
 
   assert.ok(WINDOWS_MANIFESTS.includes(WINDOWS_PLATFORM_MANIFEST));
