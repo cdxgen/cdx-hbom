@@ -247,6 +247,13 @@ test("redactInstanceId redacts the instance segment and Bluetooth MACs", () => {
     ),
     "PCI\\VEN_8086&DEV_265C&SUBSYS_04001AB8&REV_02\\redacted:0&10",
   );
+  // A redacted segment whose suffix is shorter than four characters (left
+  // behind when a WMI `_0` suffix is stripped from a fixture value) must not
+  // be re-redacted into `redacted:d:D0`.
+  assert.equal(
+    redactInstanceId("DISPLAY\\PRL5000\\redacted:D0"),
+    "DISPLAY\\PRL5000\\redacted:D0",
+  );
 });
 
 test("redactHardwareIds redacts hardware IDs that repeat the instance segment", () => {

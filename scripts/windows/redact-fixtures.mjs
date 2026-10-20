@@ -16,6 +16,8 @@
 //   MAC:         02-00-00-00-00-NN (separators and case kept)
 //   volume path: \\?\Volume{GUID}\ keeps its framing, GUID redacted
 //   numeric:     same digit count with every digit turned into 4
+//   uint16 text: WmiMonitorID-style code arrays become the codes of
+//                REDACTED-SN-NN, zero-padded to the original length
 //   literal:     REDACTED-LITERAL
 //
 // The script rewrites `*.stdout` files in place at the byte level (only the
@@ -56,7 +58,12 @@ const LITERAL_REPLACEMENT = "REDACTED-LITERAL";
 // Values produced by this redactor (and by `redactInstanceId`) are stable on
 // re-processing.
 const ALREADY_REDACTED =
-  /^(?:REDACTED-SERIAL-\d+|REDACTED-LITERAL|\{?00000000-0000-4000-8000-0000000000\d{2}\}?|02[:-]00[:-]00[:-]00[:-]00[:-][0-9a-f]{2}|redacted:.*)$/iu;
+  /^(?:REDACTED-SERIAL-\d+|REDACTED-SN-\d+|REDACTED-LITERAL|\{?00000000-0000-4000-8000-0000000000\d{2}\}?|02[:-]00[:-]00[:-]00[:-]00[:-][0-9a-f]{2}|redacted:.*)$/iu;
+
+// WmiMonitorID stores EDID text as uint16 code arrays zero-padded to 16
+// entries (13 is the EDID descriptor maximum), so the 14-character marker
+// always fits with its terminator.
+const UINT16_SERIAL_MARKER = "REDACTED-SN-";
 
 const directory = process.argv[2];
 const explicitLiterals = [];
@@ -78,7 +85,7 @@ const specsById = new Map(
 
 // Deterministic value -> replacement map shared across every file.
 const assignments = new Map();
-const counters = { serial: 0, guid: 0, mac: 0 };
+const counters = { serial: 0, guid: 0, mac: 0, uint16: 0 };
 
 const files = readdirSync(directory).filter((name) =>
   name.endsWith(".stdout"),
@@ -159,9 +166,21 @@ function redactFile(filePath) {
     }
   }
 
+  const uint16Arrays = sensitive.filter((value) => Array.isArray(value));
   const replacements = sensitive
+    .filter((value) => !Array.isArray(value))
     .map((value) => [value, replacementFor(value)])
     .filter(([value, replacement]) => value !== replacement);
+
+  // uint16 code arrays are replaced as whole JSON arrays: a per-element pass
+  // would turn the zero terminator into 4 and rewrite every unrelated number
+  // that happens to equal one of the codes.
+  for (const codes of uint16Arrays) {
+    text = text.replaceAll(
+      uint16ArrayPattern(codes),
+      JSON.stringify(uint16Replacement(codes)),
+    );
+  }
 
   // Replace whole JSON string tokens only. A substring match would rewrite
   // unrelated values that merely contain a short serial. The same value in
@@ -202,17 +221,79 @@ function redactFile(filePath) {
     ...replacements.map(([value]) => value),
     ...collectRawInstanceSegments(envelope),
   ];
-  return leftovers
-    .filter((value) => String(value).length > 4)
-    .filter((value) =>
-      typeof value === "number"
-        ? new RegExp(`(?<![0-9.])${value}(?![0-9.])`, "u").test(text)
-        : new RegExp(jsonTextPattern(value), "u").test(text),
-    )
-    .map(
-      (value) =>
-        `${fileName(filePath)}.stdout: sensitive value (${String(value).length} chars) still present`,
-    );
+  return [
+    ...leftovers
+      .filter((value) => String(value).length > 4)
+      .filter((value) =>
+        typeof value === "number"
+          ? new RegExp(`(?<![0-9.])${value}(?![0-9.])`, "u").test(text)
+          : new RegExp(jsonTextPattern(value), "u").test(text),
+      )
+      .map(
+        (value) =>
+          `${fileName(filePath)}.stdout: sensitive value (${String(value).length} chars) still present`,
+      ),
+    ...uint16Arrays
+      .filter((codes) => uint16ArrayPattern(codes).test(text))
+      .map(
+        (codes) =>
+          `${fileName(filePath)}.stdout: uint16 serial (${codes.length} codes) still present`,
+      ),
+  ];
+}
+
+/**
+ * Build a pattern matching a uint16 code array as serialized JSON.
+ *
+ * `ConvertTo-Json -Compress` writes `[48,49,0]`; optional whitespace after
+ * each comma is tolerated for pretty-printed captures.
+ *
+ * @param {number[]} codes Code array.
+ * @returns {RegExp} Global pattern.
+ */
+function uint16ArrayPattern(codes) {
+  return new RegExp(`\\[${codes.join(",\\s*")}\\]`, "gu");
+}
+
+/**
+ * Compute the replacement code array for a uint16 text field.
+ *
+ * The marker shares one counter across the directory so the same serial maps
+ * to the same marker in every file, and the array keeps its original length.
+ *
+ * @param {number[]} codes Original code array.
+ * @returns {number[]} Replacement codes, zero-padded.
+ */
+function uint16Replacement(codes) {
+  const key = `uint16:${codes.join(",")}`;
+  if (!assignments.has(key)) {
+    counters.uint16 += 1;
+    assignments.set(key, `${UINT16_SERIAL_MARKER}${pad(counters.uint16, 2)}`);
+  }
+  const marker = assignments.get(key);
+  const replacement = [...marker].map((ch) => ch.charCodeAt(0));
+  while (replacement.length < codes.length) {
+    replacement.push(0);
+  }
+  return replacement;
+}
+
+/**
+ * Decode a uint16 code array up to its zero terminator.
+ *
+ * @param {unknown} value Candidate array.
+ * @returns {string | undefined} Decoded text or undefined when not a code array.
+ */
+function decodeUint16(value) {
+  if (
+    !Array.isArray(value) ||
+    value.length === 0 ||
+    !value.every((code) => typeof code === "number" && Number.isInteger(code))
+  ) {
+    return undefined;
+  }
+  const end = value.indexOf(0);
+  return String.fromCharCode(...(end === -1 ? value : value.slice(0, end))).trim();
 }
 
 /**
@@ -253,13 +334,39 @@ function collectSensitiveField(envelope, field, sensitive) {
   }
   const result = envelope.results?.[field.slice(0, separator)];
   const name = field.slice(separator + 1);
-  const transform = PNP_FIELD_NAMES.has(name) ? redactInstanceId : undefined;
+  const transform = PNP_FIELD_NAMES.has(name)
+    ? (entry) => redactPnpFieldValue(name, entry, undefined)
+    : undefined;
   for (const item of [...(result?.items ?? [])]) {
     collectFieldValue(item, name, sensitive, transform, true);
   }
   if (result?.values) {
     collectFieldValue(result.values, name, sensitive, transform, true);
   }
+}
+
+/**
+ * Redact one PnP identifier field value.
+ *
+ * root/wmi classes key their instances as the PnP device instance ID plus a
+ * `_<n>` WMI suffix (`DISPLAY\PRL5000\3&...&UID0_0` on win11-vm). The suffix
+ * is kept outside the redaction so the redacted InstanceName still joins the
+ * redacted Win32_PnPEntity.PNPDeviceID of the same device after the suffix is
+ * stripped, exactly as it does live.
+ *
+ * @param {string} name Field name.
+ * @param {string} entry Raw value.
+ * @param {string | undefined} instanceId The item's own PNPDeviceID, when known.
+ * @returns {string} Redacted value.
+ */
+function redactPnpFieldValue(name, entry, instanceId) {
+  if (name === "InstanceName") {
+    const match = entry.match(/^(.*)(_\d+)$/u);
+    if (match) {
+      return `${redactInstanceId(match[1])}${match[2]}`;
+    }
+  }
+  return redactHardwareIds([redactInstanceId(entry)], instanceId)[0];
 }
 
 /**
@@ -279,7 +386,7 @@ function collectGenericFields(envelope, sensitive) {
       for (const [name, value] of Object.entries(item)) {
         if (PNP_FIELD_NAMES.has(name)) {
           collectFieldValue(item, name, sensitive, (entry) =>
-            redactHardwareIds([redactInstanceId(entry)], instanceId)[0],
+            redactPnpFieldValue(name, entry, instanceId),
           );
           continue;
         }
@@ -316,6 +423,21 @@ function collectFieldValue(
   allowNumbers = false,
 ) {
   const value = item?.[name];
+  if (allowNumbers) {
+    // A uint16 code array at an explicit sensitive path is EDID text
+    // (WmiMonitorID.SerialNumberID) and is redacted as one value.
+    const decoded = decodeUint16(value);
+    if (decoded !== undefined) {
+      if (
+        decoded.length > 0 &&
+        !isPlaceholderIdentity(decoded) &&
+        !ALREADY_REDACTED.test(decoded)
+      ) {
+        sensitive.push(value);
+      }
+      return;
+    }
+  }
   const values = Array.isArray(value) ? value : [value];
   for (const entry of values) {
     if (typeof entry === "number") {

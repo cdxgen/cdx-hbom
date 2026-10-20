@@ -327,12 +327,11 @@ export function redactInstanceId(id, options = {}) {
 
   const devicePart = text.slice(0, lastSeparator);
   const instanceSegment = text.slice(lastSeparator + 1);
-  // redactIdentifier turns short segments into a bare `redacted`; keep that
-  // as is so a second pass does not turn it into `redacted:cted`.
-  const redactedInstance =
-    instanceSegment === "redacted"
-      ? instanceSegment
-      : (redactIdentifier(instanceSegment, options) ?? instanceSegment);
+  // Segments this module already produced (`redacted`, `redacted:xxxx`) pass
+  // through, so fixture-driven builds and repeated redaction are stable.
+  const redactedInstance = /^redacted(?::|$)/u.test(instanceSegment)
+    ? instanceSegment
+    : (redactIdentifier(instanceSegment, options) ?? instanceSegment);
 
   const enumerator = text.slice(0, firstSeparator);
   const safeDevicePart = /^(BTHENUM|BTHLE)$/iu.test(enumerator)
