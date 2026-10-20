@@ -68,7 +68,19 @@ import {
   detectWindowsArchitecture,
   parsePlatformEnvelope,
 } from "./platform.js";
+import { buildHostPowerProperties, buildPowerComponents } from "./power.js";
 import { resolveWindowsPowerShellPath } from "./powershell.js";
+import {
+  bitlockerPropertiesByVolume,
+  buildFirmwareDeviceComponents,
+  buildSecurityPostureProperties,
+  buildTpmComponents,
+  parsePrivilegedEnvelope,
+  parseTrustEnvelope,
+  privilegedSummaryDiagnostics,
+  storageReliabilityByDeviceId,
+  trustRepresentedPnpIds,
+} from "./trust.js";
 
 export {
   WINDOWS_COMMANDS,
@@ -128,6 +140,22 @@ export {
   pnpDevicesDiagnostics,
 } from "./devices.js";
 export {
+  WINDOWS_TRUST_MANIFEST,
+  WINDOWS_PRIVILEGED_MANIFEST,
+} from "./commands.js";
+export {
+  parseTrustEnvelope,
+  parsePrivilegedEnvelope,
+  buildSecurityPostureProperties,
+  buildTpmComponents,
+  buildFirmwareDeviceComponents,
+  bitlockerPropertiesByVolume,
+  storageReliabilityByDeviceId,
+  privilegedSummaryDiagnostics,
+  parseTpmSpecVersion,
+} from "./trust.js";
+export { buildPowerComponents, buildHostPowerProperties } from "./power.js";
+export {
   WINDOWS_PC_SYSTEM_TYPES_EX,
   WINDOWS_MEMORY_ERROR_CORRECTIONS,
   WINDOWS_MEMORY_FORM_FACTORS,
@@ -172,7 +200,9 @@ export function getWindowsCommandPlan() {
  *     platformEnvelope?: ReturnType<parseWindowsEnvelope>,
  *     storageNetworkEnvelope?: ReturnType<parseWindowsEnvelope>,
  *     displayMediaEnvelope?: ReturnType<parseWindowsEnvelope>,
- *     pnpDevicesEnvelope?: ReturnType<parseWindowsEnvelope>
+ *     pnpDevicesEnvelope?: ReturnType<parseWindowsEnvelope>,
+ *     trustEnvelope?: ReturnType<parseWindowsEnvelope>,
+ *     privilegedEnvelope?: ReturnType<parseWindowsEnvelope>
  *   },
  *   includeSensitiveIdentifiers?: boolean,
  *   executedCommands?: Array<{ id: string, category: string, command: string, args: string[] }>,
@@ -198,7 +228,22 @@ export function buildWindowsHbom(options = {}) {
   // The PnP index is built first so every other builder can attach its
   // bom-ref and PnP-derived driver properties by raw instance ID.
   const pnpIndex = pnpSources ? buildPnpDeviceIndex(pnpSources) : undefined;
-  const buildOptions = pnpIndex ? { ...options, pnpIndex } : options;
+  const trustEnvelope = options.sources?.trustEnvelope;
+  const privilegedEnvelope = options.sources?.privilegedEnvelope;
+  const trustSources = trustEnvelope ? parseTrustEnvelope(trustEnvelope) : undefined;
+  const privilegedSources = privilegedEnvelope
+    ? parsePrivilegedEnvelope(privilegedEnvelope)
+    : undefined;
+  const buildOptions = {
+    ...options,
+    ...(pnpIndex ? { pnpIndex } : {}),
+    ...(privilegedSources
+      ? {
+          bitlocker: bitlockerPropertiesByVolume(privilegedSources),
+          storageReliability: storageReliabilityByDeviceId(privilegedSources),
+        }
+      : {}),
+  };
   const parsed = envelope
     ? parsePlatformEnvelope(envelope)
     : {
@@ -226,6 +271,10 @@ export function buildWindowsHbom(options = {}) {
     sources: parsed,
     baseline,
     detected,
+    hostProperties: [
+      ...buildSecurityPostureProperties(trustSources, privilegedSources),
+      ...buildHostPowerProperties(trustSources),
+    ],
   };
   const timestamp = options.collectedAt ?? new Date().toISOString();
   const identifierPolicy = options.includeSensitiveIdentifiers
@@ -241,10 +290,19 @@ export function buildWindowsHbom(options = {}) {
     ...envelopeDiagnostics(displayEnvelope),
     ...envelopeDiagnostics(pnpEnvelope),
     ...(pnpSources ? pnpDevicesDiagnostics(pnpSources) : []),
+    ...envelopeDiagnostics(trustEnvelope),
+    // Privileged denials are expected for non-administrators, so they are
+    // never collapsed into the network-logon summary: every denied class gets
+    // its line, plus one summary naming the cause.
+    ...envelopeDiagnostics(privilegedEnvelope, { collapseNetworkLogon: false }),
+    ...privilegedSummaryDiagnostics(privilegedEnvelope),
   ];
   const executedCommands = options.executedCommands ?? [];
 
-  const represented = representedPnpIds(storageSources, storageEnvelope, displaySources);
+  const represented = new Set([
+    ...representedPnpIds(storageSources, storageEnvelope, displaySources),
+    ...trustRepresentedPnpIds(pnpIndex),
+  ]);
   const pnp = pnpIndex
     ? buildPnpComponents(pnpIndex, { ...buildOptions, represented })
     : undefined;
@@ -275,6 +333,9 @@ export function buildWindowsHbom(options = {}) {
           ...buildCameraComponents(displaySources, buildOptions),
         ]
       : []),
+    ...buildTpmComponents(pnpIndex, privilegedSources, buildOptions),
+    ...buildFirmwareDeviceComponents(pnpIndex, trustSources, buildOptions),
+    ...buildPowerComponents(trustSources),
     ...(pnp ? pnp.components : []),
   ]);
   const hostComponent = buildWindowsHostComponent(context);
@@ -372,6 +433,7 @@ export function buildWindowsHbom(options = {}) {
  *   architecture?: string,
  *   includeSensitiveIdentifiers?: boolean,
  *   includeCommandEnrichment?: boolean,
+ *   includePrivilegedEnrichment?: boolean,
  *   timeoutMs?: number,
  *   allowPartial?: boolean,
  *   allowedCommands?: string[],
@@ -403,7 +465,10 @@ export async function collectWindowsHardware(options = {}) {
     { id: "windows-cim-platform", sourceKey: "platformEnvelope" },
     ...(options.includeCommandEnrichment === false
       ? []
-      : WINDOWS_ENRICHMENT_STEPS),
+      : WINDOWS_ENRICHMENT_STEPS.filter(
+          (step) =>
+            step.privileged !== true || options.includePrivilegedEnrichment === true,
+        )),
   ];
   for (const step of steps) {
     const spec = getRequiredWindowsCommand(step.id);
@@ -446,7 +511,9 @@ export async function collectWindowsHardware(options = {}) {
 
 // Enrichment batches run after `windows-cim-platform`, in order, and are
 // skipped when `includeCommandEnrichment` is false. Each one fills
-// `sources[sourceKey]` with its parsed envelope for `buildWindowsHbom`.
+// `sources[sourceKey]` with its parsed envelope for `buildWindowsHbom`. The
+// privileged batch additionally needs `includePrivilegedEnrichment`; it is
+// gated by the option alone and never elevates (PLAN.md §4.3).
 const WINDOWS_ENRICHMENT_STEPS = Object.freeze([
   Object.freeze({
     id: "windows-cim-storage-network",
@@ -459,6 +526,15 @@ const WINDOWS_ENRICHMENT_STEPS = Object.freeze([
   Object.freeze({
     id: "windows-pnp-devices",
     sourceKey: "pnpDevicesEnvelope",
+  }),
+  Object.freeze({
+    id: "windows-cim-trust",
+    sourceKey: "trustEnvelope",
+  }),
+  Object.freeze({
+    id: "windows-cim-privileged",
+    sourceKey: "privilegedEnvelope",
+    privileged: true,
   }),
 ]);
 
@@ -537,15 +613,19 @@ function readWindowsBaseline() {
  * surface as `partial-support`.
  *
  * @param {{ meta?: { commandId?: string, outputEncoding?: string }, results?: Record<string, object>, warnings?: string[] } | undefined} envelope Parsed envelope.
+ * @param {{ collapseNetworkLogon?: boolean }} [options={}] `collapseNetworkLogon: false` keeps per-class denials.
  * @returns {object[]} Diagnostics.
  */
-function envelopeDiagnostics(envelope) {
+function envelopeDiagnostics(envelope, options = {}) {
   if (!envelope) {
     return [];
   }
 
   const commandId = envelope.meta?.commandId ?? "windows-cim-platform";
-  if (summarizeWindowsAccess(envelope).allWmiDenied) {
+  if (
+    options.collapseNetworkLogon !== false &&
+    summarizeWindowsAccess(envelope).allWmiDenied
+  ) {
     return [
       {
         id: `${commandId}:network-logon`,

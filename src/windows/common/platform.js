@@ -114,7 +114,8 @@ export function detectWindowsArchitecture(processors, fallbackArch) {
  *   sources: WindowsPlatformSources,
  *   baseline: { cpuModel?: string, cpuCount?: number, totalMemoryBytes?: number },
  *   detected: { architecture: string, source: string },
- *   includeSensitiveIdentifiers?: boolean
+ *   includeSensitiveIdentifiers?: boolean,
+ *   hostProperties?: object[]
  * }} context Build context.
  * @returns {object} Host component.
  */
@@ -205,6 +206,9 @@ export function buildWindowsHostComponent(context) {
         cimBool(computerSystem.HypervisorPresent),
       ),
       createProperty("cdx:hbom:smbiosVersion", smbiosVersion(bios)),
+      // Security posture and power state from the trust and privileged
+      // batches, when they ran.
+      ...(context.hostProperties ?? []),
       createProperty("cdx:hbom:identifierPolicy", identifierPolicy),
     ]),
   });

@@ -39,8 +39,8 @@ Common options:
 - `--platform <value>` override platform detection
 - `--arch <value>` override architecture detection
 - `--sensitive` include raw identifiers instead of redacted defaults
-- `--no-command-enrichment` disable optional command-based enrichment on Linux
-- `--privileged` enable privileged Linux enrichment and explicit non-interactive `sudo -n` retries for documented permission-sensitive commands that opt in (currently `drm_info`)
+- `--no-command-enrichment` disable optional command-based enrichment (Linux commands; on Windows only the `windows-cim-platform` batch runs)
+- `--privileged` collect sources that need elevated rights. On Linux this enables privileged enrichment and explicit non-interactive `sudo -n` retries for documented permission-sensitive commands that opt in (currently `drm_info`). On Windows it adds the `windows-cim-privileged` batch (TPM, BitLocker, storage reliability counters, `Confirm-SecureBootUEFI`), which only administrators can read; cdx-hbom never elevates itself, so run it from an elevated session to get that data and expect `permission-denied` diagnostics otherwise
 - `--plist-enrichment` enable additional Darwin plist-based enrichment
 - `--strict` fail instead of returning partial results when enrichment fails
 - `--timeout <ms>` set per-command timeout

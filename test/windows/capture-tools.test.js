@@ -83,8 +83,14 @@ test("redact-fixtures leaves every committed fixture byte-identical", () => {
   const fixturesRoot = fileURLToPath(
     new URL("../fixtures/windows", import.meta.url),
   );
-  for (const arch of readdirSync(fixturesRoot)) {
-    for (const label of readdirSync(join(fixturesRoot, arch))) {
+  // `schema/` holds class-schema dumps (files), not `<arch>/<label>` capture
+  // directories, so only directories two levels down are redacted.
+  const directories = (path) =>
+    readdirSync(path, { withFileTypes: true })
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => entry.name);
+  for (const arch of directories(fixturesRoot)) {
+    for (const label of directories(join(fixturesRoot, arch))) {
       const source = join(fixturesRoot, arch, label);
       const work = join(REPO_ROOT, "tmp", "redact-fixed-point", arch, label);
       rmSync(work, { recursive: true, force: true });

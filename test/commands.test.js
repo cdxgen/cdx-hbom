@@ -97,7 +97,10 @@ test("getCommandPlan returns the Windows collector plan for both architectures",
     const planByAlias = getCommandPlan({ platform: "windows", architecture });
 
     assert.ok(Array.isArray(plan));
-    assert.equal(plan.length, 4);
+    assert.equal(plan.length, 6);
+    // Registry order is collection order: platform, storage-network,
+    // display-media, pnp-devices, trust, then the option-gated privileged
+    // batch, which the plan lists so allowlist audits can see it.
     assert.deepEqual(
       plan.map((entry) => entry.id),
       [
@@ -105,6 +108,8 @@ test("getCommandPlan returns the Windows collector plan for both architectures",
         "windows-cim-storage-network",
         "windows-cim-display-media",
         "windows-pnp-devices",
+        "windows-cim-trust",
+        "windows-cim-privileged",
       ],
     );
     for (const entry of plan) {

@@ -59,6 +59,16 @@ These properties commonly appear on `metadata.component`, which describes the ho
 | `cdx:hbom:pcSystemType`          | Windows: system type from `Win32_ComputerSystem.PCSystemTypeEx`, such as `desktop` or `slate` |
 | `cdx:hbom:hypervisorPresent`     | Windows: whether a hypervisor is present (`Win32_ComputerSystem.HypervisorPresent`) |
 | `cdx:hbom:smbiosVersion`         | Windows: SMBIOS version as `major.minor` (`Win32_BIOS.SMBIOSMajorVersion`/`SMBIOSMinorVersion`) |
+| `cdx:hbom:vbsStatus`             | Windows: virtualization-based security state from `Win32_DeviceGuard.VirtualizationBasedSecurityStatus` (`off`, `enabled`, `running`) |
+| `cdx:hbom:securityServicesConfigured` | Windows: configured VBS services (`Win32_DeviceGuard.SecurityServicesConfigured`), comma-separated: `none`, `credential-guard`, `memory-integrity`, `system-guard-secure-launch`, `smm-firmware-measurement`, `kernel-mode-hardware-enforced-stack-protection`, the same `-audit`, `hypervisor-enforced-paging-translation` |
+| `cdx:hbom:securityServicesRunning` | Windows: running VBS services (`Win32_DeviceGuard.SecurityServicesRunning`), same vocabulary |
+| `cdx:hbom:codeIntegrityPolicyEnforcement` | Windows: kernel-mode code integrity policy state (`Win32_DeviceGuard.CodeIntegrityPolicyEnforcementStatus`: `off`, `audit`, `enforced`) |
+| `cdx:hbom:usermodeCodeIntegrityPolicyEnforcement` | Windows: user-mode code integrity policy state (`UsermodeCodeIntegrityPolicyEnforcementStatus`, same vocabulary) |
+| `cdx:hbom:availableSecurityProperties` | Windows: platform security properties available for VBS (`AvailableSecurityProperties`): `hypervisor-support`, `secure-boot`, `dma-protection`, `secure-memory-overwrite`, `nx-protections`, `smm-mitigations`, `mbec-gmet`, `apic-virtualization` |
+| `cdx:hbom:requiredSecurityProperties` | Windows: properties VBS requires (`RequiredSecurityProperties`), same vocabulary |
+| `cdx:hbom:secureBootEnabled`     | Windows: UEFI Secure Boot state, from `Confirm-SecureBootUEFI` with `--privileged` or from the registry value `SecureBoot\State\UEFISecureBootEnabled` otherwise |
+| `cdx:hbom:secureBootSource`      | Windows: `Confirm-SecureBootUEFI` or `registry`, naming where `secureBootEnabled` came from |
+| `cdx:hbom:firmwareType`          | Windows: `UEFI`, emitted only when a Secure Boot state could be read (the state lives in UEFI variables); `BIOS` is never inferred |
 
 ## Shared component classification property
 
@@ -223,6 +233,11 @@ composite device as `usbInterfaceCount` and `usbInterfaceDrivers`.
 | `cdx:hbom:mountPoint`         | Windows: volume drive-letter mount point (`Win32_Volume.DriveLetter`) |
 | `cdx:hbom:isBootVolume`       | Windows: whether the volume is the boot volume (`Win32_Volume.BootVolume`) |
 | `cdx:hbom:isSystemVolume`     | Windows: whether the volume is the system volume (`Win32_Volume.SystemVolume`) |
+| `cdx:hbom:protectionStatus`   | Windows: BitLocker protection (`Win32_EncryptableVolume.ProtectionStatus`: `off`, `on`, `unknown`); `isEncrypted` is true for `on`; needs `--privileged` |
+| `cdx:hbom:encryptionMethod`   | Windows: BitLocker algorithm (`EncryptionMethod`, the `GetEncryptionMethod` constant names such as `XTS_AES_128`, `AES_256`, `None`, `UNKNOWN`); needs `--privileged` |
+| `cdx:hbom:conversionStatus`   | Windows: BitLocker conversion state (`ConversionStatus`: `fully-decrypted`, `fully-encrypted`, `encryption-in-progress`, `decryption-in-progress`, `encryption-paused`, `decryption-paused`); needs `--privileged` |
+| `cdx:hbom:bitlockerVolumeType` | Windows: BitLocker volume role (`VolumeType`: `system`, `fixed-disk`, `removable`); needs `--privileged` |
+| `cdx:hbom:powerOnHours`       | Windows: hours the disk has been powered on (`MSFT_StorageReliabilityCounter.PowerOnHours`); needs `--privileged`. `wearPercentageUsed` and `temperatureCelsius` come from the same class (`Wear`, `Temperature`) |
 
 ## Network and wireless properties
 
@@ -434,6 +449,13 @@ lower-cased `D3DKMDT_VIDEO_OUTPUT_TECHNOLOGY` name (`hd15`, `hdmi`,
 | `cdx:hbom:instanceIds`  | fwupd instance identifiers, redacted by default |
 | `cdx:hbom:createdEpoch` | Creation/registration epoch reported by fwupd   |
 | `cdx:hbom:embeddedControllerVersion` | Windows: embedded controller version (`Win32_BIOS.EmbeddedController*Version`), omitted at 255.255 |
+| `cdx:hbom:lastAttemptStatus` | Windows: result of the last UEFI capsule update of an ESRT firmware resource, from `HKLM\SYSTEM\CurrentControlSet\Control\FirmwareResources\{GUID}\LastAttemptStatus` (`success`, `unsuccessful`, `insufficient-resources`, `incorrect-version`, `invalid-image-format`, `authentication-error`, `power-event-ac-not-connected`, `power-event-insufficient-battery`; unknown NTSTATUS values as hex) |
+| `cdx:hbom:lastAttemptVersion` | Windows: firmware version of that last update attempt (`LastAttemptVersion`) |
+
+Windows `firmware-device` components are the PnP Firmware-class devices
+(`UEFI\RES_{GUID}`): `guids` is the ESRT resource GUID and `firmwareVersion`
+the `REV_` token of the versioned hardware ID, emitted as the raw string
+because no document states its radix.
 
 ## PCI properties
 
@@ -484,8 +506,17 @@ lower-cased `D3DKMDT_VIDEO_OUTPUT_TECHNOLOGY` name (`hd15`, `hdmi`,
 | `cdx:hbom:chargeFull`            | Full-charge battery charge                           |
 | `cdx:hbom:chargeFullDesign`      | Design full-charge battery charge                    |
 | `cdx:hbom:designCapacityPercent` | Full-charge vs. design-capacity percentage           |
+| `cdx:hbom:designVoltageMv`       | Windows: battery design voltage in millivolts (`Win32_Battery.DesignVoltage`) |
+| `cdx:hbom:estimatedRunTimeMinutes` | Windows: estimated minutes to depletion under the present load (`Win32_Battery.EstimatedRunTime`); the `BATTERY_UNKNOWN_TIME` sentinel (71582788) is omitted |
 
-## Linux sensor, thermal, and TPM properties
+Windows `power` components come from `Win32_Battery`: `chargePercent` is
+`EstimatedChargeRemaining`, `isCharging` is true for BatteryStatus 6-9,
+`isAcAttached` for status 2 ("the system has access to AC") or any charging
+state, `status` the BatteryStatus name and `technology` the Chemistry name.
+The host carries `powerSource` (`AC` or `Battery`) and `isAcAttached` only
+when a battery is present.
+
+## Sensor, thermal, and TPM properties
 
 | Property                          | Meaning                                                        |
 | --------------------------------- | -------------------------------------------------------------- |
@@ -496,6 +527,16 @@ lower-cased `D3DKMDT_VIDEO_OUTPUT_TECHNOLOGY` name (`hd15`, `hdmi`,
 | `cdx:hbom:pwmValues`              | PWM values associated with a fan device                        |
 | `cdx:hbom:temperatureCelsius`     | Thermal-zone temperature in Celsius                            |
 | `cdx:hbom:mode`                   | Thermal-zone mode                                              |
+| `cdx:hbom:specVersion`            | Windows: TCG specification version of the TPM, the first field of `Win32_Tpm.SpecVersion` (for example `2.0`); needs `--privileged` |
+| `cdx:hbom:isEnabled`              | Windows: `Win32_Tpm.IsEnabled_InitialValue`; needs `--privileged` |
+| `cdx:hbom:isActivated`            | Windows: `Win32_Tpm.IsActivated_InitialValue`; needs `--privileged` |
+| `cdx:hbom:isOwned`                | Windows: `Win32_Tpm.IsOwned_InitialValue`; needs `--privileged` |
+
+On Windows the `tpm` component's presence comes from the PnP tree (a
+SecurityDevices entity whose hardware or compatible IDs include the TPM 2.0
+ACPI ID `MSFT0101`) and needs no elevation; `manufacturer` (`ManufacturerIdTxt`),
+`firmwareVersion` (`ManufacturerVersion`) and the rows above come from
+`Win32_Tpm` and need `--privileged`.
 
 ## Linux MMC / SDIO properties
 

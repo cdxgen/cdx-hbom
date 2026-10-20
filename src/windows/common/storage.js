@@ -70,7 +70,7 @@ export function parseStorageNetworkEnvelope(envelope) {
  * of the disk disappearing.
  *
  * @param {WindowsStorageNetworkSources} sources Storage sources.
- * @param {{ includeSensitiveIdentifiers?: boolean }} options Build options.
+ * @param {{ includeSensitiveIdentifiers?: boolean, pnpIndex?: Map<string, object>, storageReliability?: Map<string, object[]> }} options Build options.
  * @returns {object[]} Storage components.
  */
 export function buildStorageComponents(sources, options = {}) {
@@ -158,6 +158,11 @@ export function buildStorageComponents(sources, options = {}) {
       version: index === undefined ? undefined : `disk${index}`,
       properties: [
         ...properties,
+        // MSFT_StorageReliabilityCounter.DeviceId equals MSFT_PhysicalDisk.DeviceId,
+        // the string form of Win32_DiskDrive.Index (privileged batch only).
+        ...(index === undefined
+          ? []
+          : options.storageReliability?.get(String(index)) ?? []),
         ...pnpEnrichmentProperties(options.pnpIndex, pnpId, options, properties),
       ],
     });
@@ -171,7 +176,7 @@ export function buildStorageComponents(sources, options = {}) {
  * (2) or local (3) disk, per the Win32_Volume DriveType value map.
  *
  * @param {WindowsStorageNetworkSources} sources Storage sources.
- * @param {{ includeSensitiveIdentifiers?: boolean }} options Build options.
+ * @param {{ includeSensitiveIdentifiers?: boolean, bitlocker?: Map<string, object[]> }} options Build options.
  * @returns {object[]} Volume components.
  */
 export function buildStorageVolumeComponents(sources, options = {}) {
@@ -187,6 +192,16 @@ export function buildStorageVolumeComponents(sources, options = {}) {
     .map((volume) => {
       const driveLetter = cimString(volume.DriveLetter);
       const volumeGuid = parseVolumeDeviceId(volume.DeviceID);
+      // BitLocker state (privileged batch) joins on the volume GUID first,
+      // which also covers letterless volumes, then on the drive letter.
+      const bitlocker =
+        (volumeGuid === undefined
+          ? undefined
+          : options.bitlocker?.get(`guid:${volumeGuid}`)) ??
+        (driveLetter === undefined
+          ? undefined
+          : options.bitlocker?.get(`letter:${driveLetter.toUpperCase()}`)) ??
+        [];
       return createHardwareComponent("storage-volume", {
         name: driveLetter ?? "Volume",
         properties: compact([
@@ -206,6 +221,7 @@ export function buildStorageVolumeComponents(sources, options = {}) {
           ),
           createProperty("cdx:hbom:isBootVolume", cimBool(volume.BootVolume)),
           createProperty("cdx:hbom:isSystemVolume", cimBool(volume.SystemVolume)),
+          ...bitlocker,
         ]),
       });
     });

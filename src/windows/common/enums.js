@@ -437,3 +437,200 @@ export function normalizeGuid(value) {
     ? text
     : undefined;
 }
+
+/**
+ * Win32_DeviceGuard.VirtualizationBasedSecurityStatus, from
+ * https://learn.microsoft.com/en-us/windows/security/hardware-security/enable-virtualization-based-protection-of-code-integrity
+ * (0 VBS isn't enabled, 1 enabled but not running, 2 enabled and running);
+ * the live root/Microsoft/Windows/DeviceGuard ValueMap agrees.
+ *
+ * @type {Readonly<Record<number, string>>}
+ */
+export const WINDOWS_VBS_STATUSES = Object.freeze({
+  0: "off",
+  1: "enabled",
+  2: "running",
+});
+
+/**
+ * Win32_DeviceGuard.SecurityServicesConfigured / SecurityServicesRunning, from
+ * the same page (0 none, 1 Credential Guard, 2 memory integrity (HVCI),
+ * 3 System Guard Secure Launch, 4 SMM Firmware Measurement, 5 Kernel-mode
+ * Hardware-enforced Stack Protection, 6 the same in audit mode,
+ * 7 Hypervisor-Enforced Paging Translation). Both properties are arrays.
+ *
+ * @type {Readonly<Record<number, string>>}
+ */
+export const WINDOWS_SECURITY_SERVICES = Object.freeze({
+  0: "none",
+  1: "credential-guard",
+  2: "memory-integrity",
+  3: "system-guard-secure-launch",
+  4: "smm-firmware-measurement",
+  5: "kernel-mode-hardware-enforced-stack-protection",
+  6: "kernel-mode-hardware-enforced-stack-protection-audit",
+  7: "hypervisor-enforced-paging-translation",
+});
+
+/**
+ * Win32_DeviceGuard.CodeIntegrityPolicyEnforcementStatus and
+ * UsermodeCodeIntegrityPolicyEnforcementStatus, from the same page
+ * (0 Off, 1 Audit, 2 Enforced).
+ *
+ * @type {Readonly<Record<number, string>>}
+ */
+export const WINDOWS_CODE_INTEGRITY_ENFORCEMENT = Object.freeze({
+  0: "off",
+  1: "audit",
+  2: "enforced",
+});
+
+/**
+ * Win32_DeviceGuard.AvailableSecurityProperties / RequiredSecurityProperties,
+ * from the same page (0 none, 1 hypervisor support, 2 Secure Boot, 3 DMA
+ * protection, 4 Secure Memory Overwrite, 5 NX protections, 6 SMM mitigations,
+ * 7 MBEC/GMET, 8 APIC virtualization). Both properties are arrays.
+ *
+ * @type {Readonly<Record<number, string>>}
+ */
+export const WINDOWS_SECURITY_PROPERTIES = Object.freeze({
+  0: "none",
+  1: "hypervisor-support",
+  2: "secure-boot",
+  3: "dma-protection",
+  4: "secure-memory-overwrite",
+  5: "nx-protections",
+  6: "smm-mitigations",
+  7: "mbec-gmet",
+  8: "apic-virtualization",
+});
+
+/**
+ * Win32_Battery.BatteryStatus value map, from
+ * https://learn.microsoft.com/en-us/windows/win32/cimwin32prov/win32-battery
+ * (Other (1) "The battery is discharging", Unknown (2) "The system has access
+ * to AC so no battery is being discharged. However, the battery is not
+ * necessarily charging", Fully Charged (3), Low (4), Critical (5),
+ * Charging (6), Charging and High (7), Charging and Low (8), Charging and
+ * Critical (9), Undefined (10), Partially Charged (11)).
+ *
+ * @type {Readonly<Record<number, string>>}
+ */
+export const WINDOWS_BATTERY_STATUSES = Object.freeze({
+  1: "Discharging",
+  2: "On AC",
+  3: "Fully Charged",
+  4: "Low",
+  5: "Critical",
+  6: "Charging",
+  7: "Charging and High",
+  8: "Charging and Low",
+  9: "Charging and Critical",
+  10: "Undefined",
+  11: "Partially Charged",
+});
+
+/**
+ * Win32_Battery.Chemistry value map, from the same page (Other (1),
+ * Unknown (2), Lead Acid (3), Nickel Cadmium (4), Nickel Metal Hydride (5),
+ * Lithium-ion (6), Zinc air (7), Lithium Polymer (8)).
+ *
+ * @type {Readonly<Record<number, string>>}
+ */
+export const WINDOWS_BATTERY_CHEMISTRIES = Object.freeze({
+  1: "Other",
+  2: "Unknown",
+  3: "Lead Acid",
+  4: "Nickel Cadmium",
+  5: "Nickel Metal Hydride",
+  6: "Lithium-ion",
+  7: "Zinc air",
+  8: "Lithium Polymer",
+});
+
+/**
+ * Win32_EncryptableVolume.ProtectionStatus, from
+ * https://learn.microsoft.com/en-us/windows/win32/secprov/win32-encryptablevolume
+ * (0 PROTECTION OFF, 1 PROTECTION ON, 2 PROTECTION UNKNOWN).
+ *
+ * @type {Readonly<Record<number, string>>}
+ */
+export const WINDOWS_BITLOCKER_PROTECTION_STATUSES = Object.freeze({
+  0: "off",
+  1: "on",
+  2: "unknown",
+});
+
+/**
+ * Win32_EncryptableVolume.ConversionStatus, from the same page
+ * (0 FULLY DECRYPTED ... 5 DECRYPTION PAUSED).
+ *
+ * @type {Readonly<Record<number, string>>}
+ */
+export const WINDOWS_BITLOCKER_CONVERSION_STATUSES = Object.freeze({
+  0: "fully-decrypted",
+  1: "fully-encrypted",
+  2: "encryption-in-progress",
+  3: "decryption-in-progress",
+  4: "encryption-paused",
+  5: "decryption-paused",
+});
+
+/**
+ * Win32_EncryptableVolume.EncryptionMethod, using the constant names of the
+ * GetEncryptionMethod method documentation,
+ * https://learn.microsoft.com/en-us/windows/win32/secprov/getencryptionmethod-win32-encryptablevolume
+ * (None (0), AES_128_WITH_DIFFUSER (1), AES_256_WITH_DIFFUSER (2), AES_128 (3),
+ * AES_256 (4), HARDWARE_ENCRYPTION (5), XTS_AES_128 (6), XTS_AES_256 (7),
+ * (uint32)-1 UNKNOWN).
+ *
+ * @type {Readonly<Record<number, string>>}
+ */
+export const WINDOWS_BITLOCKER_ENCRYPTION_METHODS = Object.freeze({
+  0: "None",
+  1: "AES_128_WITH_DIFFUSER",
+  2: "AES_256_WITH_DIFFUSER",
+  3: "AES_128",
+  4: "AES_256",
+  5: "HARDWARE_ENCRYPTION",
+  6: "XTS_AES_128",
+  7: "XTS_AES_256",
+  4294967295: "UNKNOWN",
+});
+
+/**
+ * Win32_EncryptableVolume.VolumeType, from the class page (0 SYSTEM, the
+ * volume with the operating system; 1 FIXED DISK; 2 REMOVABLE).
+ *
+ * @type {Readonly<Record<number, string>>}
+ */
+export const WINDOWS_BITLOCKER_VOLUME_TYPES = Object.freeze({
+  0: "system",
+  1: "fixed-disk",
+  2: "removable",
+});
+
+/**
+ * ESRT LastAttemptStatus as Windows stores it under
+ * `Control\FirmwareResources\{GUID}`: the OS loader maps the UEFI status to
+ * an NTSTATUS, per the table at
+ * https://learn.microsoft.com/en-us/windows-hardware/drivers/bringup/authoring-an-update-driver-package
+ * (Success 0 -> STATUS_SUCCESS 0x00000000, Unsuccessful 1 -> 0xC0000001,
+ * Insufficient Resources 2 -> 0xC000009A, Incorrect Version 3 ->
+ * STATUS_REVISION_MISMATCH 0xC0000059, Invalid Image Format 4 -> 0xC000007B,
+ * Authentication Error 5 -> STATUS_ACCESS_DENIED 0xC0000022, Power Event, AC
+ * Not Connected 6 -> 0xC00002D3, Power Event, Insufficient Battery 7 ->
+ * 0xC00002DE). Keys are the NTSTATUS values as unsigned 32-bit numbers.
+ *
+ * @type {Readonly<Record<number, string>>}
+ */
+export const WINDOWS_ESRT_LAST_ATTEMPT_STATUSES = Object.freeze({
+  0x00000000: "success",
+  0xc0000001: "unsuccessful",
+  0xc000009a: "insufficient-resources",
+  0xc0000059: "incorrect-version",
+  0xc000007b: "invalid-image-format",
+  0xc0000022: "authentication-error",
+  0xc00002d3: "power-event-ac-not-connected",
+  0xc00002de: "power-event-insufficient-battery",
+});

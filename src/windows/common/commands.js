@@ -549,6 +549,139 @@ export const WINDOWS_PNP_DEVICES_MANIFEST = Object.freeze({
 });
 
 /**
+ * Manifest of `windows-cim-trust`, the tier-2 security-posture and power
+ * batch that needs no elevation (PERMISSIONS-MATRIX.md): Device Guard / VBS
+ * status, the Secure Boot registry state (decision D2: the registry route is
+ * the non-admin source, `cdx:hbom:secureBootSource` records it), the ESRT
+ * firmware-update results under `Control\FirmwareResources` (documented at
+ * https://learn.microsoft.com/en-us/windows-hardware/drivers/bringup/authoring-an-update-driver-package,
+ * absent on hosts that never applied a capsule update) and Win32_Battery.
+ * `Win32_DeviceGuard.InstanceIdentifier` is a per-machine GUID and
+ * `Win32_Battery.DeviceID` often embeds a serial; neither is selected.
+ *
+ * @type {{
+ *   commandId: string,
+ *   entries: ReadonlyArray<Readonly<import("./powershell.js").CimManifestEntry | import("./powershell.js").RegistryManifestEntry | import("./powershell.js").RegistryChildrenManifestEntry>>
+ * }}
+ */
+export const WINDOWS_TRUST_MANIFEST = Object.freeze({
+  commandId: "windows-cim-trust",
+  entries: Object.freeze([
+    Object.freeze({
+      key: "deviceGuard",
+      kind: "cim",
+      namespace: "root/Microsoft/Windows/DeviceGuard",
+      className: "Win32_DeviceGuard",
+      properties: Object.freeze([
+        "VirtualizationBasedSecurityStatus",
+        "SecurityServicesConfigured",
+        "SecurityServicesRunning",
+        "CodeIntegrityPolicyEnforcementStatus",
+        "UsermodeCodeIntegrityPolicyEnforcementStatus",
+        "AvailableSecurityProperties",
+        "RequiredSecurityProperties",
+      ]),
+    }),
+    Object.freeze({
+      key: "secureBootState",
+      kind: "registry",
+      path: "HKLM:\\SYSTEM\\CurrentControlSet\\Control\\SecureBoot\\State",
+      names: Object.freeze(["UEFISecureBootEnabled"]),
+    }),
+    Object.freeze({
+      key: "firmwareResources",
+      kind: "registry-children",
+      path: "HKLM:\\SYSTEM\\CurrentControlSet\\Control\\FirmwareResources",
+      names: Object.freeze(["LastAttemptStatus", "LastAttemptVersion", "Version"]),
+    }),
+    Object.freeze({
+      key: "battery",
+      kind: "cim",
+      namespace: "root/cimv2",
+      className: "Win32_Battery",
+      properties: Object.freeze([
+        "Name",
+        "EstimatedChargeRemaining",
+        "BatteryStatus",
+        "Chemistry",
+        "DesignVoltage",
+        "EstimatedRunTime",
+        "Availability",
+      ]),
+    }),
+  ]),
+});
+
+/**
+ * Manifest of `windows-cim-privileged`, the tier-3 batch that runs only with
+ * `includePrivilegedEnrichment`. Every source was measured admin-only on
+ * win11-vm (PERMISSIONS-MATRIX.md): Win32_Tpm, Win32_EncryptableVolume and
+ * MSFT_StorageReliabilityCounter deny a standard user, and
+ * Confirm-SecureBootUEFI fails with SetPrivilegeFailed. The batch never
+ * elevates; a non-elevated run yields permission-denied diagnostics.
+ *
+ * @type {{
+ *   commandId: string,
+ *   entries: ReadonlyArray<Readonly<import("./powershell.js").CimManifestEntry | import("./powershell.js").CmdletScalarManifestEntry>>
+ * }}
+ */
+export const WINDOWS_PRIVILEGED_MANIFEST = Object.freeze({
+  commandId: "windows-cim-privileged",
+  entries: Object.freeze([
+    Object.freeze({
+      key: "tpm",
+      kind: "cim",
+      namespace: "root/cimv2/Security/MicrosoftTpm",
+      className: "Win32_Tpm",
+      properties: Object.freeze([
+        "IsActivated_InitialValue",
+        "IsEnabled_InitialValue",
+        "IsOwned_InitialValue",
+        "ManufacturerId",
+        "ManufacturerIdTxt",
+        "ManufacturerVersion",
+        "ManufacturerVersionInfo",
+        "SpecVersion",
+        "PhysicalPresenceVersionInfo",
+      ]),
+    }),
+    Object.freeze({
+      key: "encryptableVolume",
+      kind: "cim",
+      namespace: "root/cimv2/Security/MicrosoftVolumeEncryption",
+      className: "Win32_EncryptableVolume",
+      properties: Object.freeze([
+        "DriveLetter",
+        "ProtectionStatus",
+        "ConversionStatus",
+        "EncryptionMethod",
+        "VolumeType",
+        "DeviceID",
+      ]),
+    }),
+    Object.freeze({
+      key: "storageReliability",
+      kind: "cim",
+      namespace: "root/Microsoft/Windows/Storage",
+      className: "MSFT_StorageReliabilityCounter",
+      properties: Object.freeze([
+        "DeviceId",
+        "Wear",
+        "Temperature",
+        "PowerOnHours",
+        "ReadErrorsTotal",
+        "WriteErrorsTotal",
+      ]),
+    }),
+    Object.freeze({
+      key: "secureBootCmdlet",
+      kind: "cmdlet-scalar",
+      cmdlet: "Confirm-SecureBootUEFI",
+    }),
+  ]),
+});
+
+/**
  * Manifest of the Windows CIM selftest command.
  *
  * `WINDOWS_SELFTEST_COMMAND` is deliberately excluded from
@@ -705,6 +838,17 @@ export const WINDOWS_COMMANDS = Object.freeze([
     // round trips rather than one.
     timeoutMs: 90000,
   }),
+  toWindowsCommandSpec(WINDOWS_TRUST_MANIFEST, {
+    category: "trust",
+    purpose:
+      "Collect virtualization-based security status, the Secure Boot registry state, firmware update results and battery state without elevation.",
+  }),
+  toWindowsCommandSpec(WINDOWS_PRIVILEGED_MANIFEST, {
+    category: "privileged",
+    purpose:
+      "Collect TPM, BitLocker, storage reliability and Secure Boot cmdlet state; these sources deny non-administrators, and the collector never elevates to reach them.",
+    sensitiveFields: ["encryptableVolume.DeviceID"],
+  }),
 ]);
 
 /**
@@ -738,6 +882,8 @@ export const WINDOWS_MANIFESTS = Object.freeze([
   WINDOWS_STORAGE_NETWORK_MANIFEST,
   WINDOWS_DISPLAY_MEDIA_MANIFEST,
   WINDOWS_PNP_DEVICES_MANIFEST,
+  WINDOWS_TRUST_MANIFEST,
+  WINDOWS_PRIVILEGED_MANIFEST,
   WINDOWS_SELFTEST_MANIFEST,
 ]);
 
