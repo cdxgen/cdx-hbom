@@ -52,7 +52,11 @@ const PNP_FIELD_NAMES = new Set([
   "HardwareID",
   "CompatibleID",
   "InstanceName",
+  // Get-PnpDeviceProperty rows (`windows-pnp-devices`).
+  "InstanceId",
 ]);
+// DEVPKEY rows whose `Data` is itself a device instance ID (or a list of them).
+const PNP_INSTANCE_DATA_KEYS = /^DEVPKEY_Device_(?:Parent|Children|Siblings)$/u;
 const LITERAL_REPLACEMENT = "REDACTED-LITERAL";
 
 // Values produced by this redactor (and by `redactInstanceId`) are stable on
@@ -304,11 +308,24 @@ function decodeUint16(value) {
  */
 function collectRawInstanceSegments(envelope) {
   const segments = [];
-  for (const result of Object.values(envelope?.results ?? {})) {
-    for (const item of [...(result?.items ?? [])]) {
-      const segment = getInstanceSegment(item?.PNPDeviceID ?? item?.PnPDeviceID);
+  const consider = (value) => {
+    for (const entry of Array.isArray(value) ? value : [value]) {
+      if (typeof entry !== "string") {
+        continue;
+      }
+      const segment = getInstanceSegment(entry);
       if (segment && !segment.startsWith("redacted")) {
         segments.push(segment);
+      }
+    }
+  };
+  for (const result of Object.values(envelope?.results ?? {})) {
+    for (const item of [...(result?.items ?? [])]) {
+      consider(item?.PNPDeviceID ?? item?.PnPDeviceID);
+      consider(item?.InstanceId);
+      consider(item?.DeviceID);
+      if (PNP_INSTANCE_DATA_KEYS.test(String(item?.KeyName ?? ""))) {
+        consider(item?.Data);
       }
     }
   }
@@ -382,11 +399,17 @@ function collectGenericFields(envelope, sensitive) {
       if (!item || typeof item !== "object") {
         continue;
       }
-      const instanceId = item.PNPDeviceID ?? item.PnPDeviceID;
+      const instanceId = item.PNPDeviceID ?? item.PnPDeviceID ?? item.InstanceId;
       for (const [name, value] of Object.entries(item)) {
         if (PNP_FIELD_NAMES.has(name)) {
           collectFieldValue(item, name, sensitive, (entry) =>
             redactPnpFieldValue(name, entry, instanceId),
+          );
+          continue;
+        }
+        if (name === "Data" && PNP_INSTANCE_DATA_KEYS.test(String(item.KeyName ?? ""))) {
+          collectFieldValue(item, name, sensitive, (entry) =>
+            redactInstanceId(entry),
           );
           continue;
         }

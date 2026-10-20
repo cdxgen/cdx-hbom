@@ -187,7 +187,16 @@ test("parseHardwareIds picks the most specific match and USB class codes", () =>
     vendorId: "1414",
     productId: "00e0",
     revision: "04",
+    subsystemId: "0000",
+    subsystemVendorId: "0000",
+    // CC_c(2)s(2) keeps class and subclass, the Linux pciClassCode form.
+    pciClassCode: "0300",
   });
+  // The three-byte form CC_c(2)s(2)p(2) drops the programming interface.
+  assert.equal(
+    parseHardwareIds(["PCI\\VEN_1AF4&DEV_1000&CC_020000"]).pciClassCode,
+    "0200",
+  );
 
   const uefi = parseHardwareIds([
     "UEFI\\RES_{6bd4efb9-23cc-4b4a-ac37-016517413e9a}&REV_2",

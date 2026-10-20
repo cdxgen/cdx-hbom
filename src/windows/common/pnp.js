@@ -20,6 +20,8 @@ const USB_TOKENS = [
 // https://learn.microsoft.com/en-us/windows-hardware/drivers/install/identifiers-for-pci-devices
 // PCI\VEN_v(4)&DEV_d(4)&SUBSYS_s(4)n(4)&REV_r(2). The SUBSYS payload is the
 // subsystem identifier s(4) FIRST, then the subsystem vendor identifier n(4).
+// Compatible IDs carry the class code as CC_c(2)s(2)p(2) or CC_c(2)s(2); only
+// class and subclass are kept, matching the Linux pciClassCode form.
 const PCI_TOKENS = [
   ["vendorId", /(?:^|&)VEN_([0-9a-fA-F]{4})(?=&|$)/u],
   ["deviceId", /(?:^|&)DEV_([0-9a-fA-F]{4})(?=&|$)/u],
@@ -29,6 +31,7 @@ const PCI_TOKENS = [
     /(?:^|&)SUBSYS_[0-9a-fA-F]{4}([0-9a-fA-F]{4})(?=&|$)/u,
   ],
   ["revision", /(?:^|&)REV_([0-9a-fA-F]{2})(?=&|$)/u],
+  ["classCode", /(?:^|&)CC_([0-9a-fA-F]{4})(?:[0-9a-fA-F]{2})?(?=&|$)/u],
 ];
 
 // HIDClass hardware IDs for top-level collections:
@@ -218,6 +221,9 @@ function parseEnumeratorIds(enumerator, deviceId, instance) {
  *   vendorId?: string,
  *   productId?: string,
  *   revision?: string,
+ *   subsystemId?: string,
+ *   subsystemVendorId?: string,
+ *   pciClassCode?: string,
  *   usbClass?: string,
  *   usbSubclass?: string,
  *   usbProtocol?: string,
@@ -245,6 +251,16 @@ export function parseHardwareIds(list) {
       result.productId = productToken;
       if (parsed.ids.revision) {
         result.revision = parsed.ids.revision;
+      }
+    }
+
+    if (normalized === "PCI") {
+      if (result.subsystemId === undefined && parsed.ids.subsystemId) {
+        result.subsystemId = parsed.ids.subsystemId;
+        result.subsystemVendorId = parsed.ids.subsystemVendorId;
+      }
+      if (result.pciClassCode === undefined && parsed.ids.classCode) {
+        result.pciClassCode = parsed.ids.classCode;
       }
     }
 
@@ -345,13 +361,16 @@ export function redactInstanceId(id, options = {}) {
 }
 
 /**
- * Redact hardware or compatible IDs that repeat the device's instance segment.
+ * Redact hardware or compatible IDs that repeat the device's instance segment,
+ * and Bluetooth hardware IDs that embed the remote radio's address.
  *
  * Hyper-V VMBus devices list their own instance GUID as a hardware ID
  * (`VMBUS\{instance}`), observed for most VMBus devices in the windows-2025
  * and windows-11-arm GitHub runner captures. Such an entry carries the same
  * per-machine value that `redactInstanceId` removes from the instance ID, so
- * it is redacted the same way and the two still match.
+ * it is redacted the same way and the two still match. BTHENUM/BTHLE hardware
+ * IDs (`BTHLE\DEV_<address>`) get the same MAC-token redaction as their
+ * device instance IDs.
  *
  * @param {string[] | string | null | undefined} list Hardware or compatible IDs.
  * @param {string | undefined} instanceId The device's PNPDeviceID.
@@ -360,16 +379,27 @@ export function redactInstanceId(id, options = {}) {
  */
 export function redactHardwareIds(list, instanceId, options = {}) {
   const ids = Array.isArray(list) ? list : list ? [list] : [];
-  const instance = getInstanceSegment(instanceId);
-  if (!instance || options.includeSensitiveIdentifiers === true) {
+  if (options.includeSensitiveIdentifiers === true) {
     return [...ids];
   }
+  const instance = getInstanceSegment(instanceId);
   return ids.map((id) => {
     const text = String(id ?? "");
     const separator = text.indexOf(INSTANCE_ID_SEPARATOR);
+    if (separator <= 0) {
+      return text;
+    }
+    // Bluetooth hardware IDs (`BTHLE\DEV_<address>`) carry the remote
+    // radio's address in the device-ID segment itself.
+    if (/^(BTHENUM|BTHLE)$/iu.test(text.slice(0, separator))) {
+      return text.replaceAll(
+        new RegExp(BTH_MAC_LIKE_TOKEN.source, "gu"),
+        (match, token) => match.replace(token, redactIdentifier(token, options) ?? token),
+      );
+    }
     const devicePart = text.slice(separator + 1);
     if (
-      separator <= 0 ||
+      !instance ||
       devicePart === "redacted" ||
       devicePart.toLowerCase() !== instance.toLowerCase()
     ) {

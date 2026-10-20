@@ -100,6 +100,7 @@ test("committed fixtures carry only redacted sensitive values", () => {
     "HardwareID",
     "CompatibleID",
     "InstanceName",
+    "InstanceId",
   ]);
 
   for (const label of fixtureLabels()) {
@@ -172,15 +173,32 @@ test("committed fixtures carry only redacted sensitive values", () => {
         }
       }
 
-      // Every PnP instance segment in committed fixtures is redacted.
-      for (const item of envelope.results?.pnpIds?.items ?? []) {
-        const id = String(item?.PNPDeviceID ?? "");
-        const instance = id.split("\\").at(-1);
-        assert.match(
-          instance,
-          /^redacted/u,
-          `${label}/${command.id}: raw PnP instance segment in ${id}`,
-        );
+      // Every PnP instance segment in committed fixtures is redacted,
+      // including the parent links the PnP property rows carry as Data.
+      for (const [key, result] of Object.entries(envelope.results ?? {})) {
+        for (const item of result?.items ?? []) {
+          const candidates = [
+            item?.PNPDeviceID,
+            item?.PnPDeviceID,
+            item?.InstanceId,
+            /^DEVPKEY_Device_(?:Parent|Children)$/u.test(String(item?.KeyName ?? ""))
+              ? item?.Data
+              : undefined,
+          ];
+          for (const candidate of candidates.flat()) {
+            if (typeof candidate !== "string") {
+              continue;
+            }
+            const parts = candidate.split("\\");
+            if (parts.length >= 3) {
+              assert.match(
+                parts.at(-1),
+                /^redacted/u,
+                `${label}/${command.id}: raw PnP instance segment in ${key} (${candidate.slice(0, 24)}...)`,
+              );
+            }
+          }
+        }
       }
     }
   }
