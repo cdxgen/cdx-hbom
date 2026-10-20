@@ -83,8 +83,14 @@ test("redact-fixtures leaves every committed fixture byte-identical", () => {
   const fixturesRoot = fileURLToPath(
     new URL("../fixtures/windows", import.meta.url),
   );
-  for (const arch of readdirSync(fixturesRoot)) {
-    for (const label of readdirSync(join(fixturesRoot, arch))) {
+  // `schema/` holds class-schema dumps (files), not `<arch>/<label>` capture
+  // directories, so only directories two levels down are redacted.
+  const directories = (path) =>
+    readdirSync(path, { withFileTypes: true })
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => entry.name);
+  for (const arch of directories(fixturesRoot)) {
+    for (const label of directories(join(fixturesRoot, arch))) {
       const source = join(fixturesRoot, arch, label);
       const work = join(REPO_ROOT, "tmp", "redact-fixed-point", arch, label);
       rmSync(work, { recursive: true, force: true });
@@ -210,9 +216,62 @@ test("redact-fixtures fails closed when a serial is embedded in another string",
 
   const result = runTool(REDACT_SCRIPT, [work]);
   assert.notEqual(result.status, 0);
-  assert.match(result.stderr, /sensitive value \(10 chars\) still present/u);
+  assert.match(
+    result.stderr,
+    /sensitive value \(10 chars\) still present in results\.bios\.items\[\]\.Version/u,
+  );
   // Messages reach public CI logs, so they never repeat the value.
   assert.equal(result.stderr.includes("SER-123456"), false);
+  rmSync(work, { recursive: true, force: true });
+});
+
+test("redact-fixtures scrubs instance GUIDs embedded in location paths and other IDs", () => {
+  const work = join(REPO_ROOT, "tmp", "redact-tool-vmbus");
+  rmSync(work, { recursive: true, force: true });
+  mkdirSync(work, { recursive: true });
+  // Synthetic in-test envelope shaped like the Hyper-V GitHub runner capture
+  // that first failed closed: the VMBus instance GUID reappears inside a
+  // location path and inside another device's hardware ID.
+  const instance = "{1A2B3C4D-1111-2222-3333-44445555AAAA}";
+  const pnpId = `VMBUS\\{f8615163-df3e-46c5-913f-f2d2f965ed0e}\\${instance}`;
+  writeFileSync(
+    join(work, "windows-pnp-devices.stdout"),
+    JSON.stringify({
+      schema: "cdx-hbom/windows-envelope@1",
+      results: {
+        pnpEntity: {
+          ok: true,
+          items: [
+            { PNPDeviceID: pnpId, HardwareID: [`VMBUS\\${instance.toLowerCase()}`] },
+            {
+              PNPDeviceID: "PCI\\VEN_15B3&DEV_101A\\5&1f2e3d4c&0&0",
+              HardwareID: ["PCI\\VEN_15B3&DEV_101A", `VPCI\\${instance}_BUS`],
+            },
+          ],
+        },
+        pnpProperties: {
+          ok: true,
+          kind: "pnp-properties",
+          items: [
+            {
+              InstanceId: pnpId,
+              KeyName: "DEVPKEY_Device_LocationPaths",
+              Type: "StringList",
+              Data: [`ACPI(_SB_)#VMBUS(${instance})`],
+            },
+          ],
+        },
+      },
+    }),
+    "utf8",
+  );
+
+  const result = runTool(REDACT_SCRIPT, [work]);
+  assert.equal(result.status, 0, result.stderr);
+  const text = readFileSync(join(work, "windows-pnp-devices.stdout"), "utf8");
+  assert.equal(text.toLowerCase().includes("44445555aaaa"), false);
+  assert.match(text, /VMBUS\(redacted:AAA\}\)/u);
+  assert.match(text, /VPCI\\\\redacted:AAA\}_BUS/u);
   rmSync(work, { recursive: true, force: true });
 });
 

@@ -21,7 +21,10 @@ Options:
   --arch <value>               Override architecture selection
   --sensitive                  Include raw identifiers
   --no-command-enrichment      Disable optional command-based enrichment
-  --privileged                 Enable privileged enrichment and sudo -n retries for permission-sensitive Linux commands
+  --privileged                 Collect sources that need elevated rights: on Linux, sudo -n retries for
+                               documented permission-sensitive commands; on Windows, the admin-only CIM
+                               classes (TPM, BitLocker, storage reliability, Secure Boot cmdlet). Never
+                               elevates by itself; run elevated to get the data
   --plist-enrichment           Enable plist enrichment (Darwin)
   --strict                     Fail on partial collection errors
   --timeout <ms>               Command timeout in milliseconds
@@ -31,7 +34,7 @@ Options:
 Examples:
   cdx-hbom --pretty
   cdx-hbom --pretty > host-hbom.json
-  cdx-hbom --privileged --pretty > linux-hbom.json
+  cdx-hbom --privileged --pretty > host-hbom.json
 `;
 
 async function main(argv) {

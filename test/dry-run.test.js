@@ -110,7 +110,7 @@ test("dry-run on win32 builds a T0 BOM with only blocked command activities", as
     assert.equal(activity.status, "blocked");
     assert.match(
       activity.target,
-      /windows-cim-(platform|storage-network) script sha256:[0-9a-f]{12}$/u,
+      /windows-(?:cim-platform|cim-storage-network|cim-display-media|pnp-devices|cim-trust|cim-privileged) script sha256:[0-9a-f]{12}$/u,
       "trace target uses the C02 short script form",
     );
   }
@@ -124,4 +124,33 @@ test("dry-run on win32 builds a T0 BOM with only blocked command activities", as
     (property) => property.name === "cdx:hbom:architectureSource",
   );
   assert.equal(architectureSource?.value, "process");
+});
+
+test("dry-run on win32 plans the privileged batch only when requested", async () => {
+  const planned = async (options) => {
+    const bom = await withTargetPlatform("win32", "x64", () =>
+      collectHardware({ platform: "win32", dryRun: true, ...options }),
+    );
+    return getCollectorTrace(bom).activities.map((entry) => entry.id);
+  };
+
+  const defaults = await planned({});
+  assert.deepEqual(defaults, [
+    "windows-cim-platform",
+    "windows-cim-storage-network",
+    "windows-cim-display-media",
+    "windows-pnp-devices",
+    "windows-cim-trust",
+  ]);
+
+  const privileged = await planned({ includePrivilegedEnrichment: true });
+  assert.deepEqual(privileged, [...defaults, "windows-cim-privileged"]);
+
+  // Privileged collection is enrichment: without enrichment nothing but the
+  // platform batch is planned, whatever the privileged flag says.
+  const baselineOnly = await planned({
+    includeCommandEnrichment: false,
+    includePrivilegedEnrichment: true,
+  });
+  assert.deepEqual(baselineOnly, ["windows-cim-platform"]);
 });

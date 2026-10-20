@@ -39,8 +39,8 @@ Common options:
 - `--platform <value>` override platform detection
 - `--arch <value>` override architecture detection
 - `--sensitive` include raw identifiers instead of redacted defaults
-- `--no-command-enrichment` disable optional command-based enrichment on Linux
-- `--privileged` enable privileged Linux enrichment and explicit non-interactive `sudo -n` retries for documented permission-sensitive commands that opt in (currently `drm_info`)
+- `--no-command-enrichment` disable optional command-based enrichment (Linux commands; on Windows only the `windows-cim-platform` batch runs)
+- `--privileged` collect sources that need elevated rights. On Linux this enables privileged enrichment and explicit non-interactive `sudo -n` retries for documented permission-sensitive commands that opt in (currently `drm_info`). On Windows it adds the `windows-cim-privileged` batch (TPM, BitLocker, storage reliability counters, `Confirm-SecureBootUEFI`), which only administrators can read; cdx-hbom never elevates itself, so run it from an elevated session to get that data and expect `permission-denied` diagnostics otherwise
 - `--plist-enrichment` enable additional Darwin plist-based enrichment
 - `--strict` fail instead of returning partial results when enrichment fails
 - `--timeout <ms>` set per-command timeout
@@ -49,7 +49,7 @@ Examples:
 
 ```bash
 npx @cdxgen/cdx-hbom --pretty
-npx @cdxgen/cdx-hbom --privileged --pretty > linux-hbom.json
+npx @cdxgen/cdx-hbom --privileged --pretty > host-hbom.json
 npx @cdxgen/cdx-hbom --plist-enrichment --pretty > mac-hbom.json
 ```
 
@@ -166,6 +166,83 @@ If you want to improve Linux enrichment coverage by installing the optional host
 - `networksetup` hardware-port mapping
 - live `ifconfig` network-interface enrichment
 - optional plist enrichment via `diskutil`, `diskutil apfs list -plist`, and `ioreg`
+
+### Windows (`win32/amd64`, `win32/arm64`)
+
+Windows inventory comes from CIM/WMI classes and a few registry keys, read by
+the built-in Windows PowerShell 5.1 (`%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe`)
+running one fixed, single-line script per batch. The platform value emitted in
+the BOM is `windows`; `--platform windows` and `--platform win32` both route to
+it. A Node `os`-module baseline (processor, memory, OS release) is always
+produced, so a host where PowerShell is blocked still yields a valid BOM.
+
+The command ids and their sources (the list is checked against the registry by
+a test, and `getCommandPlan({ platform: "win32" })` returns the full command
+lines):
+
+<!-- windows-sources:start -->
+- `windows-cim-platform`: `root/cimv2`: `Win32_ComputerSystem`, `Win32_ComputerSystemProduct`, `Win32_BIOS`, `Win32_BaseBoard`, `Win32_SystemEnclosure`, `Win32_Processor`, `Win32_PhysicalMemory`, `Win32_PhysicalMemoryArray`, `Win32_OperatingSystem`; `root/wmi`: `MS_SystemInformation`
+- `windows-cim-storage-network`: `root/Microsoft/Windows/Storage`: `MSFT_PhysicalDisk`; `root/cimv2`: `Win32_DiskDrive`, `Win32_Volume`, `Win32_NetworkAdapter`; `root/StandardCimv2`: `MSFT_NetAdapter`, `MSFT_NetAdapterHardwareInfoSettingData`
+- `windows-cim-display-media`: `root/cimv2`: `Win32_VideoController`, `Win32_SoundDevice`, `Win32_PnPEntity`; `root/wmi`: `WmiMonitorID`, `WmiMonitorBasicDisplayParams`, `WmiMonitorConnectionParams`
+- `windows-pnp-devices`: `root/cimv2`: `Win32_PnPEntity`, `Win32_PnPSignedDriver`; `Get-PnpDevice -PresentOnly` and `Get-PnpDeviceProperty` (`DEVPKEY_Device_Parent`, `DEVPKEY_Device_LocationPaths`, `DEVPKEY_Device_DriverVersion`, `DEVPKEY_Device_DriverProvider`, `DEVPKEY_Device_DriverDate`, `DEVPKEY_Device_BusReportedDeviceDesc`, `DEVPKEY_Device_BusNumber`, `DEVPKEY_Device_Address`)
+- `windows-cim-trust`: `root/Microsoft/Windows/DeviceGuard`: `Win32_DeviceGuard`; `root/cimv2`: `Win32_Battery`; registry `HKLM:\SYSTEM\CurrentControlSet\Control\SecureBoot\State` (`UEFISecureBootEnabled`); registry subkeys of `HKLM:\SYSTEM\CurrentControlSet\Control\FirmwareResources` (`LastAttemptStatus`, `LastAttemptVersion`, `Version`)
+- `windows-cim-privileged`: `root/cimv2/Security/MicrosoftTpm`: `Win32_Tpm`; `root/cimv2/Security/MicrosoftVolumeEncryption`: `Win32_EncryptableVolume`; `root/Microsoft/Windows/Storage`: `MSFT_StorageReliabilityCounter`; cmdlet `Confirm-SecureBootUEFI`
+<!-- windows-sources:end -->
+
+Component coverage: host metadata, processor, memory and memory modules,
+board, firmware (BIOS) and chassis; storage (`Win32_DiskDrive` enriched from
+`MSFT_PhysicalDisk`) and volumes; network and wireless adapters; display
+adapters and monitors; audio controllers and endpoints; cameras; USB
+controllers and devices, PCI devices and Bluetooth radios and devices with
+driver versions and signing and a parent/child `dependencies` graph; TPM,
+firmware (ESRT) devices and batteries; and a host security posture
+(virtualization-based security, code integrity, Secure Boot, BitLocker per
+volume with `--privileged`). Property names are documented in
+[`docs/hardware-properties.md`](docs/hardware-properties.md).
+
+Option semantics on Windows:
+
+- `--privileged` adds the `windows-cim-privileged` batch (TPM, BitLocker,
+  storage reliability counters, `Confirm-SecureBootUEFI`). Those classes deny
+  non-administrators; cdx-hbom never elevates, never calls `sudo.exe` and
+  never prompts, so run it from an elevated session to get the data. Without
+  elevation the batch records `permission-denied` diagnostics and the run
+  still succeeds.
+- `--no-command-enrichment` keeps only `windows-cim-platform` (and the Node
+  baseline).
+- `--dry-run` produces the Node baseline only and traces every planned
+  PowerShell command as `blocked`.
+- `--plist-enrichment` does not apply to Windows.
+- `--timeout <ms>` overrides the per-batch timeouts (60 s per CIM batch,
+  90 s for `windows-pnp-devices`).
+
+Permissions, PowerShell restrictions, EDR allowlisting, slow providers and the
+x64-on-ARM64 case are covered in
+[`windows-troubleshooting.md`](windows-troubleshooting.md).
+
+## Permissions
+
+Short answer: **run cdx-hbom as a normal local user.** That gives nearly the
+whole hardware inventory on every supported OS. Elevation (administrator or
+root) adds a few security- and health-related details. cdx-hbom never prompts
+for a password and never elevates on Windows; on Linux, `--privileged` retries
+a few documented commands with non-interactive `sudo -n`.
+
+| Platform | Normal user, local session | Administrator or root | Non-admin over SSH or WinRM |
+| --- | --- | --- | --- |
+| **macOS** (Apple Silicon) | Full inventory; every collector command runs as a normal user | Nothing extra | Not measured; expected same as local |
+| **Linux** | `/proc` and `/sys` baseline plus the optional tools that are installed | `--privileged` runs `dmidecode` and retries `drm_info` with non-interactive `sudo -n` (see [`linux-troubleshooting.md`](linux-troubleshooting.md)) | Not measured; expected same as local |
+| **Windows** | Nearly everything; see the measured matrix in [`windows-troubleshooting.md`](windows-troubleshooting.md#measured-matrix) | `--privileged` adds TPM details, BitLocker status, the firmware-confirmed Secure Boot state and disk reliability counters | Every WMI query is denied; only the baseline (processors and memory) is produced, with one `permission-denied` diagnostic that says why. Granting the account WMI "Remote Enable" on five namespaces restores most of the local inventory (see the troubleshooting page) |
+
+On Windows one more detail depends on state rather than rights: disk bus
+type, media type and health (`MSFT_PhysicalDisk`) reach a standard user only
+while the Storage Spaces SMP service (`smphost`) is already running. This is
+explained in the troubleshooting page.
+
+Privacy defaults on every platform: serial numbers, UUIDs, MAC addresses and
+PnP instance segments are redacted to `redacted:<last 4>`; host names, user
+names and domain names are never collected. Pass `--sensitive` only when raw
+identifiers are needed.
 
 ## Development
 

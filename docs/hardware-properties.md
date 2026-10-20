@@ -59,6 +59,16 @@ These properties commonly appear on `metadata.component`, which describes the ho
 | `cdx:hbom:pcSystemType`          | Windows: system type from `Win32_ComputerSystem.PCSystemTypeEx`, such as `desktop` or `slate` |
 | `cdx:hbom:hypervisorPresent`     | Windows: whether a hypervisor is present (`Win32_ComputerSystem.HypervisorPresent`) |
 | `cdx:hbom:smbiosVersion`         | Windows: SMBIOS version as `major.minor` (`Win32_BIOS.SMBIOSMajorVersion`/`SMBIOSMinorVersion`) |
+| `cdx:hbom:vbsStatus`             | Windows: virtualization-based security state from `Win32_DeviceGuard.VirtualizationBasedSecurityStatus` (`off`, `enabled`, `running`) |
+| `cdx:hbom:securityServicesConfigured` | Windows: configured VBS services (`Win32_DeviceGuard.SecurityServicesConfigured`), comma-separated: `none`, `credential-guard`, `memory-integrity`, `system-guard-secure-launch`, `smm-firmware-measurement`, `kernel-mode-hardware-enforced-stack-protection`, the same `-audit`, `hypervisor-enforced-paging-translation` |
+| `cdx:hbom:securityServicesRunning` | Windows: running VBS services (`Win32_DeviceGuard.SecurityServicesRunning`), same vocabulary |
+| `cdx:hbom:codeIntegrityPolicyEnforcement` | Windows: kernel-mode code integrity policy state (`Win32_DeviceGuard.CodeIntegrityPolicyEnforcementStatus`: `off`, `audit`, `enforced`) |
+| `cdx:hbom:usermodeCodeIntegrityPolicyEnforcement` | Windows: user-mode code integrity policy state (`UsermodeCodeIntegrityPolicyEnforcementStatus`, same vocabulary) |
+| `cdx:hbom:availableSecurityProperties` | Windows: platform security properties available for VBS (`AvailableSecurityProperties`): `hypervisor-support`, `secure-boot`, `dma-protection`, `secure-memory-overwrite`, `nx-protections`, `smm-mitigations`, `mbec-gmet`, `apic-virtualization` |
+| `cdx:hbom:requiredSecurityProperties` | Windows: properties VBS requires (`RequiredSecurityProperties`), same vocabulary |
+| `cdx:hbom:secureBootEnabled`     | Windows: UEFI Secure Boot state, from `Confirm-SecureBootUEFI` with `--privileged` or from the registry value `SecureBoot\State\UEFISecureBootEnabled` otherwise |
+| `cdx:hbom:secureBootSource`      | Windows: `Confirm-SecureBootUEFI` or `registry`, naming where `secureBootEnabled` came from |
+| `cdx:hbom:firmwareType`          | Windows: `UEFI`, emitted only when a Secure Boot state could be read (the state lives in UEFI variables); `BIOS` is never inferred |
 
 ## Shared component classification property
 
@@ -99,6 +109,25 @@ These appear across multiple hardware classes.
 | `cdx:hbom:revision`         | Generic device revision string                                       |
 | `cdx:hbom:index`            | Linux device index when exported by the subsystem                    |
 | `cdx:hbom:roles`            | Reported role list for a multi-role component such as an APFS volume |
+| `cdx:hbom:pnpInstanceId`    | Windows: PnP device instance ID (`enumerator\device-id\instance`). The instance segment, which can be a USB serial or a Bluetooth address, is redacted by default |
+| `cdx:hbom:present`          | Windows: whether the PnP device is currently present (`Win32_PnPEntity.Present`); phantom devices report `false` |
+| `cdx:hbom:driverSigned`     | Windows: whether the bound driver package is signed (`Win32_PnPSignedDriver.IsSigned`) |
+| `cdx:hbom:driverSigner`     | Windows: signer of the driver package (`Win32_PnPSignedDriver.Signer`), for example `Microsoft Windows` |
+| `cdx:hbom:infName`          | Windows: INF file of the bound driver package (`Win32_PnPSignedDriver.InfName`) |
+| `cdx:hbom:problemCode`      | Windows: Device Manager problem code (`Win32_PnPEntity.ConfigManagerErrorCode`), only when non-zero; 22 is "disabled", 28 is "drivers not installed" |
+| `cdx:hbom:busReportedName`  | Windows: description reported by the bus or the device itself (`DEVPKEY_Device_BusReportedDeviceDesc`), when it differs from the driver-supplied name |
+| `cdx:hbom:locationPath`     | Windows: first `DEVPKEY_Device_LocationPaths` entry, the bus-relative device path such as `PCIROOT(0)#PCI(0300)#USBROOT(0)#USB(2)` |
+| `cdx:hbom:hardwareIds`      | Windows: PnP hardware IDs, most specific first, comma-separated; IDs that echo the instance segment are redacted |
+| `cdx:hbom:compatibleIds`    | Windows: PnP compatible IDs, comma-separated, redacted the same way |
+
+On Windows every component backed by a PnP device instance carries a
+deterministic `bom-ref` of the form `windows-pnp:<enumerator>:<device-id>:<n>`
+(lower-cased, `n` the 1-based ordinal among identical enumerator/device-ID
+pairs), and `dependencies` follow `DEVPKEY_Device_Parent` with the parent
+depending on the child, the same direction as the Linux USB topology. Ancestors
+without a component (ACPI nodes, root-enumerated and software devices) are
+skipped transitively. USB interface functions (`&MI_xx`) fold into their
+composite device as `usbInterfaceCount` and `usbInterfaceDrivers`.
 
 ## Processor and memory properties
 
@@ -204,6 +233,11 @@ These appear across multiple hardware classes.
 | `cdx:hbom:mountPoint`         | Windows: volume drive-letter mount point (`Win32_Volume.DriveLetter`) |
 | `cdx:hbom:isBootVolume`       | Windows: whether the volume is the boot volume (`Win32_Volume.BootVolume`) |
 | `cdx:hbom:isSystemVolume`     | Windows: whether the volume is the system volume (`Win32_Volume.SystemVolume`) |
+| `cdx:hbom:protectionStatus`   | Windows: BitLocker protection (`Win32_EncryptableVolume.ProtectionStatus`: `off`, `on`, `unknown`); `isEncrypted` is true for `on`; needs `--privileged` |
+| `cdx:hbom:encryptionMethod`   | Windows: BitLocker algorithm (`EncryptionMethod`, the `GetEncryptionMethod` constant names such as `XTS_AES_128`, `AES_256`, `None`, `UNKNOWN`); needs `--privileged` |
+| `cdx:hbom:conversionStatus`   | Windows: BitLocker conversion state (`ConversionStatus`: `fully-decrypted`, `fully-encrypted`, `encryption-in-progress`, `decryption-in-progress`, `encryption-paused`, `decryption-paused`); needs `--privileged` |
+| `cdx:hbom:bitlockerVolumeType` | Windows: BitLocker volume role (`VolumeType`: `system`, `fixed-disk`, `removable`); needs `--privileged` |
+| `cdx:hbom:powerOnHours`       | Windows: hours the disk has been powered on (`MSFT_StorageReliabilityCounter.PowerOnHours`); needs `--privileged`. `wearPercentageUsed` and `temperatureCelsius` come from the same class (`Wear`, `Temperature`) |
 
 ## Network and wireless properties
 
@@ -229,8 +263,8 @@ These appear across multiple hardware classes.
 | `cdx:hbom:linkRateMbps`          | Current wireless link rate in Mbps                                |
 | `cdx:hbom:securityMode`          | Current wireless security mode                                    |
 | `cdx:hbom:interfaceName`         | Windows: connection name (`MSFT_NetAdapter.Name`, for example `Ethernet`) |
-| `cdx:hbom:driverProvider`        | Windows: NIC driver provider (`MSFT_NetAdapter.DriverProvider`)   |
-| `cdx:hbom:driverDate`            | Windows: NIC driver date (`MSFT_NetAdapter.DriverDate`)           |
+| `cdx:hbom:driverProvider`        | Windows: driver provider (`MSFT_NetAdapter.DriverProvider`)       |
+| `cdx:hbom:driverDate`            | Windows: driver date as `YYYY-MM-DD` (`MSFT_NetAdapter.DriverDate`, `Win32_VideoController.DriverDate`) |
 | `cdx:hbom:physicalMedium`        | Windows: NDIS physical medium name (`MSFT_NetAdapter.NdisPhysicalMedium`) |
 | `cdx:hbom:adapterType`           | Windows: legacy adapter type (`Win32_NetworkAdapter.AdapterType`) |
 
@@ -313,6 +347,19 @@ These appear across multiple hardware classes.
 | `cdx:hbom:bitsPerColorChannel`    | Bits-per-color-channel from EDID or connector capabilities  |
 | `cdx:hbom:colorFormats`           | Supported pixel/color formats from `edid-decode`            |
 | `cdx:hbom:hdrEotf`                | Supported HDR electro-optical transfer functions            |
+| `cdx:hbom:refreshRateHz`          | Windows: current refresh rate (`Win32_VideoController.CurrentRefreshRate`); the 0 (default) and 0xFFFFFFFF (optimal) sentinels are omitted |
+| `cdx:hbom:bitsPerPixel`           | Windows: current colour depth (`Win32_VideoController.CurrentBitsPerPixel`) |
+| `cdx:hbom:adapterRamBytes`        | Windows: video memory (`Win32_VideoController.AdapterRAM`). The class defines it as a uint32, so adapters with 4 GiB or more cannot report their true size |
+| `cdx:hbom:isActive`               | Windows: whether the monitor is the active one (`WmiMonitorID.Active`) |
+
+On Windows, `display` components come from the root/wmi `WmiMonitorID`,
+`WmiMonitorBasicDisplayParams` and `WmiMonitorConnectionParams` classes joined
+on `InstanceName`: `manufacturer` is the three-letter EDID PnP vendor ID as
+reported, `productId` and `version` carry the EDID product code, `physicalSize`
+is `W x H cm` from the basic display parameters, `manufactureWeek` is omitted
+for the documented unknown values 0 and 255, and `connectionType` is the
+lower-cased `D3DKMDT_VIDEO_OUTPUT_TECHNOLOGY` name (`hd15`, `hdmi`,
+`displayport`, `internal`, ...) with unknown codes passed through raw.
 
 ## Bluetooth properties
 
@@ -370,6 +417,7 @@ These appear across multiple hardware classes.
 | `cdx:hbom:usbInterfaceClasses`       | USB interface class names from verbose descriptors    |
 | `cdx:hbom:usbConfigurationCount`     | Number of USB configurations reported                 |
 | `cdx:hbom:usbInterfaceCount`         | Number of USB interfaces reported                     |
+| `cdx:hbom:usbInterfaceDrivers`       | Drivers bound per interface as `<number>:<driver>` entries, for example `0:HidUsb, 1:HidUsb` (Linux sysfs interfaces; Windows `&MI_xx` functions folded into the composite device) |
 | `cdx:hbom:maxPowerMilliAmps`         | USB maximum advertised bus power in mA                |
 | `cdx:hbom:selfPowered`               | Whether the USB device reports self-powered operation |
 | `cdx:hbom:remoteWakeup`              | Whether the USB device reports remote wakeup support  |
@@ -401,15 +449,22 @@ These appear across multiple hardware classes.
 | `cdx:hbom:instanceIds`  | fwupd instance identifiers, redacted by default |
 | `cdx:hbom:createdEpoch` | Creation/registration epoch reported by fwupd   |
 | `cdx:hbom:embeddedControllerVersion` | Windows: embedded controller version (`Win32_BIOS.EmbeddedController*Version`), omitted at 255.255 |
+| `cdx:hbom:lastAttemptStatus` | Windows: result of the last UEFI capsule update of an ESRT firmware resource, from `HKLM\SYSTEM\CurrentControlSet\Control\FirmwareResources\{GUID}\LastAttemptStatus` (`success`, `unsuccessful`, `insufficient-resources`, `incorrect-version`, `invalid-image-format`, `authentication-error`, `power-event-ac-not-connected`, `power-event-insufficient-battery`; unknown NTSTATUS values as hex) |
+| `cdx:hbom:lastAttemptVersion` | Windows: firmware version of that last update attempt (`LastAttemptVersion`) |
+
+Windows `firmware-device` components are the PnP Firmware-class devices
+(`UEFI\RES_{GUID}`): `guids` is the ESRT resource GUID and `firmwareVersion`
+the `REV_` token of the versioned hardware ID, emitted as the raw string
+because no document states its radix.
 
 ## PCI properties
 
 | Property                     | Meaning                         |
 | ---------------------------- | ------------------------------- |
 | `cdx:hbom:pciSlot`           | PCI slot / address summary      |
-| `cdx:hbom:pciAddress`        | PCI address                     |
+| `cdx:hbom:pciAddress`        | PCI address as `SSSS:BB:DD.F`. Windows: emitted for network adapters from `MSFT_NetAdapterHardwareInfoSettingData`, which carries the segment; PnP-derived PCI components carry `locationPath` instead because `DEVPKEY_Device_BusNumber`/`Address` have no segment |
 | `cdx:hbom:pciClass`          | PCI class description           |
-| `cdx:hbom:pciClassCode`      | PCI class code                  |
+| `cdx:hbom:pciClassCode`      | PCI class code (class and subclass, four hex digits). Windows: from the `CC_` compatible ID |
 | `cdx:hbom:subsystemVendor`   | PCI subsystem vendor            |
 | `cdx:hbom:subsystemDevice`   | PCI subsystem device            |
 | `cdx:hbom:subsystemVendorId` | PCI subsystem vendor identifier |
@@ -451,8 +506,17 @@ These appear across multiple hardware classes.
 | `cdx:hbom:chargeFull`            | Full-charge battery charge                           |
 | `cdx:hbom:chargeFullDesign`      | Design full-charge battery charge                    |
 | `cdx:hbom:designCapacityPercent` | Full-charge vs. design-capacity percentage           |
+| `cdx:hbom:designVoltageMv`       | Windows: battery design voltage in millivolts (`Win32_Battery.DesignVoltage`) |
+| `cdx:hbom:estimatedRunTimeMinutes` | Windows: estimated minutes to depletion under the present load (`Win32_Battery.EstimatedRunTime`); the `BATTERY_UNKNOWN_TIME` sentinel (71582788) is omitted |
 
-## Linux sensor, thermal, and TPM properties
+Windows `power` components come from `Win32_Battery`: `chargePercent` is
+`EstimatedChargeRemaining`, `isCharging` is true for BatteryStatus 6-9,
+`isAcAttached` for status 2 ("the system has access to AC") or any charging
+state, `status` the BatteryStatus name and `technology` the Chemistry name.
+The host carries `powerSource` (`AC` or `Battery`) and `isAcAttached` only
+when a battery is present.
+
+## Sensor, thermal, and TPM properties
 
 | Property                          | Meaning                                                        |
 | --------------------------------- | -------------------------------------------------------------- |
@@ -463,6 +527,16 @@ These appear across multiple hardware classes.
 | `cdx:hbom:pwmValues`              | PWM values associated with a fan device                        |
 | `cdx:hbom:temperatureCelsius`     | Thermal-zone temperature in Celsius                            |
 | `cdx:hbom:mode`                   | Thermal-zone mode                                              |
+| `cdx:hbom:specVersion`            | Windows: TCG specification version of the TPM, the first field of `Win32_Tpm.SpecVersion` (for example `2.0`); needs `--privileged` |
+| `cdx:hbom:isEnabled`              | Windows: `Win32_Tpm.IsEnabled_InitialValue`; needs `--privileged` |
+| `cdx:hbom:isActivated`            | Windows: `Win32_Tpm.IsActivated_InitialValue`; needs `--privileged` |
+| `cdx:hbom:isOwned`                | Windows: `Win32_Tpm.IsOwned_InitialValue`; needs `--privileged` |
+
+On Windows the `tpm` component's presence comes from the PnP tree (a
+SecurityDevices entity whose hardware or compatible IDs include the TPM 2.0
+ACPI ID `MSFT0101`) and needs no elevation; `manufacturer` (`ManufacturerIdTxt`),
+`firmwareVersion` (`ManufacturerVersion`) and the rows above come from
+`Win32_Tpm` and need `--privileged`.
 
 ## Linux MMC / SDIO properties
 
@@ -515,6 +589,8 @@ These properties may contain unique identifiers and remain redacted by default w
 - `cdx:hbom:macAddress`
 - `cdx:hbom:mmcSerialNumber`
 - `cdx:hbom:platformUuid`
+- `cdx:hbom:pnpInstanceId` (the instance segment only; the enumerator and device-ID segments identify the model, not the unit)
+- `cdx:hbom:hardwareIds` and `cdx:hbom:compatibleIds` (only entries that echo the device's instance segment or embed a Bluetooth address; the rest identify the model)
 - `cdx:hbom:serialNumber`
 - `cdx:hbom:serialNumberLeft`
 - `cdx:hbom:serialNumberRight`

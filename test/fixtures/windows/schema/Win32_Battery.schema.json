@@ -1,0 +1,244 @@
+{
+    "provenance":  "schema",
+    "capturedAt":  "2026-10-20T04:31:32Z",
+    "host":  "win11-vm",
+    "osBuild":  "26200",
+    "namespace":  "root/cimv2",
+    "className":  "Win32_Battery",
+    "instanceCount":  0,
+    "properties":  [
+                       {
+                           "name":  "Caption",
+                           "cimType":  "String"
+                       },
+                       {
+                           "name":  "Description",
+                           "cimType":  "String"
+                       },
+                       {
+                           "name":  "InstallDate",
+                           "cimType":  "DateTime"
+                       },
+                       {
+                           "name":  "Name",
+                           "cimType":  "String"
+                       },
+                       {
+                           "name":  "Status",
+                           "cimType":  "String",
+                           "valueMap":  [
+                                            "OK",
+                                            "Error",
+                                            "Degraded",
+                                            "Unknown",
+                                            "Pred Fail",
+                                            "Starting",
+                                            "Stopping",
+                                            "Service",
+                                            "Stressed",
+                                            "NonRecover",
+                                            "No Contact",
+                                            "Lost Comm"
+                                        ]
+                       },
+                       {
+                           "name":  "Availability",
+                           "cimType":  "UInt16",
+                           "valueMap":  [
+                                            "1",
+                                            "2",
+                                            "3",
+                                            "4",
+                                            "5",
+                                            "6",
+                                            "7",
+                                            "8",
+                                            "9",
+                                            "10",
+                                            "11",
+                                            "12",
+                                            "13",
+                                            "14",
+                                            "15",
+                                            "16",
+                                            "17",
+                                            "18",
+                                            "19",
+                                            "20",
+                                            "21"
+                                        ]
+                       },
+                       {
+                           "name":  "ConfigManagerErrorCode",
+                           "cimType":  "UInt32",
+                           "valueMap":  [
+                                            "0",
+                                            "1",
+                                            "2",
+                                            "3",
+                                            "4",
+                                            "5",
+                                            "6",
+                                            "7",
+                                            "8",
+                                            "9",
+                                            "10",
+                                            "11",
+                                            "12",
+                                            "13",
+                                            "14",
+                                            "15",
+                                            "16",
+                                            "17",
+                                            "18",
+                                            "19",
+                                            "20",
+                                            "21",
+                                            "22",
+                                            "23",
+                                            "24",
+                                            "25",
+                                            "26",
+                                            "27",
+                                            "28",
+                                            "29",
+                                            "30",
+                                            "31"
+                                        ]
+                       },
+                       {
+                           "name":  "ConfigManagerUserConfig",
+                           "cimType":  "Boolean"
+                       },
+                       {
+                           "name":  "CreationClassName",
+                           "cimType":  "String"
+                       },
+                       {
+                           "name":  "DeviceID",
+                           "cimType":  "String"
+                       },
+                       {
+                           "name":  "ErrorCleared",
+                           "cimType":  "Boolean"
+                       },
+                       {
+                           "name":  "ErrorDescription",
+                           "cimType":  "String"
+                       },
+                       {
+                           "name":  "LastErrorCode",
+                           "cimType":  "UInt32"
+                       },
+                       {
+                           "name":  "PNPDeviceID",
+                           "cimType":  "String"
+                       },
+                       {
+                           "name":  "PowerManagementCapabilities",
+                           "cimType":  "UInt16Array"
+                       },
+                       {
+                           "name":  "PowerManagementSupported",
+                           "cimType":  "Boolean"
+                       },
+                       {
+                           "name":  "StatusInfo",
+                           "cimType":  "UInt16",
+                           "valueMap":  [
+                                            "1",
+                                            "2",
+                                            "3",
+                                            "4",
+                                            "5"
+                                        ]
+                       },
+                       {
+                           "name":  "SystemCreationClassName",
+                           "cimType":  "String"
+                       },
+                       {
+                           "name":  "SystemName",
+                           "cimType":  "String"
+                       },
+                       {
+                           "name":  "BatteryStatus",
+                           "cimType":  "UInt16",
+                           "valueMap":  [
+                                            "1",
+                                            "2",
+                                            "3",
+                                            "4",
+                                            "5",
+                                            "6",
+                                            "7",
+                                            "8",
+                                            "9",
+                                            "10",
+                                            "11"
+                                        ]
+                       },
+                       {
+                           "name":  "Chemistry",
+                           "cimType":  "UInt16",
+                           "valueMap":  [
+                                            "1",
+                                            "2",
+                                            "3",
+                                            "4",
+                                            "5",
+                                            "6",
+                                            "7",
+                                            "8"
+                                        ]
+                       },
+                       {
+                           "name":  "DesignCapacity",
+                           "cimType":  "UInt32"
+                       },
+                       {
+                           "name":  "DesignVoltage",
+                           "cimType":  "UInt64"
+                       },
+                       {
+                           "name":  "EstimatedChargeRemaining",
+                           "cimType":  "UInt16"
+                       },
+                       {
+                           "name":  "EstimatedRunTime",
+                           "cimType":  "UInt32"
+                       },
+                       {
+                           "name":  "ExpectedLife",
+                           "cimType":  "UInt32"
+                       },
+                       {
+                           "name":  "FullChargeCapacity",
+                           "cimType":  "UInt32"
+                       },
+                       {
+                           "name":  "MaxRechargeTime",
+                           "cimType":  "UInt32"
+                       },
+                       {
+                           "name":  "SmartBatteryVersion",
+                           "cimType":  "String"
+                       },
+                       {
+                           "name":  "TimeOnBattery",
+                           "cimType":  "UInt32"
+                       },
+                       {
+                           "name":  "TimeToFullCharge",
+                           "cimType":  "UInt32"
+                       },
+                       {
+                           "name":  "BatteryRechargeTime",
+                           "cimType":  "UInt32"
+                       },
+                       {
+                           "name":  "ExpectedBatteryLife",
+                           "cimType":  "UInt32"
+                       }
+                   ]
+}

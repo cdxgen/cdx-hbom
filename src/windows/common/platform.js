@@ -17,7 +17,15 @@ import {
   normalizeIdentityString,
   redactIdentifier,
 } from "../../common/shape.js";
-import { cimArray, cimBool, cimDate, cimNumber, cimString } from "./cim.js";
+import {
+  cimArray,
+  cimBool,
+  cimDate,
+  cimFirstItem,
+  cimNumber,
+  cimResultItems,
+  cimString,
+} from "./cim.js";
 import {
   WINDOWS_MEMORY_ERROR_CORRECTIONS,
   WINDOWS_MEMORY_FORM_FACTORS,
@@ -66,16 +74,16 @@ const EMPTY_PLATFORM_SOURCES = Object.freeze({
 export function parsePlatformEnvelope(envelope) {
   const results = envelope?.results ?? {};
   return {
-    computerSystem: firstItem(results.computerSystem),
-    product: firstItem(results.computerSystemProduct),
-    bios: firstItem(results.bios),
-    baseBoard: firstItem(results.baseBoard),
-    enclosure: firstItem(results.systemEnclosure),
-    processors: okItems(results.processor),
-    memoryModules: okItems(results.physicalMemory),
-    memoryArrays: okItems(results.physicalMemoryArray),
-    os: firstItem(results.operatingSystem),
-    msSystemInformation: firstItem(results.msSystemInformation),
+    computerSystem: cimFirstItem(results.computerSystem),
+    product: cimFirstItem(results.computerSystemProduct),
+    bios: cimFirstItem(results.bios),
+    baseBoard: cimFirstItem(results.baseBoard),
+    enclosure: cimFirstItem(results.systemEnclosure),
+    processors: cimResultItems(results.processor),
+    memoryModules: cimResultItems(results.physicalMemory),
+    memoryArrays: cimResultItems(results.physicalMemoryArray),
+    os: cimFirstItem(results.operatingSystem),
+    msSystemInformation: cimFirstItem(results.msSystemInformation),
   };
 }
 
@@ -114,7 +122,8 @@ export function detectWindowsArchitecture(processors, fallbackArch) {
  *   sources: WindowsPlatformSources,
  *   baseline: { cpuModel?: string, cpuCount?: number, totalMemoryBytes?: number },
  *   detected: { architecture: string, source: string },
- *   includeSensitiveIdentifiers?: boolean
+ *   includeSensitiveIdentifiers?: boolean,
+ *   hostProperties?: object[]
  * }} context Build context.
  * @returns {object} Host component.
  */
@@ -205,6 +214,9 @@ export function buildWindowsHostComponent(context) {
         cimBool(computerSystem.HypervisorPresent),
       ),
       createProperty("cdx:hbom:smbiosVersion", smbiosVersion(bios)),
+      // Security posture and power state from the trust and privileged
+      // batches, when they ran.
+      ...(context.hostProperties ?? []),
       createProperty("cdx:hbom:identifierPolicy", identifierPolicy),
     ]),
   });
@@ -519,25 +531,7 @@ export function buildWindowsBoardFirmwareChassisComponents(context) {
   return components;
 }
 
-/**
- * Return the first item of a successful envelope result.
- *
- * @param {{ ok?: boolean, items?: object[] } | undefined} result Envelope result.
- * @returns {Record<string, unknown> | undefined} First item or undefined.
- */
-function firstItem(result) {
-  return result?.ok ? result.items?.[0] : undefined;
-}
 
-/**
- * Return the items of a successful envelope result.
- *
- * @param {{ ok?: boolean, items?: object[] } | undefined} result Envelope result.
- * @returns {Record<string, unknown>[]} Items, empty when the result failed.
- */
-function okItems(result) {
-  return result?.ok ? [...(result.items ?? [])] : [];
-}
 
 /**
  * Resolve the processor marketing name for host descriptions.

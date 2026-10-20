@@ -5,6 +5,23 @@ import {
 } from "./powershell.js";
 
 /**
+ * Setup-class GUIDs that `windows-cim-display-media` selects from
+ * Win32_PnPEntity, in the braced form the class reports. Camera and Image are
+ * vendor classes from
+ * https://learn.microsoft.com/en-us/windows-hardware/drivers/install/system-defined-device-setup-classes-available-to-vendors
+ * and AudioEndpoint is a system class from
+ * https://learn.microsoft.com/en-us/windows-hardware/drivers/install/system-defined-device-setup-classes-reserved-for-system-use
+ * (the VM selftest capture lists one AudioEndpoint entity under SWD).
+ *
+ * @type {ReadonlyArray<string>}
+ */
+export const WINDOWS_MEDIA_PNP_CLASS_GUIDS = Object.freeze([
+  "{ca3e7ab9-b4c3-4ae6-8251-579ef933890f}",
+  "{6bdd1fc6-810f-11d0-bec7-08002be2092f}",
+  "{c166523c-fe0c-4a94-a586-f1a80cfbbf3e}",
+]);
+
+/**
  * Manifest of `windows-cim-platform`, the tier-1 CIM batch.
  *
  * Property lists are the union this collector projects; the generated script
@@ -341,6 +358,330 @@ export const WINDOWS_STORAGE_NETWORK_MANIFEST = Object.freeze({
 });
 
 /**
+ * Manifest of `windows-cim-display-media`, the tier-2 graphics, monitor,
+ * audio and camera enrichment batch (PLAN.md §4.2).
+ *
+ * `WmiMonitorBasicDisplayParams.SupportedDisplayFeatures` is an embedded
+ * instance (VM-FINDINGS §3) and is never selected. The `mediaPnp` entry
+ * filters Win32_PnPEntity to the Camera, Image and AudioEndpoint setup
+ * classes (GUIDs in {@link WINDOWS_MEDIA_PNP_CLASS_GUIDS}); the full PnP
+ * inventory belongs to `windows-pnp-devices`.
+ *
+ * @type {{
+ *   commandId: string,
+ *   entries: ReadonlyArray<Readonly<import("./powershell.js").CimManifestEntry>>
+ * }}
+ */
+export const WINDOWS_DISPLAY_MEDIA_MANIFEST = Object.freeze({
+  commandId: "windows-cim-display-media",
+  entries: Object.freeze([
+    Object.freeze({
+      key: "videoController",
+      kind: "cim",
+      namespace: "root/cimv2",
+      className: "Win32_VideoController",
+      properties: Object.freeze([
+        "Name",
+        "AdapterCompatibility",
+        "VideoProcessor",
+        "AdapterRAM",
+        "DriverVersion",
+        "DriverDate",
+        "PNPDeviceID",
+        "CurrentHorizontalResolution",
+        "CurrentVerticalResolution",
+        "CurrentRefreshRate",
+        "CurrentBitsPerPixel",
+        "Status",
+      ]),
+    }),
+    Object.freeze({
+      key: "monitorId",
+      kind: "cim",
+      namespace: "root/wmi",
+      className: "WmiMonitorID",
+      properties: Object.freeze([
+        "InstanceName",
+        "Active",
+        "ManufacturerName",
+        "ProductCodeID",
+        "SerialNumberID",
+        "UserFriendlyName",
+        "YearOfManufacture",
+        "WeekOfManufacture",
+      ]),
+    }),
+    Object.freeze({
+      key: "monitorBasic",
+      kind: "cim",
+      namespace: "root/wmi",
+      className: "WmiMonitorBasicDisplayParams",
+      properties: Object.freeze([
+        "InstanceName",
+        "MaxHorizontalImageSize",
+        "MaxVerticalImageSize",
+        "VideoInputType",
+        "DisplayTransferCharacteristic",
+      ]),
+    }),
+    Object.freeze({
+      key: "monitorConnection",
+      kind: "cim",
+      namespace: "root/wmi",
+      className: "WmiMonitorConnectionParams",
+      properties: Object.freeze(["InstanceName", "VideoOutputTechnology"]),
+    }),
+    Object.freeze({
+      key: "soundDevice",
+      kind: "cim",
+      namespace: "root/cimv2",
+      className: "Win32_SoundDevice",
+      properties: Object.freeze([
+        "Name",
+        "Manufacturer",
+        "ProductName",
+        "PNPDeviceID",
+        "Status",
+      ]),
+    }),
+    Object.freeze({
+      key: "mediaPnp",
+      kind: "cim",
+      namespace: "root/cimv2",
+      className: "Win32_PnPEntity",
+      properties: Object.freeze([
+        "Name",
+        "Manufacturer",
+        "PNPDeviceID",
+        "ClassGuid",
+        "HardwareID",
+        "CompatibleID",
+        "Present",
+        "Status",
+        "Service",
+      ]),
+      where: Object.freeze({
+        property: "ClassGuid",
+        in: WINDOWS_MEDIA_PNP_CLASS_GUIDS,
+      }),
+    }),
+  ]),
+});
+
+/**
+ * DEVPKEY names fetched by `windows-pnp-devices` in one pipelined
+ * `Get-PnpDeviceProperty` call. All eight were verified valid on win11-vm;
+ * `DEVPKEY_Device_Removable` is rejected there with InvalidParameter and is
+ * therefore not requested. BusNumber/Address were cross-checked against
+ * MSFT_NetAdapterHardwareInfoSettingData for the VM's PCI NIC (bus 0,
+ * Address 327680 = device 5 << 16 | function 0).
+ * Documentation: https://learn.microsoft.com/en-us/windows-hardware/drivers/install/devpkey-device-parent
+ * and the sibling devpkey-device-* pages.
+ *
+ * @type {ReadonlyArray<string>}
+ */
+export const WINDOWS_PNP_DEVICE_PROPERTY_KEYS = Object.freeze([
+  "DEVPKEY_Device_Parent",
+  "DEVPKEY_Device_LocationPaths",
+  "DEVPKEY_Device_DriverVersion",
+  "DEVPKEY_Device_DriverProvider",
+  "DEVPKEY_Device_DriverDate",
+  "DEVPKEY_Device_BusReportedDeviceDesc",
+  "DEVPKEY_Device_BusNumber",
+  "DEVPKEY_Device_Address",
+]);
+
+/**
+ * Manifest of `windows-pnp-devices`, the tier-2 PnP inventory batch: every
+ * Win32_PnPEntity, the DEVPKEY properties of every present device (parent
+ * links, location paths, driver identity, bus address) and the signed-driver
+ * rows. `PNPClass` is selected for display only; classification uses
+ * `ClassGuid`, because the MS Learn page documents PNPClass as optional.
+ *
+ * @type {{
+ *   commandId: string,
+ *   entries: ReadonlyArray<Readonly<import("./powershell.js").CimManifestEntry | import("./powershell.js").PnpPropertiesManifestEntry>>
+ * }}
+ */
+export const WINDOWS_PNP_DEVICES_MANIFEST = Object.freeze({
+  commandId: "windows-pnp-devices",
+  entries: Object.freeze([
+    Object.freeze({
+      key: "pnpEntity",
+      kind: "cim",
+      namespace: "root/cimv2",
+      className: "Win32_PnPEntity",
+      properties: Object.freeze([
+        "Name",
+        "Manufacturer",
+        "PNPDeviceID",
+        "ClassGuid",
+        "PNPClass",
+        "HardwareID",
+        "CompatibleID",
+        "Present",
+        "Service",
+        "Status",
+        "ConfigManagerErrorCode",
+      ]),
+    }),
+    Object.freeze({
+      key: "pnpProperties",
+      kind: "pnp-properties",
+      keys: WINDOWS_PNP_DEVICE_PROPERTY_KEYS,
+    }),
+    Object.freeze({
+      key: "signedDriver",
+      kind: "cim",
+      namespace: "root/cimv2",
+      className: "Win32_PnPSignedDriver",
+      properties: Object.freeze([
+        "DeviceID",
+        "DriverVersion",
+        "DriverDate",
+        "DriverProviderName",
+        "InfName",
+        "IsSigned",
+        "Signer",
+      ]),
+    }),
+  ]),
+});
+
+/**
+ * Manifest of `windows-cim-trust`, the tier-2 security-posture and power
+ * batch that needs no elevation (PERMISSIONS-MATRIX.md): Device Guard / VBS
+ * status, the Secure Boot registry state (decision D2: the registry route is
+ * the non-admin source, `cdx:hbom:secureBootSource` records it), the ESRT
+ * firmware-update results under `Control\FirmwareResources` (documented at
+ * https://learn.microsoft.com/en-us/windows-hardware/drivers/bringup/authoring-an-update-driver-package,
+ * absent on hosts that never applied a capsule update) and Win32_Battery.
+ * `Win32_DeviceGuard.InstanceIdentifier` is a per-machine GUID and
+ * `Win32_Battery.DeviceID` often embeds a serial; neither is selected.
+ *
+ * @type {{
+ *   commandId: string,
+ *   entries: ReadonlyArray<Readonly<import("./powershell.js").CimManifestEntry | import("./powershell.js").RegistryManifestEntry | import("./powershell.js").RegistryChildrenManifestEntry>>
+ * }}
+ */
+export const WINDOWS_TRUST_MANIFEST = Object.freeze({
+  commandId: "windows-cim-trust",
+  entries: Object.freeze([
+    Object.freeze({
+      key: "deviceGuard",
+      kind: "cim",
+      namespace: "root/Microsoft/Windows/DeviceGuard",
+      className: "Win32_DeviceGuard",
+      properties: Object.freeze([
+        "VirtualizationBasedSecurityStatus",
+        "SecurityServicesConfigured",
+        "SecurityServicesRunning",
+        "CodeIntegrityPolicyEnforcementStatus",
+        "UsermodeCodeIntegrityPolicyEnforcementStatus",
+        "AvailableSecurityProperties",
+        "RequiredSecurityProperties",
+      ]),
+    }),
+    Object.freeze({
+      key: "secureBootState",
+      kind: "registry",
+      path: "HKLM:\\SYSTEM\\CurrentControlSet\\Control\\SecureBoot\\State",
+      names: Object.freeze(["UEFISecureBootEnabled"]),
+    }),
+    Object.freeze({
+      key: "firmwareResources",
+      kind: "registry-children",
+      path: "HKLM:\\SYSTEM\\CurrentControlSet\\Control\\FirmwareResources",
+      names: Object.freeze(["LastAttemptStatus", "LastAttemptVersion", "Version"]),
+    }),
+    Object.freeze({
+      key: "battery",
+      kind: "cim",
+      namespace: "root/cimv2",
+      className: "Win32_Battery",
+      properties: Object.freeze([
+        "Name",
+        "EstimatedChargeRemaining",
+        "BatteryStatus",
+        "Chemistry",
+        "DesignVoltage",
+        "EstimatedRunTime",
+        "Availability",
+      ]),
+    }),
+  ]),
+});
+
+/**
+ * Manifest of `windows-cim-privileged`, the tier-3 batch that runs only with
+ * `includePrivilegedEnrichment`. Every source was measured admin-only on
+ * win11-vm (PERMISSIONS-MATRIX.md): Win32_Tpm, Win32_EncryptableVolume and
+ * MSFT_StorageReliabilityCounter deny a standard user, and
+ * Confirm-SecureBootUEFI fails with SetPrivilegeFailed. The batch never
+ * elevates; a non-elevated run yields permission-denied diagnostics.
+ *
+ * @type {{
+ *   commandId: string,
+ *   entries: ReadonlyArray<Readonly<import("./powershell.js").CimManifestEntry | import("./powershell.js").CmdletScalarManifestEntry>>
+ * }}
+ */
+export const WINDOWS_PRIVILEGED_MANIFEST = Object.freeze({
+  commandId: "windows-cim-privileged",
+  entries: Object.freeze([
+    Object.freeze({
+      key: "tpm",
+      kind: "cim",
+      namespace: "root/cimv2/Security/MicrosoftTpm",
+      className: "Win32_Tpm",
+      properties: Object.freeze([
+        "IsActivated_InitialValue",
+        "IsEnabled_InitialValue",
+        "IsOwned_InitialValue",
+        "ManufacturerId",
+        "ManufacturerIdTxt",
+        "ManufacturerVersion",
+        "ManufacturerVersionInfo",
+        "SpecVersion",
+        "PhysicalPresenceVersionInfo",
+      ]),
+    }),
+    Object.freeze({
+      key: "encryptableVolume",
+      kind: "cim",
+      namespace: "root/cimv2/Security/MicrosoftVolumeEncryption",
+      className: "Win32_EncryptableVolume",
+      properties: Object.freeze([
+        "DriveLetter",
+        "ProtectionStatus",
+        "ConversionStatus",
+        "EncryptionMethod",
+        "VolumeType",
+        "DeviceID",
+      ]),
+    }),
+    Object.freeze({
+      key: "storageReliability",
+      kind: "cim",
+      namespace: "root/Microsoft/Windows/Storage",
+      className: "MSFT_StorageReliabilityCounter",
+      properties: Object.freeze([
+        "DeviceId",
+        "Wear",
+        "Temperature",
+        "PowerOnHours",
+        "ReadErrorsTotal",
+        "WriteErrorsTotal",
+      ]),
+    }),
+    Object.freeze({
+      key: "secureBootCmdlet",
+      kind: "cmdlet-scalar",
+      cmdlet: "Confirm-SecureBootUEFI",
+    }),
+  ]),
+});
+
+/**
  * Manifest of the Windows CIM selftest command.
  *
  * `WINDOWS_SELFTEST_COMMAND` is deliberately excluded from
@@ -462,6 +803,52 @@ export const WINDOWS_COMMANDS = Object.freeze([
       "networkAdapterLegacy.PNPDeviceID",
     ],
   }),
+  toWindowsCommandSpec(WINDOWS_DISPLAY_MEDIA_MANIFEST, {
+    category: "display-media",
+    purpose:
+      "Collect graphics adapter, monitor EDID, sound device, audio endpoint and camera inventory via CIM.",
+    sensitiveFields: [
+      "videoController.PNPDeviceID",
+      "monitorId.InstanceName",
+      "monitorId.SerialNumberID",
+      "monitorBasic.InstanceName",
+      "monitorConnection.InstanceName",
+      "soundDevice.PNPDeviceID",
+      "mediaPnp.PNPDeviceID",
+      "mediaPnp.HardwareID",
+      "mediaPnp.CompatibleID",
+    ],
+  }),
+  toWindowsCommandSpec(WINDOWS_PNP_DEVICES_MANIFEST, {
+    category: "pnp-devices",
+    purpose:
+      "Collect the PnP device tree (entities, parent links, bus addresses, driver versions and signing) for USB, PCI and Bluetooth inventory and topology.",
+    // `pnpProperties.Data` is sensitive only for the Parent key (it is an
+    // instance ID); the redactor and the fixture test handle that key by
+    // name, so the field is not listed here where every Data value would be
+    // treated as a serial.
+    sensitiveFields: [
+      "pnpEntity.PNPDeviceID",
+      "pnpEntity.HardwareID",
+      "pnpEntity.CompatibleID",
+      "pnpProperties.InstanceId",
+      "signedDriver.DeviceID",
+    ],
+    // Hosts with many devices or slow providers: the batch runs ten CIM
+    // round trips rather than one.
+    timeoutMs: 90000,
+  }),
+  toWindowsCommandSpec(WINDOWS_TRUST_MANIFEST, {
+    category: "trust",
+    purpose:
+      "Collect virtualization-based security status, the Secure Boot registry state, firmware update results and battery state without elevation.",
+  }),
+  toWindowsCommandSpec(WINDOWS_PRIVILEGED_MANIFEST, {
+    category: "privileged",
+    purpose:
+      "Collect TPM, BitLocker, storage reliability and Secure Boot cmdlet state; these sources deny non-administrators, and the collector never elevates to reach them.",
+    sensitiveFields: ["encryptableVolume.DeviceID"],
+  }),
 ]);
 
 /**
@@ -485,6 +872,22 @@ export const WINDOWS_SELFTEST_COMMAND = toWindowsCommandSpec(
 );
 
 /**
+ * Every Windows manifest, including the selftest, so privacy and invariant
+ * tests cover each one without being updated per command.
+ *
+ * @type {ReadonlyArray<Readonly<import("./powershell.js").CimManifest>>}
+ */
+export const WINDOWS_MANIFESTS = Object.freeze([
+  WINDOWS_PLATFORM_MANIFEST,
+  WINDOWS_STORAGE_NETWORK_MANIFEST,
+  WINDOWS_DISPLAY_MEDIA_MANIFEST,
+  WINDOWS_PNP_DEVICES_MANIFEST,
+  WINDOWS_TRUST_MANIFEST,
+  WINDOWS_PRIVILEGED_MANIFEST,
+  WINDOWS_SELFTEST_MANIFEST,
+]);
+
+/**
  * Look up a Windows command spec by id.
  *
  * @param {string} id Command id such as `windows-cim-platform`.
@@ -506,7 +909,7 @@ export function getRequiredWindowsCommand(id) {
  * oversized manifest fails on import, not on a collector run.
  *
  * @param {import("./powershell.js").CimManifest} manifest CIM manifest.
- * @param {{ category: string, purpose: string, sensitiveFields?: string[] }} fields Spec fields.
+ * @param {{ category: string, purpose: string, sensitiveFields?: string[], timeoutMs?: number }} fields Spec fields.
  * @returns {Readonly<import("../../common/command.js").CommandSpec>} Frozen spec.
  */
 function toWindowsCommandSpec(manifest, fields) {
@@ -523,7 +926,7 @@ function toWindowsCommandSpec(manifest, fields) {
     phase: "collector-v1",
     privilege: "none",
     sudoRetryOnPermissionDenied: false,
-    timeoutMs: 60000,
+    timeoutMs: fields.timeoutMs ?? 60000,
     ...(fields.sensitiveFields
       ? { sensitiveFields: Object.freeze([...fields.sensitiveFields]) }
       : {}),

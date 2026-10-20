@@ -80,6 +80,43 @@ export function formatBytes(bytes) {
 }
 
 /**
+ * Format a display's physical size as `W x H cm`.
+ *
+ * Numbers pass through; numeric strings are parsed as base-10 integers, the
+ * way the Linux EDID path has always read sysfs values. Either dimension
+ * missing yields `undefined`.
+ *
+ * @param {number | string | undefined | null} widthCm Width in centimetres.
+ * @param {number | string | undefined | null} heightCm Height in centimetres.
+ * @returns {string | undefined} Formatted size or undefined.
+ */
+export function formatDisplayPhysicalSize(widthCm, heightCm) {
+  const normalizedWidth = toDisplayDimension(widthCm);
+  const normalizedHeight = toDisplayDimension(heightCm);
+
+  return normalizedWidth !== undefined && normalizedHeight !== undefined
+    ? `${normalizedWidth} x ${normalizedHeight} cm`
+    : undefined;
+}
+
+/**
+ * Normalize one physical display dimension.
+ *
+ * @param {number | string | undefined | null} value Candidate dimension.
+ * @returns {number | undefined} Number or undefined.
+ */
+function toDisplayDimension(value) {
+  if (typeof value === "number") {
+    return value;
+  }
+  if (typeof value !== "string" || value === "") {
+    return undefined;
+  }
+  const parsed = Number.parseInt(value, 10);
+  return Number.isNaN(parsed) ? undefined : parsed;
+}
+
+/**
  * Return a redacted representation for sensitive identifiers unless explicitly allowed.
  *
  * @param {string | undefined | null} value Identifier value.

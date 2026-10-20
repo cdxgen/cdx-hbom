@@ -10,7 +10,14 @@ import {
   isPlaceholderIdentity,
   redactIdentifier,
 } from "../../common/shape.js";
-import { cimArray, cimBool, cimNumber, cimString } from "./cim.js";
+import {
+  cimArray,
+  cimBool,
+  cimNumber,
+  cimResultItems,
+  cimString,
+} from "./cim.js";
+import { withPnpIdentity } from "./devices.js";
 import {
   WINDOWS_OPERATIONAL_STATUSES,
   WINDOWS_STORAGE_BUS_TYPES,
@@ -48,12 +55,12 @@ const CAPABILITY_REMOVABLE_MEDIA = 7;
 export function parseStorageNetworkEnvelope(envelope) {
   const results = envelope?.results ?? {};
   return {
-    physicalDisks: okItems(results.physicalDisk),
-    diskDrives: okItems(results.diskDrive),
-    volumes: okItems(results.volume),
-    netAdapters: okItems(results.netAdapter),
-    netAdapterHardware: okItems(results.netAdapterHardware),
-    legacyNetworkAdapters: okItems(results.networkAdapterLegacy),
+    physicalDisks: cimResultItems(results.physicalDisk),
+    diskDrives: cimResultItems(results.diskDrive),
+    volumes: cimResultItems(results.volume),
+    netAdapters: cimResultItems(results.netAdapter),
+    netAdapterHardware: cimResultItems(results.netAdapterHardware),
+    legacyNetworkAdapters: cimResultItems(results.networkAdapterLegacy),
   };
 }
 
@@ -69,18 +76,82 @@ export function parseStorageNetworkEnvelope(envelope) {
  * of the disk disappearing.
  *
  * @param {WindowsStorageNetworkSources} sources Storage sources.
- * @param {{ includeSensitiveIdentifiers?: boolean }} options Build options.
+ * @param {{ includeSensitiveIdentifiers?: boolean, pnpIndex?: Map<string, object>, storageReliability?: Map<string, object[]> }} options Build options.
  * @returns {object[]} Storage components.
  */
 export function buildStorageComponents(sources, options = {}) {
   return sources.diskDrives.map((drive) => {
     const disk = matchPhysicalDisk(sources.physicalDisks, drive);
     const index = cimNumber(drive.Index);
-    const pnpIds = parseDeviceInstanceId(drive.PNPDeviceID).ids;
+    const pnpId = cimString(drive.PNPDeviceID);
+    const pnpIds = parseDeviceInstanceId(pnpId).ids;
     const mediaTypeCode = cimNumber(disk?.MediaType);
     const busTypeName = disk
       ? windowsEnumName(WINDOWS_STORAGE_BUS_TYPES, cimNumber(disk.BusType))
       : undefined;
+    const properties = compact([
+      createProperty("cdx:hbom:diskNumber", index),
+      createProperty(
+        "cdx:hbom:capacityBytes",
+        cimNumber(disk?.Size) ?? cimNumber(drive.Size),
+      ),
+      createProperty(
+        "cdx:hbom:capacity",
+        formatBytes(cimNumber(disk?.Size) ?? cimNumber(drive.Size)),
+      ),
+      createProperty(
+        "cdx:hbom:deviceSerial",
+        redactSerial(disk?.SerialNumber ?? drive.SerialNumber, options),
+      ),
+      createProperty(
+        "cdx:hbom:firmwareVersion",
+        cimString(disk?.FirmwareVersion) ?? cimString(drive.FirmwareRevision),
+      ),
+      // InterfaceType is the documented coarse fallback (SCSI, IDE, USB,
+      // 1394, HDC); NVMe disks often surface as SCSI there.
+      createProperty("cdx:hbom:transport", busTypeName ?? cimString(drive.InterfaceType)),
+      createProperty(
+        "cdx:hbom:mediaType",
+        mediaTypeCode === 0
+          ? undefined
+          : windowsEnumName(WINDOWS_STORAGE_MEDIA_TYPES, mediaTypeCode),
+      ),
+      createProperty("cdx:hbom:isRotational", isRotational(disk, mediaTypeCode)),
+      createProperty(
+        "cdx:hbom:isRemovable",
+        cimArray(drive.Capabilities).some(
+          (capability) => cimNumber(capability) === CAPABILITY_REMOVABLE_MEDIA,
+        )
+          ? true
+          : undefined,
+      ),
+      createProperty(
+        "cdx:hbom:blockSize",
+        cimNumber(disk?.LogicalSectorSize) ?? cimNumber(drive.BytesPerSector),
+      ),
+      createProperty(
+        "cdx:hbom:physicalBlockSize",
+        cimNumber(disk?.PhysicalSectorSize),
+      ),
+      createProperty(
+        "cdx:hbom:healthStatus",
+        windowsEnumName(
+          WINDOWS_STORAGE_HEALTH_STATUSES,
+          cimNumber(disk?.HealthStatus),
+        ),
+      ),
+      createProperty(
+        "cdx:hbom:operationalStatus",
+        cimArray(disk?.OperationalStatus)
+          .map((code) =>
+            windowsEnumName(WINDOWS_OPERATIONAL_STATUSES, cimNumber(code)),
+          )
+          .filter(Boolean)
+          .join(", "),
+      ),
+      createProperty("cdx:hbom:vendorId", pnpIds.vendorId),
+      createProperty("cdx:hbom:productId", pnpIds.productId ?? pnpIds.deviceId),
+    ]);
 
     return createHardwareComponent("storage", {
       name:
@@ -89,68 +160,13 @@ export function buildStorageComponents(sources, options = {}) {
         "Disk Drive",
       manufacturer: diskOrDriveManufacturer(disk, drive),
       version: index === undefined ? undefined : `disk${index}`,
-      properties: compact([
-        createProperty("cdx:hbom:diskNumber", index),
-        createProperty(
-          "cdx:hbom:capacityBytes",
-          cimNumber(disk?.Size) ?? cimNumber(drive.Size),
-        ),
-        createProperty(
-          "cdx:hbom:capacity",
-          formatBytes(cimNumber(disk?.Size) ?? cimNumber(drive.Size)),
-        ),
-        createProperty(
-          "cdx:hbom:deviceSerial",
-          redactSerial(disk?.SerialNumber ?? drive.SerialNumber, options),
-        ),
-        createProperty(
-          "cdx:hbom:firmwareVersion",
-          cimString(disk?.FirmwareVersion) ?? cimString(drive.FirmwareRevision),
-        ),
-        // InterfaceType is the documented coarse fallback (SCSI, IDE, USB,
-        // 1394, HDC); NVMe disks often surface as SCSI there.
-        createProperty("cdx:hbom:transport", busTypeName ?? cimString(drive.InterfaceType)),
-        createProperty(
-          "cdx:hbom:mediaType",
-          mediaTypeCode === 0
-            ? undefined
-            : windowsEnumName(WINDOWS_STORAGE_MEDIA_TYPES, mediaTypeCode),
-        ),
-        createProperty("cdx:hbom:isRotational", isRotational(disk, mediaTypeCode)),
-        createProperty(
-          "cdx:hbom:isRemovable",
-          cimArray(drive.Capabilities).some(
-            (capability) => cimNumber(capability) === CAPABILITY_REMOVABLE_MEDIA,
-          )
-            ? true
-            : undefined,
-        ),
-        createProperty(
-          "cdx:hbom:blockSize",
-          cimNumber(disk?.LogicalSectorSize) ?? cimNumber(drive.BytesPerSector),
-        ),
-        createProperty(
-          "cdx:hbom:physicalBlockSize",
-          cimNumber(disk?.PhysicalSectorSize),
-        ),
-        createProperty(
-          "cdx:hbom:healthStatus",
-          windowsEnumName(
-            WINDOWS_STORAGE_HEALTH_STATUSES,
-            cimNumber(disk?.HealthStatus),
-          ),
-        ),
-        createProperty(
-          "cdx:hbom:operationalStatus",
-          cimArray(disk?.OperationalStatus)
-            .map((code) =>
-              windowsEnumName(WINDOWS_OPERATIONAL_STATUSES, cimNumber(code)),
-            )
-            .filter(Boolean)
-            .join(", "),
-        ),
-        createProperty("cdx:hbom:vendorId", pnpIds.vendorId),
-        createProperty("cdx:hbom:productId", pnpIds.productId ?? pnpIds.deviceId),
+      ...withPnpIdentity(options.pnpIndex, pnpId, options, [
+        ...properties,
+        // MSFT_StorageReliabilityCounter.DeviceId equals MSFT_PhysicalDisk.DeviceId,
+        // the string form of Win32_DiskDrive.Index (privileged batch only).
+        ...(index === undefined
+          ? []
+          : (options.storageReliability?.get(String(index)) ?? [])),
       ]),
     });
   });
@@ -163,7 +179,7 @@ export function buildStorageComponents(sources, options = {}) {
  * (2) or local (3) disk, per the Win32_Volume DriveType value map.
  *
  * @param {WindowsStorageNetworkSources} sources Storage sources.
- * @param {{ includeSensitiveIdentifiers?: boolean }} options Build options.
+ * @param {{ includeSensitiveIdentifiers?: boolean, bitlocker?: Map<string, object[]> }} options Build options.
  * @returns {object[]} Volume components.
  */
 export function buildStorageVolumeComponents(sources, options = {}) {
@@ -179,6 +195,16 @@ export function buildStorageVolumeComponents(sources, options = {}) {
     .map((volume) => {
       const driveLetter = cimString(volume.DriveLetter);
       const volumeGuid = parseVolumeDeviceId(volume.DeviceID);
+      // BitLocker state (privileged batch) joins on the volume GUID first,
+      // which also covers letterless volumes, then on the drive letter.
+      const bitlocker =
+        (volumeGuid === undefined
+          ? undefined
+          : options.bitlocker?.get(`guid:${volumeGuid}`)) ??
+        (driveLetter === undefined
+          ? undefined
+          : options.bitlocker?.get(`letter:${driveLetter.toUpperCase()}`)) ??
+        [];
       return createHardwareComponent("storage-volume", {
         name: driveLetter ?? "Volume",
         properties: compact([
@@ -198,6 +224,7 @@ export function buildStorageVolumeComponents(sources, options = {}) {
           ),
           createProperty("cdx:hbom:isBootVolume", cimBool(volume.BootVolume)),
           createProperty("cdx:hbom:isSystemVolume", cimBool(volume.SystemVolume)),
+          ...bitlocker,
         ]),
       });
     });
@@ -224,7 +251,7 @@ export function storageNetworkDiagnostics(sources, meta = {}) {
       {
         id: "windows-cim-storage-network:physical-disk",
         issue: "partial-support",
-        message: "Storage bus/media/health details need an elevated session",
+        message: "No disk bus, media or health details: Windows returns them to a standard user only while the Storage Spaces SMP service (smphost) is running, and never to a network logon; an elevated run starts it",
       },
     ];
   }
@@ -302,14 +329,4 @@ function redactSerial(value, options) {
     return undefined;
   }
   return redactIdentifier(text, options);
-}
-
-/**
- * Return the items of a successful envelope result.
- *
- * @param {{ ok?: boolean, items?: object[] } | undefined} result Envelope result.
- * @returns {Record<string, unknown>[]} Items, empty when the result failed.
- */
-function okItems(result) {
-  return result?.ok ? [...(result.items ?? [])] : [];
 }

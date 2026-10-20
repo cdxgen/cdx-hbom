@@ -31,7 +31,7 @@ The following are generally considered genuine security issues in `cdx-hbom`:
 
 - **Command injection or unintended shell execution**: attacker-controlled input reaches `safeSpawnSync` or other process-execution paths in a way that escapes intended command boundaries.
 - **Allowlist bypass**: bypassing a documented command policy so that non-approved commands execute, whether that policy is enforced by an upstream wrapper or integrator or by `cdx-hbom`'s opt-in environment-variable allowlist (`CDX_HBOM_ALLOWED_COMMANDS` / `CDXGEN_ALLOWED_COMMANDS`).
-- **Unsafe privileged enrichment**: `--privileged` / `includePrivilegedEnrichment: true` triggers behavior beyond the documented SMBIOS and permission-sensitive enrichment flow or unexpectedly broadens host access.
+- **Unsafe privileged enrichment**: `--privileged` / `includePrivilegedEnrichment: true` triggers behavior beyond the documented SMBIOS and permission-sensitive enrichment flow (Linux) or the documented admin-only CIM batch (Windows), or unexpectedly broadens host access; on Windows any attempt to elevate, prompt for UAC or invoke `sudo.exe` is in scope.
 - **Unexpected identifier disclosure in default mode**: serial numbers, UUIDs, MAC-like addresses, storage identifiers, or similar unique host identifiers are emitted raw when redaction should have applied.
 - **Unsafe filesystem behavior**: collector logic reads or writes outside its intended discovery scope because of a package defect rather than because the user explicitly called the low-level helper APIs with arbitrary paths.
 - **Parser vulnerabilities with demonstrated impact**: crafted plist, sysfs, `/proc`, or command output causes algorithmic denial of service, unbounded resource consumption, or unsafe behavior in `cdx-hbom` itself.
@@ -41,7 +41,7 @@ The following are generally considered genuine security issues in `cdx-hbom`:
 
 The following are generally **not** considered security issues in `cdx-hbom`:
 
-- **Vulnerabilities in operating-system tools**: bugs in `system_profiler`, `diskutil`, `ioreg`, `ifconfig`, `lscpu`, `lsblk`, `ip`, `dmidecode`, `lspci`, `lsusb`, `ethtool`, `drm_info`, `upower`, `fwupdmgr`, `boltctl`, `mmcli`, `edid-decode`, or similar host utilities belong to the OS or tool vendor.
+- **Vulnerabilities in operating-system tools**: bugs in `system_profiler`, `diskutil`, `ioreg`, `ifconfig`, `lscpu`, `lsblk`, `ip`, `dmidecode`, `lspci`, `lsusb`, `ethtool`, `drm_info`, `upower`, `fwupdmgr`, `boltctl`, `mmcli`, `edid-decode`, Windows PowerShell, WMI/CIM providers, or similar host utilities belong to the OS or tool vendor.
 - **Host compromise that predates `cdx-hbom`**: if an attacker already controls the host, kernel, root filesystem, or runtime environment, they can tamper with inventory inputs. That is a deployment integrity problem unless a specific `cdx-hbom` safeguard can be bypassed.
 - **Disclosure when explicitly opting in to raw identifiers**: using `--sensitive` or `includeSensitiveIdentifiers: true` intentionally disables default redaction.
 - **Inventory accuracy disagreements**: incomplete or imperfect hardware detection, unsupported devices, or differences between `cdx-hbom` output and vendor tools are product-quality issues unless they create a security impact.
@@ -68,7 +68,7 @@ These are evaluated case by case:
 | **Own code safety**           | Preventing unintended command execution and unsafe parsing in `cdx-hbom` itself | `safeSpawnSync`, array-based arguments, `shell: false` by default, bounded timeouts and buffers, parser tests                                                                                            |
 | **Command restriction**       | Exposing a predictable command plan that upstream tools can enforce             | exported command plans, executed-command tracking, and compatibility hooks that integrators can layer with their own allowlisting and `PATH` controls                                                    |
 | **Identifier redaction**      | Redacting privacy-sensitive identifiers by default                              | `redactIdentifier()`, `identifierPolicy` metadata, tests covering default vs explicit sensitive mode                                                                                                     |
-| **Least-surprise collection** | Keeping default collection scoped to documented local files and commands        | fixed Linux discovery roots, explicit Darwin command registry, opt-in plist enrichment, opt-in Linux privileged enrichment, and scoped `sudo -n` retry only for documented permission-sensitive commands |
+| **Least-surprise collection** | Keeping default collection scoped to documented local files and commands        | fixed Linux discovery roots, explicit Darwin command registry, frozen Windows PowerShell script registry, opt-in plist enrichment, opt-in privileged enrichment, and scoped `sudo -n` retry only for documented permission-sensitive Linux commands |
 | **Graceful degradation**      | Failing safely when optional enrichment is unavailable                          | `allowPartial` default behavior, `--strict` opt-in for hard failure                                                                                                                                      |
 | **Supply-chain integrity**    | Protecting published artifacts and release automation                           | pinned GitHub Actions SHAs, `permissions: {}`, npm provenance, minimal dependency surface                                                                                                                |
 
@@ -87,7 +87,7 @@ These are evaluated case by case:
 
 | Area                                                                   | Responsible Party                     |
 | ---------------------------------------------------------------------- | ------------------------------------- |
-| Vulnerabilities in Darwin and Linux host utilities used for enrichment | Operating-system and tool maintainers |
+| Vulnerabilities in Darwin, Linux and Windows host utilities used for enrichment (including Windows PowerShell and WMI providers) | Operating-system and tool maintainers |
 | Vulnerabilities in Node.js                                             | Node.js maintainers                   |
 | Compromise of npm or JSR infrastructure                                | Registry operators                    |
 | Vulnerabilities in GitHub Actions runners or hosted CI infrastructure  | GitHub                                |
@@ -98,7 +98,8 @@ These are evaluated case by case:
 
 - [`docs/THREAT_MODEL.md`](docs/THREAT_MODEL.md): detailed threat model for CLI, library, local collectors, and release flow
 - [`docs/hardware-properties.md`](docs/hardware-properties.md): property namespace and privacy-sensitive fields emitted in HBOM output
-- [`README.md`](README.md): documented CLI flags including `--sensitive`, `--privileged`, `--plist-enrichment`, `--strict`, and `--no-command-enrichment`
+- [`README.md`](README.md): documented CLI flags including `--sensitive`, `--privileged`, `--plist-enrichment`, `--strict`, and `--no-command-enrichment`, plus the Permissions section
+- [`windows-troubleshooting.md`](windows-troubleshooting.md): Windows permission levels, PowerShell restrictions and command allowlisting
 
 ## Supported Versions
 

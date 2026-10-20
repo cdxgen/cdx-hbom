@@ -158,50 +158,40 @@ test("elevated VM fixture yields one SATA SSD storage component", () => {
 });
 
 test("GitHub runner fixtures join two disks each and pick hardware NICs", () => {
-  // windows-2025: two NVMe disks (BusType 17) on the DeviceId = Index join.
+  // Runner hardware varies per job; these pins describe the committed capture
+  // (windows-capture.yml run 39388777375).
+  // windows-2025: two SAS virtual disks (no media type) on the
+  // DeviceId = Index join, and a Mellanox VF whose PCI segment 47551 renders
+  // as b9bf next to the Hyper-V synthetic adapter.
   const amd64 = buildFromFixture("amd64/windows-2025-gha");
-  const amd64Disks = byClass(amd64.bom, "storage");
   assert.deepEqual(
-    amd64Disks.map((disk) => [
+    byClass(amd64.bom, "storage").map((disk) => [
       prop(disk, "cdx:hbom:diskNumber"),
       prop(disk, "cdx:hbom:transport"),
       prop(disk, "cdx:hbom:mediaType"),
     ]),
     [
-      ["0", "NVMe", "SSD"],
-      ["1", "NVMe", "SSD"],
+      ["1", "SAS", undefined],
+      ["0", "SAS", undefined],
     ],
   );
-  // The Azure MANA adapter reports HardwareInterface=false, so only the
-  // Hyper-V synthetic adapter (HardwareInterface=true) is listed.
-  const { excluded } = selectHardwareNetAdapters(
-    amd64.storage.results.netAdapter.items,
-  );
-  assert.deepEqual(
-    excluded.map((entry) => [entry.item.InterfaceDescription, entry.reason]),
-    [
-      ["Microsoft Azure Network Adapter", "HardwareInterface is not true"],
-      ["Hyper-V Virtual Ethernet Adapter", "HardwareInterface is not true"],
-    ],
-  );
-  assert.deepEqual(
-    byClass(amd64.bom, "network-interface").map((nic) => prop(nic, "cdx:hbom:driver")),
-    ["netvsc"],
-  );
+  const amd64Nics = byClass(amd64.bom, "network-interface");
+  assert.deepEqual(amd64Nics.map((nic) => prop(nic, "cdx:hbom:driver")), ["mlx5", "netvsc"]);
+  assert.equal(prop(amd64Nics[0], "cdx:hbom:pciAddress"), "b9bf:00:02.0");
+  assert.equal(prop(amd64Nics[0], "cdx:hbom:vendorId"), "15b3");
 
-  // windows-11-arm: a SAS virtual disk without a serial plus an NVMe disk,
-  // and a Mellanox VF whose PCI segment 37452 renders as 924c.
+  // windows-11-arm: a SAS virtual disk plus an NVMe SSD,
+  // and the Azure MANA adapter, which reports HardwareInterface=true here.
   const arm64 = buildFromFixture("arm64/windows-11-arm-gha");
-  const virtualDisk = byClass(arm64.bom, "storage").find(
-    (disk) => prop(disk, "cdx:hbom:transport") === "SAS",
-  );
-  assert.equal(prop(virtualDisk, "cdx:hbom:deviceSerial"), undefined);
+  const disks = byClass(arm64.bom, "storage");
+  const virtualDisk = disks.find((disk) => prop(disk, "cdx:hbom:transport") === "SAS");
   assert.equal(prop(virtualDisk, "cdx:hbom:mediaType"), undefined);
-  const mellanox = byClass(arm64.bom, "network-interface").find(
-    (nic) => prop(nic, "cdx:hbom:driver") === "mlx5",
+  const nvme = disks.find((disk) => prop(disk, "cdx:hbom:transport") === "NVMe");
+  assert.equal(prop(nvme, "cdx:hbom:mediaType"), "SSD");
+  const mana = byClass(arm64.bom, "network-interface").find(
+    (nic) => prop(nic, "cdx:hbom:driver") === "Mana",
   );
-  assert.equal(prop(mellanox, "cdx:hbom:pciAddress"), "924c:00:02.0");
-  assert.equal(prop(mellanox, "cdx:hbom:vendorId"), "15b3");
+  assert.equal(prop(mana, "cdx:hbom:pciAddress"), "7870:00:00.0");
 });
 
 test("elevated VM fixture yields drive-lettered, system and boot volumes", () => {
@@ -319,7 +309,7 @@ test("empty PhysicalDisk under a standard token explains the gap", () => {
     {
       id: "windows-cim-storage-network:physical-disk",
       issue: "partial-support",
-      message: "Storage bus/media/health details need an elevated session",
+      message: "No disk bus, media or health details: Windows returns them to a standard user only while the Storage Spaces SMP service (smphost) is running, and never to a network logon; an elevated run starts it",
     },
   ]);
 

@@ -15,6 +15,14 @@ const DOTNET_TYPE_STRING =
 
 const CIM_INSTANCE_BLOB_KEYS = new Set(["CimClass", "CimInstanceProperties"]);
 
+// Envelope result kinds that are not WMI queries (`Q`): registry reads and
+// scalar cmdlets succeed or fail independently of WMI namespace access.
+const NON_WMI_RESULT_KINDS = new Set([
+  "registry",
+  "registry-children",
+  "cmdlet-scalar",
+]);
+
 // Month names of the registry / MS_SystemInformation date form, which carries
 // no timezone and must therefore be parsed positionally instead of through the
 // locale-dependent Date parser.
@@ -300,6 +308,38 @@ export function cimArray(value) {
 }
 
 /**
+ * Normalize a CIM number, dropping zero and negative values, which Windows
+ * classes use for "unknown" or "not supported".
+ *
+ * @param {unknown} value Candidate value.
+ * @returns {number | undefined} Positive number or undefined.
+ */
+export function cimPositiveNumber(value) {
+  const number = cimNumber(value);
+  return number !== undefined && number > 0 ? number : undefined;
+}
+
+/**
+ * Return the items of a successful envelope result.
+ *
+ * @param {{ ok?: boolean, items?: object[] } | undefined} result Envelope result.
+ * @returns {Record<string, unknown>[]} Items, empty when the result failed.
+ */
+export function cimResultItems(result) {
+  return result?.ok ? [...(result.items ?? [])] : [];
+}
+
+/**
+ * Return the first item of a successful envelope result.
+ *
+ * @param {{ ok?: boolean, items?: object[] } | undefined} result Envelope result.
+ * @returns {Record<string, unknown> | undefined} First item or undefined.
+ */
+export function cimFirstItem(result) {
+  return result?.ok ? result.items?.[0] : undefined;
+}
+
+/**
  * Format a Date as an ISO calendar date.
  *
  * @param {Date} date Parsed date.
@@ -326,10 +366,22 @@ function toUtcDateString(date) {
  */
 export function classifyWindowsResultError(error) {
   const nativeErrorCode = String(error?.nativeErrorCode ?? "");
-  const statusCode = Number(error?.statusCode);
-  const stableText = `${String(error?.fqid ?? "")} ${String(error?.category ?? "")}`;
+  const statusCode = toStatusCode(error?.statusCode);
+  const fqid = String(error?.fqid ?? "");
+  const category = String(error?.category ?? "");
+  const stableText = `${fqid} ${category}`;
 
-  if (nativeErrorCode === "AccessDenied" || statusCode === 2) {
+  if (
+    nativeErrorCode === "AccessDenied" ||
+    statusCode === 2 ||
+    // Confirm-SecureBootUEFI without SeSystemEnvironmentPrivilege (captured
+    // as hbomstd on win11-vm, both tokens): no CIM error code, FQID
+    // `SetPrivilegeFailed,Microsoft.SecureBoot.Commands.ConfirmSecureBootUefiCommand`,
+    // ErrorCategory PermissionDenied. Both tokens are enum/type names, not
+    // localized text.
+    /^SetPrivilegeFailed,/u.test(fqid) ||
+    category === "PermissionDenied"
+  ) {
     return "permission-denied";
   }
   if (
@@ -356,20 +408,34 @@ export function classifyWindowsResultError(error) {
 }
 
 /**
+ * Normalize an envelope `statusCode`, which is `null` for non-CIM errors
+ * (registry and cmdlet failures), to a number or NaN.
+ *
+ * @param {unknown} value Raw status code.
+ * @returns {number} MI_Result value or NaN.
+ */
+function toStatusCode(value) {
+  return value === null || value === undefined || value === ""
+    ? Number.NaN
+    : Number(value);
+}
+
+/**
  * Summarize WMI access across an envelope.
  *
  * `allWmiDenied` is true when at least one WMI query ran and every one of them
  * failed with `AccessDenied` (short-circuited entries replay the same error).
- * Registry results are excluded: the registry stays readable under a network
- * logon even when WMI is denied. Collectors use this to emit a single
- * network-logon diagnostic instead of dozens of per-class lines.
+ * Results that are not WMI queries are excluded: registry reads stay readable
+ * under a network logon even when WMI is denied, and cmdlet results fail for
+ * their own reasons. Collectors use this to emit a single network-logon
+ * diagnostic instead of dozens of per-class lines.
  *
  * @param {{ results?: Record<string, object> }} envelope Parsed envelope.
  * @returns {{ allWmiDenied: boolean }} Access summary.
  */
 export function summarizeWindowsAccess(envelope) {
   const results = Object.values(envelope?.results ?? {}).filter(
-    (result) => result?.kind !== "registry",
+    (result) => !NON_WMI_RESULT_KINDS.has(result?.kind),
   );
 
   return {
@@ -406,9 +472,12 @@ export function toWindowsResultDiagnostic(commandId, key, error) {
   }
 
   const nativeErrorCode = String(error?.nativeErrorCode ?? "");
-  const statusCode = Number(error?.statusCode);
+  const statusCode = toStatusCode(error?.statusCode);
+  // Non-CIM failures (cmdlets, registry) carry no native code; the FQID's
+  // leading token (`SetPrivilegeFailed`, `PathNotFound`) is the stable name.
+  const fqidPrefix = String(error?.fqid ?? "").split(",")[0] || undefined;
   const message = [
-    nativeErrorCode,
+    nativeErrorCode || fqidPrefix,
     Number.isFinite(statusCode) ? `status ${statusCode}` : undefined,
     error?.shortCircuited === true ? "short-circuited" : undefined,
   ]
@@ -419,7 +488,7 @@ export function toWindowsResultDiagnostic(commandId, key, error) {
     id: `${commandId}:${key}`,
     issue,
     code: nativeErrorCode ||
-      (Number.isFinite(statusCode) ? String(statusCode) : undefined),
+      (Number.isFinite(statusCode) ? String(statusCode) : fqidPrefix),
     message: message.length > 0 ? message : "WMI query failed",
     privilegeHint: issue === "permission-denied" ? WINDOWS_PRIVILEGE_HINT : undefined,
   };
