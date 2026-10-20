@@ -173,7 +173,8 @@ Trust boundary 4: published package / CI/CD pipeline ←→ registries and relea
 **Mitigations:**
 
 - Darwin commands use explicit absolute paths such as `/usr/sbin/system_profiler` and `/usr/bin/pmset`
-- Windows resolves `powershell.exe` under `SystemRoot` without a `PATH` lookup; the value is validated against a drive-absolute path pattern and falls back to `C:\Windows`, so `SystemRoot` is the one environment variable that is a trust input on Windows (T5.1)
+- Windows resolves `powershell.exe` under `SystemRoot` without a `PATH` lookup; the value is validated against a drive-absolute path pattern and falls back to `C:\Windows`, so `SystemRoot` is the environment variable that selects the executable on Windows (T5.1)
+- known limitation: PowerShell autoloads modules for bare cmdlet names through `PSModulePath`, whose first entry is the invoking user's `Documents\WindowsPowerShell\Modules`; `-NoProfile` does not prevent that. Anyone who can write that folder can already run code as that user, but an administrator running cdx-hbom also trusts their own module folder
 - `shell: false` prevents shell metacharacter expansion
 - the safe wrapper contains a Windows shell-hijack guard for current-working-directory shadowing when shell mode is enabled
 - upstream wrappers and integrators are responsible for enforcing strict command allowlisting and a trusted `PATH` where deployment policy requires it
@@ -254,10 +255,10 @@ Trust boundary 4: published package / CI/CD pipeline ←→ registries and relea
 
 **Mitigations:**
 
-- the executable is `<SystemRoot>\System32\WindowsPowerShell\v1.0\powershell.exe`, an absolute path with no `PATH` lookup; `SystemRoot` is read from the environment, validated (`^[A-Za-z]:\[^\0-\x1f"*?<>|/:]+$`) and otherwise replaced by `C:\Windows`, which makes `SystemRoot` the Windows counterpart of the `PATH` trust input
+- the executable is `<SystemRoot>\System32\WindowsPowerShell\v1.0\powershell.exe`, an absolute path with no `PATH` lookup; `SystemRoot` is read from the environment, validated (`^[A-Za-z]:\\[^\0-\x1f"*?<>|/:]+$`) and otherwise replaced by `C:\Windows`, which makes `SystemRoot` the Windows counterpart of the `PATH` trust input
 - every script is built once, at module load, from a frozen manifest by `buildCimScript()`; the registry is frozen and `getCommandPlan({ platform: "win32" })` returns the exact command lines, so an integrator can allowlist or audit them before anything runs
 - scripts are one line, at most 8,000 characters, contain no double quotes and are passed with `-NoLogo -NoProfile -NonInteractive -Command`; `-EncodedCommand` (opaque to reviewers and EDR) and `-ExecutionPolicy` (unnecessary for `-Command`, often flagged) are never used
-- the scripts only call read-only cmdlets: `Get-CimClass`, `Get-CimInstance`, `Get-ItemProperty`, `Get-ChildItem`, `Get-PnpDevice`, `Get-PnpDeviceProperty`, `Confirm-SecureBootUEFI`, `ConvertTo-Json`; the `cmdlet-scalar` manifest kind accepts only an allowlisted cmdlet name and no arguments
+- the scripts call read-only data cmdlets (`Get-CimClass`, `Get-CimInstance`, `Get-ItemProperty`, `Get-ChildItem`, `Get-PnpDevice`, `Get-PnpDeviceProperty`, `Confirm-SecureBootUEFI`), pipeline cmdlets (`Select-Object`, `Where-Object`, `ConvertTo-Json`) and `Remove-Item` on `Alias:` drive entries only, to remove aliases that would shadow the script's own helper-function names; the `cmdlet-scalar` manifest kind accepts only an allowlisted cmdlet name and no arguments
 - `--dry-run` blocks every PowerShell spawn and traces the planned command lines
 
 **Residual risk:** Medium. Allowlisting `powershell.exe` by path is coarse: it admits any PowerShell invocation, not only cdx-hbom's. Integrators who need a tight policy should allowlist the exact command lines from the plan. A `SystemRoot` pointing at an attacker-controlled drive-absolute directory would be honoured; that requires control of the collector's environment, which already implies control of the process.
@@ -352,7 +353,7 @@ Trust boundary 4: published package / CI/CD pipeline ←→ registries and relea
 | Fixed Linux discovery roots        | Local reads limited to known `/proc`, `/sys`, `/etc`, and device-tree paths                                         | T2.1                                |
 | Absolute Darwin command paths      | `/usr/sbin/*`, `/usr/bin/*`, `/sbin/*` in command registry                                                          | T2.2                                |
 | Absolute, validated PowerShell path | `<SystemRoot>\System32\WindowsPowerShell\v1.0\powershell.exe`, `SystemRoot` validated with fallback `C:\Windows` | T2.2, T5.1                          |
-| Static Windows scripts             | Frozen manifests, `buildCimScript()` invariants (one line, no `"`, ≤ 8,000 chars, allowlisted cmdlets), `getCommandPlan()` | T1.1, T5.1                          |
+| Static Windows scripts             | Frozen manifests, `buildCimScript()` invariants (one line, no `"`, ≤ 8,000 chars, `cmdlet-scalar` kind limited to `WINDOWS_SCALAR_CMDLETS`), `getCommandPlan()` | T1.1, T5.1                          |
 | No Windows elevation               | `privilege: "none"`, `sudoRetryOnPermissionDenied: false`, `--privileged` adds a batch only                          | T5.2                                |
 | PII never selected, instance IDs redacted | Manifest PII guard test, `redactInstanceId()`, `redactHardwareIds()`, redacted `bom-ref`s                      | T1.2, T5.4                          |
 | WMI denial short-circuit           | Per-namespace `AccessDenied` memo in the script, batch skip after an all-denied platform batch                      | T5.5                                |
@@ -368,7 +369,7 @@ Trust boundary 4: published package / CI/CD pipeline ←→ registries and relea
 3. **Review output before sharing**: especially `cdx:hbom:evidence:file*`, `cdx:hbom:evidence:command*`, `cdx:hbom:evidence:commandDiagnostic*`, serial-like properties, and topology details.
 4. **Enforce command policy in the parent environment**: if your deployment requires strict execution control, apply command allowlisting and a trusted `PATH` in the calling wrapper, CI job, or parent application.
 5. **Use privileged enrichment sparingly**: on Linux enable `--privileged` only when additional SMBIOS or permission-gated hardware detail is required and the environment is appropriately hardened for `sudo -n`; on Windows it only adds the admin-only batch, so decide deliberately whether to run cdx-hbom from an elevated session.
-6. **On Windows, allowlist the command lines, not just `powershell.exe`**: `cdx-hbom --dry-run` and `getCommandPlan({ platform: "win32" })` give the exact static scripts; treat `SystemRoot` as a trust input of the collector's environment.
+6. **On Windows, allowlist the command lines, not just `powershell.exe`**: `getCommandPlan({ platform: "win32" })` gives the exact static scripts (`cdx-hbom --dry-run` builds a BOM without running anything but does not print them); treat `SystemRoot` as a trust input of the collector's environment.
 7. **Prefer `buildHardwareFromSources()` for offline reconstruction**: when live command execution is undesirable, capture and vet the source data first.
 8. **Pin package and Node.js versions in CI**: combine reproducible installs with provenance verification where available.
 9. **Stay current**: use the latest published `cdx-hbom` release for security fixes.

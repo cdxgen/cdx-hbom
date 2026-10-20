@@ -22,9 +22,10 @@ read the diagnostics the BOM carries.
    one.
 
 Every process runs a fixed, single-line script with `-NoLogo -NoProfile
--NonInteractive -Command`. `cdx-hbom --dry-run` lists the exact command lines
-without running them, and `getCommandPlan({ platform: "win32" })` returns the
-same plan to a library caller. The README lists every CIM class and registry
+-NonInteractive -Command`. `getCommandPlan({ platform: "win32" })` returns the
+exact command lines to a library caller without running them. `cdx-hbom
+--dry-run` produces a baseline BOM without running anything; it does not print
+the command lines. The README lists every CIM class and registry
 key per command id.
 
 ## Permissions
@@ -50,7 +51,7 @@ standard user gets instead:
 | Secure Boot confirmed by the firmware (`Confirm-SecureBootUEFI`) | The Windows Secure Boot registry setting is still reported, with `cdx:hbom:secureBootSource` = `registry` |
 | Disk wear, temperature and power-on hours (`MSFT_StorageReliabilityCounter`) | Disks are listed without them |
 
-Two further degradations were measured for a standard local user and need no
+One further degradation was measured for a standard local user and needs no
 `--privileged`:
 
 - **Disk bus type (NVMe/SATA/USB), SSD vs HDD and health** come from
@@ -59,16 +60,16 @@ Two further degradations were measured for a standard local user and need no
   standard user cannot start it. When it is not running, the class answers
   with zero instances and no error; disks are still listed from
   `Win32_DiskDrive` and the BOM carries one `partial-support` diagnostic
-  (`windows-cim-storage-network:physical-disk`).
-- **The network adapter driver file name** (`MSFT_NetAdapter.DriverName`) is
-  null for a standard user. The driver service name is reported instead, from
-  `Win32_NetworkAdapter.ServiceName`.
+  (`windows-cim-storage-network:physical-disk`). That diagnostic means
+  `smphost` was not running for a standard user, or the run was a network
+  logon, which never gets these details.
 
 With `--privileged` and no administrator rights, cdx-hbom records one
 `permission-denied` diagnostic per denied class plus one summary diagnostic
 (`windows-cim-privileged`), each carrying the hint "Re-run from an elevated
 (Run as administrator) prompt; cdx-hbom never requests elevation on Windows",
-and finishes normally. It does not fail unless `--strict` is given.
+and finishes normally. Per-class denials are recorded as diagnostics, never
+thrown, so `--strict` does not change this.
 
 ### Measured matrix
 
@@ -134,18 +135,44 @@ reports one diagnostic:
 {"id":"windows-cim-platform:network-logon","issue":"permission-denied","code":"AccessDenied","message":"every WMI query was denied by the namespace","privilegeHint":"WMI denied for a network logon (SSH/WinRM) without administrator rights; run cdx-hbom from a local session or elevated"}
 ```
 
-The registry remains readable in that session, so the Secure Boot setting is
-still reported. Your options:
+The BOM then holds only the baseline (processors and memory). Every later
+batch is skipped, including the Secure Boot registry read in
+`windows-cim-trust`. Your options:
 
 - run cdx-hbom in a local session, for example as a scheduled task or a CI
   service;
 - run it as an administrator;
-- grant the account WMI remote access to the namespaces cdx-hbom reads.
-  <!-- TODO(Claude): verify the minimal permission set ("Enable Account" +
-  "Remote Enable" on root/cimv2, root/wmi, root/StandardCimv2,
-  root/Microsoft/Windows/Storage, root/Microsoft/Windows/DeviceGuard) on
-  win11-vm with a reversible tools/ script, then document exactly what worked.
-  Until then this bullet is a hypothesis, not a verified instruction. -->
+- grant the account WMI "Remote Enable" on the namespaces cdx-hbom reads
+  (see below).
+
+**Granting WMI remote access.** This was measured on Windows 11 ARM64 build
+26200 with a standard user over OpenSSH. Authenticated Users already hold
+"Enable Account". Granting the account "Remote Enable"
+(`WBEM_REMOTE_ACCESS`, `0x20`) on these five namespaces gives a network-logon
+run the same inventory as a local standard-user run:
+
+- `root/cimv2`
+- `root/wmi`
+- `root/StandardCimv2`
+- `root/Microsoft/Windows/Storage`
+- `root/Microsoft/Windows/DeviceGuard`
+
+Two things are still missing:
+
+- monitors: the `root/wmi` `WmiMonitor*` classes still deny network logons,
+  class by class;
+- disk bus, media and health: `MSFT_PhysicalDisk` returns no disks to a
+  network logon, even while `smphost` runs.
+
+`root/cimv2` alone is not enough: the classes in the other namespaces are then
+denied one by one. The TPM and BitLocker classes stay administrator-only
+whatever you grant.
+
+To grant it, run `wmimgmt.msc`, right-click **WMI Control**, choose
+**Properties**, open the **Security** tab, select the namespace, click
+**Security**, add the account and allow **Remote Enable**. Repeat for each
+namespace. This widens who can query WMI over the network, so it is a
+security decision for the administrator, not something cdx-hbom needs.
 
 ## PowerShell missing or restricted
 
@@ -157,8 +184,10 @@ be started) or `command-error` (it started and exited non-zero). Nothing is
 retried through another shell.
 
 **Constrained Language Mode or a restrictive WDAC policy**: the scripts use
-only cmdlets and syntax allowed in Constrained Language Mode, except for one
-guarded line that switches the console to UTF-8. The BOM records what it saw:
+only cmdlets and syntax allowed in Constrained Language Mode, except for two
+guarded `.NET` calls: one switches the console to UTF-8 and one probes the
+Administrator role. Each sits in its own `try/catch`. This has not been
+exercised under a real AppLocker or WDAC policy. The BOM records what it saw:
 
 - `cdx:hbom:evidence:languageMode` is the session's language mode
   (`FullLanguage` or `ConstrainedLanguage`);
@@ -194,13 +223,16 @@ always the same:
 - `-NoLogo -NoProfile -NonInteractive -Command` followed by one readable,
   static script per batch, at most 8,000 characters, with no double quotes and
   no encoded payload;
-- read-only cmdlets: `Get-CimClass`, `Get-CimInstance`, `Get-ItemProperty`,
-  `Get-ChildItem`, `Get-PnpDevice`, `Get-PnpDeviceProperty`,
-  `Confirm-SecureBootUEFI`, `ConvertTo-Json`.
+- read-only data cmdlets: `Get-CimClass`, `Get-CimInstance`,
+  `Get-ItemProperty`, `Get-ChildItem`, `Get-PnpDevice`,
+  `Get-PnpDeviceProperty`, `Confirm-SecureBootUEFI`;
+- pipeline cmdlets: `Select-Object`, `Where-Object`, `ConvertTo-Json`;
+- `Remove-Item` on `Alias:` drive entries only, to remove any aliases that
+  would shadow the script's own one-letter helper functions.
 
-To review or allowlist the scripts, run `cdx-hbom --dry-run` or call
-`getCommandPlan({ platform: "win32" })`; both return the complete command
-lines. Allowlisting `powershell.exe` by path is coarse (it admits any
+To review or allowlist the scripts, call `getCommandPlan({ platform: "win32" })`
+from the library; it returns the complete command lines. `cdx-hbom --dry-run`
+does not print them. Allowlisting `powershell.exe` by path is coarse (it admits any
 PowerShell invocation), so prefer allowlisting the exact command lines where
 your tooling supports it. In cdxgen secure mode, allow `powershell.exe`.
 
@@ -223,12 +255,17 @@ logon costs about five seconds before the short-circuit kicks in.
 
 ## x64 Node on ARM64 Windows
 
-An x64 Node build runs under emulation on ARM64 Windows and reports `x64` for
-`process.arch` and `os.machine()`. cdx-hbom therefore takes the architecture
-from `Win32_Processor.Architecture` (9 is amd64, 12 is arm64) and records the
-source in `cdx:hbom:architectureSource`. When the Node process architecture
-differs from the hardware, `cdx:hbom:collectorProcessArchitecture` carries
-the process value. x86 Windows is not a supported target and is reported as
+An x64 Node build runs under emulation on ARM64 Windows: `process.arch` is
+`x64` and `os.machine()` returns `x86_64`. cdx-hbom therefore takes the
+architecture from `Win32_Processor.Architecture` (9 is amd64, 12 is arm64) and
+sets `cdx:hbom:architectureSource` to `Win32_Processor`. When the Node process
+architecture differs from the hardware, `cdx:hbom:collectorProcessArchitecture`
+carries the process value.
+
+When WMI is unavailable (a network logon, `--dry-run`, blocked PowerShell) the
+architecture comes from the Node process instead and
+`cdx:hbom:architectureSource` is `process`. x64 Node on an ARM64 host then
+reports `amd64`. Use `--arch` to override it. x86 Windows is not a supported target and is reported as
 `Unsupported HBOM target`.
 
 ## Reading diagnostics

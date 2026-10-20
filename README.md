@@ -49,7 +49,7 @@ Examples:
 
 ```bash
 npx @cdxgen/cdx-hbom --pretty
-npx @cdxgen/cdx-hbom --privileged --pretty > linux-hbom.json
+npx @cdxgen/cdx-hbom --privileged --pretty > host-hbom.json
 npx @cdxgen/cdx-hbom --plist-enrichment --pretty > mac-hbom.json
 ```
 
@@ -224,20 +224,20 @@ x64-on-ARM64 case are covered in
 
 Short answer: **run cdx-hbom as a normal local user.** That gives nearly the
 whole hardware inventory on every supported OS. Elevation (administrator or
-root) adds a few security- and health-related details. cdx-hbom never asks
-for elevation itself: no `sudo` prompts, no UAC.
+root) adds a few security- and health-related details. cdx-hbom never prompts
+for a password and never elevates on Windows; on Linux, `--privileged` retries
+a few documented commands with non-interactive `sudo -n`.
 
 | Platform | Normal user, local session | Administrator or root | Non-admin over SSH or WinRM |
 | --- | --- | --- | --- |
-| **macOS** (Apple Silicon) | Full inventory; every collector command runs as a normal user | Nothing extra | Same as local |
-| **Linux** | `/proc` and `/sys` baseline plus the optional tools that are installed | `--privileged` runs `dmidecode` and retries `drm_info` with non-interactive `sudo -n` (see [`linux-troubleshooting.md`](linux-troubleshooting.md)) | Same as local |
-| **Windows** | Nearly everything; see the measured matrix in [`windows-troubleshooting.md`](windows-troubleshooting.md#measured-matrix) | `--privileged` adds TPM details, BitLocker status, the firmware-confirmed Secure Boot state and disk reliability counters | Every WMI query is denied; only the baseline and the Secure Boot registry setting are produced, with one `permission-denied` diagnostic that says why |
+| **macOS** (Apple Silicon) | Full inventory; every collector command runs as a normal user | Nothing extra | Not measured; expected same as local |
+| **Linux** | `/proc` and `/sys` baseline plus the optional tools that are installed | `--privileged` runs `dmidecode` and retries `drm_info` with non-interactive `sudo -n` (see [`linux-troubleshooting.md`](linux-troubleshooting.md)) | Not measured; expected same as local |
+| **Windows** | Nearly everything; see the measured matrix in [`windows-troubleshooting.md`](windows-troubleshooting.md#measured-matrix) | `--privileged` adds TPM details, BitLocker status, the firmware-confirmed Secure Boot state and disk reliability counters | Every WMI query is denied; only the baseline (processors and memory) is produced, with one `permission-denied` diagnostic that says why. Granting the account WMI "Remote Enable" on five namespaces restores most of the local inventory (see the troubleshooting page) |
 
-On Windows two more details depend on state rather than rights: disk bus
+On Windows one more detail depends on state rather than rights: disk bus
 type, media type and health (`MSFT_PhysicalDisk`) reach a standard user only
-while the Storage Spaces SMP service (`smphost`) is already running, and the
-network driver file name is null for a standard user (the driver service name
-is reported instead). Both are explained in the troubleshooting page.
+while the Storage Spaces SMP service (`smphost`) is already running. This is
+explained in the troubleshooting page.
 
 Privacy defaults on every platform: serial numbers, UUIDs, MAC addresses and
 PnP instance segments are redacted to `redacted:<last 4>`; host names, user
