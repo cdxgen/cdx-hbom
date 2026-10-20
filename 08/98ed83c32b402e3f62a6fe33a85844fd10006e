@@ -1,0 +1,25 @@
+test/windows/fallback.test.js
+  s_c81cb3ef09afe3::t_a70c22223d7e48 91
+README.md
+  s_c81cb3ef09afe3::t_ac8229df1c25f2 219-224
+src/windows/common/fallback.js
+  s_c81cb3ef09afe3::t_460d4ae5d98c85 7-13,41
+src/windows/common/index.js
+  s_c81cb3ef09afe3::t_360b7fa91aa26a 548,580-582
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "0898ed83c32b402e3f62a6fe33a85844fd10006e",
+  "prompts": {},
+  "sessions": {
+    "s_c81cb3ef09afe3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2eb5ded0-f83f-4668-b459-e157774b0030",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Prabhu Subramanian <prabhu@appthreat.com>"
+    }
+  }
+}
