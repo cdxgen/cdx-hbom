@@ -27,7 +27,11 @@ import { parseDeviceInstanceId, redactInstanceId } from "./pnp.js";
 // default rate is being used, while 0xFFFFFFFF indicates the optimal rate is
 // being used", so neither is a measured frequency:
 // https://learn.microsoft.com/en-us/windows/win32/cimwin32prov/win32-videocontroller
-const REFRESH_RATE_SENTINELS = new Set([0, 0xffffffff]);
+// The value mirrors DEVMODE.dmDisplayFrequency, whose values 0 and 1
+// "represent the display hardware's default refresh rate"; Hyper-V Video
+// reports 1 on both GitHub runners:
+// https://learn.microsoft.com/en-us/windows/win32/api/wingdi/ns-wingdi-devmodea
+const REFRESH_RATE_SENTINELS = new Set([0, 1, 0xffffffff]);
 
 // WmiMonitorID.WeekOfManufacture: "The range is from 1 through 53. Zero (0) is
 // undefined" (https://learn.microsoft.com/en-us/windows/win32/wmicoreprov/wmimonitorid).

@@ -278,7 +278,7 @@ test("amd64 GHA fixture collapses one multi-core processor instance", () => {
   assert.equal(processors.length, 1);
   assert.equal(
     processors[0].name,
-    "AMD EPYC 9V45 96-Core Processor",
+    "AMD EPYC 7763 64-Core Processor",
     "trailing spaces are trimmed",
   );
   assert.equal(prop(processors[0], "cdx:hbom:architecture"), "amd64");

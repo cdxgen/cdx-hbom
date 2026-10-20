@@ -1,6 +1,6 @@
 {
   "label": "windows-2025-gha",
-  "capturedAt": "2026-10-19T22:37:19.611Z",
+  "capturedAt": "2026-10-20T07:47:02.554Z",
   "nodeVersion": "v24.21.0",
   "processArch": "x64",
   "osRelease": "10.0.26100",
@@ -13,7 +13,7 @@
       "id": "windows-cim-platform",
       "argsSha256": "32d2257efbe318a250aa6f9b2b0cb0664ce6095d278c43e49efbe2673cf2a492",
       "exitCode": 0,
-      "durationMs": 3669,
+      "durationMs": 4250,
       "bytes": 3484,
       "provenance": "captured"
     },
@@ -21,16 +21,48 @@
       "id": "windows-cim-storage-network",
       "argsSha256": "7ff42a105618c6c61b7316eed1b76ef593d832bfd11994ce55f1219df6329761",
       "exitCode": 0,
-      "durationMs": 649,
-      "bytes": 7165,
+      "durationMs": 1397,
+      "bytes": 7121,
+      "provenance": "captured"
+    },
+    {
+      "id": "windows-cim-display-media",
+      "argsSha256": "88b7b1f52ce0035b29a0e37d8f5f941dbb38611414a0fae8fb43aab1f8d51864",
+      "exitCode": 0,
+      "durationMs": 635,
+      "bytes": 1500,
+      "provenance": "captured"
+    },
+    {
+      "id": "windows-pnp-devices",
+      "argsSha256": "58d8b7e85fa006bdb9a0e3cff8fc7e2564189c26e4901a037efe2bc69d8485be",
+      "exitCode": 0,
+      "durationMs": 12753,
+      "bytes": 112513,
+      "provenance": "captured"
+    },
+    {
+      "id": "windows-cim-trust",
+      "argsSha256": "1d2f992e2c5bfaca4fa66dbe5d28200828a1bba2b9b8d0e242f69615e5942226",
+      "exitCode": 0,
+      "durationMs": 1394,
+      "bytes": 954,
+      "provenance": "captured"
+    },
+    {
+      "id": "windows-cim-privileged",
+      "argsSha256": "84fe0a9b462342110c6b6e2a4e2b2b6c5d7a7d6712cb830c2c61c16fd137d9c7",
+      "exitCode": 0,
+      "durationMs": 2205,
+      "bytes": 705,
       "provenance": "captured"
     },
     {
       "id": "windows-cim-selftest",
       "argsSha256": "3f90eaab8a502377d0472b05f98acb1084f3a787088aceaeed6135267b75103a",
       "exitCode": 0,
-      "durationMs": 462,
-      "bytes": 19795,
+      "durationMs": 621,
+      "bytes": 17258,
       "provenance": "captured"
     }
   ]

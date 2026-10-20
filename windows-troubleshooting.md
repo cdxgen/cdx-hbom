@@ -102,23 +102,23 @@ command yet.
 | `windows-cim-storage-network:netAdapter` | ok | ok | ok | denied | ok | ok |
 | `windows-cim-storage-network:netAdapterHardware` | ok | ok | ok | denied (short-circuited) | ok | ok |
 | `windows-cim-storage-network:networkAdapterLegacy` | ok | ok | ok | denied (short-circuited) | ok | ok |
-| `windows-cim-display-media:videoController` | ok | ok | not captured | denied | not captured | not captured |
-| `windows-cim-display-media:monitorId` | ok | ok | not captured | denied | not captured | not captured |
-| `windows-cim-display-media:monitorBasic` | ok | ok | not captured | denied (short-circuited) | not captured | not captured |
-| `windows-cim-display-media:monitorConnection` | ok | ok | not captured | denied (short-circuited) | not captured | not captured |
-| `windows-cim-display-media:soundDevice` | ok | ok | not captured | denied (short-circuited) | not captured | not captured |
-| `windows-cim-display-media:mediaPnp` | ok | ok | not captured | denied (short-circuited) | not captured | not captured |
-| `windows-pnp-devices:pnpEntity` | ok | ok | not captured | denied | not captured | not captured |
-| `windows-pnp-devices:pnpProperties` | ok | ok | not captured | denied (short-circuited) | not captured | not captured |
-| `windows-pnp-devices:signedDriver` | ok | ok | not captured | denied (short-circuited) | not captured | not captured |
-| `windows-cim-trust:deviceGuard` | ok | ok | not captured | denied | not captured | not captured |
-| `windows-cim-trust:secureBootState` | ok | ok | not captured | ok | not captured | not captured |
-| `windows-cim-trust:firmwareResources` | absent | absent | not captured | absent | not captured | not captured |
-| `windows-cim-trust:battery` | empty | empty | not captured | denied | not captured | not captured |
-| `windows-cim-privileged:tpm` | ok | denied | not captured | denied | not captured | not captured |
-| `windows-cim-privileged:encryptableVolume` | ok | denied | not captured | denied | not captured | not captured |
-| `windows-cim-privileged:storageReliability` | empty | denied | not captured | denied | not captured | not captured |
-| `windows-cim-privileged:secureBootCmdlet` | ok (true) | denied | not captured | denied | not captured | not captured |
+| `windows-cim-display-media:videoController` | ok | ok | not captured | denied | ok | ok |
+| `windows-cim-display-media:monitorId` | ok | ok | not captured | denied | ok | ok |
+| `windows-cim-display-media:monitorBasic` | ok | ok | not captured | denied (short-circuited) | ok | ok |
+| `windows-cim-display-media:monitorConnection` | ok | ok | not captured | denied (short-circuited) | ok | ok |
+| `windows-cim-display-media:soundDevice` | ok | ok | not captured | denied (short-circuited) | empty | empty |
+| `windows-cim-display-media:mediaPnp` | ok | ok | not captured | denied (short-circuited) | empty | empty |
+| `windows-pnp-devices:pnpEntity` | ok | ok | not captured | denied | ok | ok |
+| `windows-pnp-devices:pnpProperties` | ok | ok | not captured | denied (short-circuited) | ok | ok |
+| `windows-pnp-devices:signedDriver` | ok | ok | not captured | denied (short-circuited) | ok | ok |
+| `windows-cim-trust:deviceGuard` | ok | ok | not captured | denied | ok | ok |
+| `windows-cim-trust:secureBootState` | ok | ok | not captured | ok | ok | ok |
+| `windows-cim-trust:firmwareResources` | absent | absent | not captured | absent | absent | absent |
+| `windows-cim-trust:battery` | empty | empty | not captured | denied | empty | empty |
+| `windows-cim-privileged:tpm` | ok | denied | not captured | denied | empty | empty |
+| `windows-cim-privileged:encryptableVolume` | ok | denied | not captured | denied | ok | ok |
+| `windows-cim-privileged:storageReliability` | empty | denied | not captured | denied | empty | empty |
+| `windows-cim-privileged:secureBootCmdlet` | ok (true) | denied | not captured | denied | ok (false) | ok (false) |
 <!-- permissions-matrix:end -->
 
 ### Remote shells as a non-administrator
