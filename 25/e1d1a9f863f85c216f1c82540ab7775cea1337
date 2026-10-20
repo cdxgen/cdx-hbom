@@ -1,0 +1,24 @@
+SECURITY.md
+  h_6a4cc5cdf68def 34,44,71,90,101-102
+docs/THREAT_MODEL.md
+  h_6a4cc5cdf68def 22-23,31-32,59-61,94,176,249-314,335-336,354-358,370-374
+docs/hardware-properties.md
+  h_6a4cc5cdf68def 593
+jsr.json
+  h_6a4cc5cdf68def 3
+package-lock.json
+  h_6a4cc5cdf68def 3,9
+package.json
+  h_6a4cc5cdf68def 3,45-46
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "25e1d1a9f863f85c216f1c82540ab7775cea1337",
+  "prompts": {},
+  "humans": {
+    "h_6a4cc5cdf68def": {
+      "author": "Team AppThreat <cloud@appthreat.com>"
+    }
+  }
+}
