@@ -135,3 +135,28 @@ test("safeSpawnSync allowlists absolute Windows paths by their win32 basename", 
   });
   assert.match(String(blocked.error?.message), /allowlist/u);
 });
+
+test("safeSpawnSync matches Windows commands case-insensitively and POSIX commands exactly", () => {
+  const windowsPowerShell =
+    "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe";
+  for (const entry of ["POWERSHELL.EXE", "PowerShell.exe", windowsPowerShell.toUpperCase()]) {
+    const allowed = safeSpawnSync(windowsPowerShell, ["-NoProfile"], {
+      allowedCommands: [entry],
+      dryRun: true,
+    });
+    assert.equal(allowed.error?.code, "CDX_HBOM_DRY_RUN", `${entry} allows powershell.exe`);
+  }
+  const blocked = safeSpawnSync(windowsPowerShell, ["-NoProfile"], {
+    allowedCommands: ["PWSH.EXE"],
+    dryRun: true,
+  });
+  assert.match(String(blocked.error?.message), /allowlist/u);
+
+  if (process.platform !== "win32") {
+    const posix = safeSpawnSync("/usr/bin/LSCPU", [], {
+      allowedCommands: ["lscpu"],
+      dryRun: true,
+    });
+    assert.match(String(posix.error?.message), /allowlist/u, "POSIX names stay case-sensitive");
+  }
+});

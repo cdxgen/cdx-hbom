@@ -305,11 +305,7 @@ export function safeSpawnSync(command, args = [], options = {}) {
         : formatCommandTarget(command, args),
   };
 
-  if (
-    allowedCommands &&
-    !allowedCommands.has(command) &&
-    !allowedCommands.has(commandName)
-  ) {
+  if (allowedCommands && !isCommandAllowed(allowedCommands, command, commandName)) {
     const error = new Error(`Command blocked by allowlist: ${command}`);
     recordCollectorTrace(options.trace, {
       ...traceActivity,
@@ -421,6 +417,37 @@ function normalizeAllowedCommands(allowedCommands) {
       .map((entry) => entry.trim())
       .filter(Boolean),
   );
+}
+
+/**
+ * Match a command against the allowlist.
+ *
+ * Windows file names are case-insensitive, so a Windows-style command
+ * (backslash or drive path, or any command on a win32 host) also matches an
+ * entry that differs only in case: `POWERSHELL.EXE` allows
+ * `C:\Windows\...\powershell.exe`. POSIX commands match exactly.
+ *
+ * @param {Set<string>} allowedCommands Allowlist.
+ * @param {string} command Executable path or name.
+ * @param {string} commandName Command basename.
+ * @returns {boolean} True when allowed.
+ */
+function isCommandAllowed(allowedCommands, command, commandName) {
+  if (allowedCommands.has(command) || allowedCommands.has(commandName)) {
+    return true;
+  }
+  const windowsStyle =
+    process.platform === "win32" || /^[A-Za-z]:\\/u.test(command) || command.includes("\\");
+  if (!windowsStyle) {
+    return false;
+  }
+  const candidates = new Set([command.toLowerCase(), commandName.toLowerCase()]);
+  for (const entry of allowedCommands) {
+    if (candidates.has(entry.toLowerCase())) {
+      return true;
+    }
+  }
+  return false;
 }
 
 /**
