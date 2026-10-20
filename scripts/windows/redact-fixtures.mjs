@@ -34,6 +34,11 @@ import {
   WINDOWS_SELFTEST_COMMAND,
 } from "../../src/windows/common/commands.js";
 import {
+  WINDOWS_FALLBACK_COMMANDS,
+  parsePnputilDevices,
+  toFallbackPnpEnvelope,
+} from "../../src/windows/common/fallback.js";
+import {
   getInstanceSegment,
   redactHardwareIds,
   redactInstanceId,
@@ -84,7 +89,9 @@ if (!directory) {
 
 const literals = loadLiterals(directory, explicitLiterals);
 const specsById = new Map(
-  [...WINDOWS_COMMANDS, WINDOWS_SELFTEST_COMMAND].map((spec) => [spec.id, spec]),
+  [...WINDOWS_COMMANDS, ...WINDOWS_FALLBACK_COMMANDS, WINDOWS_SELFTEST_COMMAND].map(
+    (spec) => [spec.id, spec],
+  ),
 );
 
 // Deterministic value -> replacement map shared across every file.
@@ -153,6 +160,9 @@ function redactFile(filePath) {
   let text = original;
 
   const spec = specsById.get(fileName(filePath));
+  if (spec?.id === "windows-pnputil-devices") {
+    text = redactPnputilInstanceLines(text);
+  }
   let envelope;
   try {
     envelope = JSON.parse(text);
@@ -211,7 +221,10 @@ function redactFile(filePath) {
   // runners), and a hardware ID can repeat another device's. After the
   // whole-token pass, replace them inside any string, longest first, with the
   // form `redactInstanceId` gives the segment itself, as the builder does.
-  const segments = [...new Set(collectRawInstanceSegments(envelope))]
+  // pnputil text has no JSON envelope: its instance IDs are found by parsing
+  // it into the same envelope the collector builds, plus the Children lists.
+  const instanceSource = envelope ?? pnputilTextEnvelope(spec, original);
+  const segments = [...new Set(collectRawInstanceSegments(instanceSource))]
     .filter((segment) => segment.length > 4)
     .sort((a, b) => b.length - a.length);
   for (const segment of segments) {
@@ -238,7 +251,7 @@ function redactFile(filePath) {
   // short to identify a host, and redactIdentifier treats them the same.
   const leftovers = [
     ...replacements.map(([value]) => value),
-    ...collectRawInstanceSegments(envelope),
+    ...collectRawInstanceSegments(instanceSource),
   ];
   let redacted;
   try {
@@ -356,6 +369,63 @@ function decodeUint16(value) {
   }
   const end = value.indexOf(0);
   return String.fromCharCode(...(end === -1 ? value : value.slice(0, end))).trim();
+}
+
+/**
+ * Redact every instance ID that pnputil prints on its own line (`Instance
+ * ID:`, `Parent:`, `Children:` and the indented continuation lines that
+ * follow `Children:`) with the same rule the builder applies, so short
+ * instance segments are redacted too.
+ *
+ * @param {string} text Captured stdout.
+ * @returns {string} Text with instance IDs redacted.
+ */
+function redactPnputilInstanceLines(text) {
+  let inChildren = false;
+  return text
+    .split(/(\r?\n)/u)
+    .map((line) => {
+      if (/^\r?\n$/u.test(line)) {
+        return line;
+      }
+      const labelled = line.match(/^(Instance ID|Parent|Children)(:\s*)(\S.*?)(\s*)$/u);
+      if (labelled) {
+        inChildren = labelled[1] === "Children";
+        return `${labelled[1]}${labelled[2]}${redactInstanceId(labelled[3])}${labelled[4]}`;
+      }
+      if (/^\S/u.test(line)) {
+        inChildren = false;
+        return line;
+      }
+      const continuation = line.match(/^(\s{8,})(\S.*?)(\s*)$/u);
+      if (inChildren && continuation) {
+        return `${continuation[1]}${redactInstanceId(continuation[2])}${continuation[3]}`;
+      }
+      return line;
+    })
+    .join("");
+}
+
+/**
+ * Build a redaction-only envelope from captured pnputil text.
+ *
+ * @param {{ id?: string } | undefined} spec Command spec.
+ * @param {string} text Captured stdout.
+ * @returns {object | undefined} Envelope, or undefined for other files.
+ */
+function pnputilTextEnvelope(spec, text) {
+  if (spec?.id !== "windows-pnputil-devices") {
+    return undefined;
+  }
+  const { devices } = parsePnputilDevices(text);
+  const envelope = toFallbackPnpEnvelope(devices);
+  envelope.results.children = {
+    ok: true,
+    items: devices.flatMap((device) =>
+      device.children.map((child) => ({ InstanceId: child })),
+    ),
+  };
+  return envelope;
 }
 
 /**

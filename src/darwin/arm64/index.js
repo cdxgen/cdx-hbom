@@ -446,6 +446,7 @@ export function buildDarwinArm64Hbom(options = {}) {
  *
  * @param {{
  *   includeSensitiveIdentifiers?: boolean,
+ *   includeCommandEnrichment?: boolean,
  *   includePlistEnrichment?: boolean,
  *   timeoutMs?: number,
  *   allowPartial?: boolean,
@@ -501,30 +502,35 @@ export async function collectDarwinArm64Hardware(options = {}) {
     );
   }, allowPartial);
 
+  // `sysctl`, `system_profiler` and `networksetup` (which names the network
+  // interfaces) are the baseline; per-interface link state and battery
+  // detail are command enrichment, as on Linux.
   sources.ifconfig = {};
-  const networkDevices = [
-    ...new Set(
-      (sources.networksetup ?? []).map((entry) => entry.device).filter(Boolean),
-    ),
-  ];
-  for (const deviceName of networkDevices) {
+  if (options.includeCommandEnrichment !== false) {
+    const networkDevices = [
+      ...new Set(
+        (sources.networksetup ?? []).map((entry) => entry.device).filter(Boolean),
+      ),
+    ];
+    for (const deviceName of networkDevices) {
+      await attemptCollection(async () => {
+        const spec = createIfconfigCommand(deviceName);
+        sources.ifconfig[deviceName] = parseIfconfigText(
+          await runCommand(spec, options),
+        );
+        executedCommands.push(toEvidenceCommand(spec));
+      }, allowPartial);
+    }
+
     await attemptCollection(async () => {
-      const spec = createIfconfigCommand(deviceName);
-      sources.ifconfig[deviceName] = parseIfconfigText(
-        await runCommand(spec, options),
+      sources.pmsetBattery = parsePmsetBattery(
+        await runCommand(getRequiredCommand("battery-status"), options),
       );
-      executedCommands.push(toEvidenceCommand(spec));
+      executedCommands.push(
+        toEvidenceCommand(getRequiredCommand("battery-status")),
+      );
     }, allowPartial);
   }
-
-  await attemptCollection(async () => {
-    sources.pmsetBattery = parsePmsetBattery(
-      await runCommand(getRequiredCommand("battery-status"), options),
-    );
-    executedCommands.push(
-      toEvidenceCommand(getRequiredCommand("battery-status")),
-    );
-  }, allowPartial);
 
   if (options.includePlistEnrichment === true) {
     const diskIdentifiers = findProfilerStorageIdentifiers(

@@ -1,0 +1,1868 @@
+Microsoft PnP Utility
+
+Instance ID:                UEFI\RES_{43a56d5a-5d67-4896-ab2e-d71ed3698ba2}\redacted
+Device Description:         System Firmware
+Class Name:                 Firmware
+Class GUID:                 {f2e7dd72-6468-4e36-b6f1-6488f42c1b52}
+Manufacturer Name:          Microsoft
+Status:                     Started
+Driver Name:                c_firmware.inf
+Parent:                     ACPI_HAL\UEFI\redacted
+Matching Drivers:
+    Driver Name:            c_firmware.inf
+    Provider Name:          Microsoft
+    Class Name:             Firmware
+    Class GUID:             {f2e7dd72-6468-4e36-b6f1-6488f42c1b52}
+    Driver Version:         06/21/2006 10.0.26100.4768
+    Signer Name:            Microsoft Windows
+    Matching Device ID:     UEFI\CC_00010001
+    Driver Rank:            00FF3000
+    Driver Status:          Best Ranked / Installed
+                            
+    Driver Name:            c_firmware.inf
+    Provider Name:          Microsoft
+    Class Name:             Firmware
+    Class GUID:             {f2e7dd72-6468-4e36-b6f1-6488f42c1b52}
+    Driver Version:         06/21/2006 10.0.26100.4768
+    Signer Name:            Microsoft Windows
+    Matching Device ID:     GenFirmwareResource
+    Driver Rank:            00FF3001
+    Driver Status:          Outranked
+
+Instance ID:                SWD\PRINTENUM\redacted:eues
+Device Description:         Root Print Queue
+Class Name:                 PrintQueue
+Class GUID:                 {1ed2bbf9-11f0-4084-b21f-ad83a8e6dcdc}
+Manufacturer Name:          Microsoft
+Status:                     Started
+Driver Name:                printqueue.inf
+Parent:                     HTREE\ROOT\redacted
+Children:                   SWD\PRINTENUM\redacted:7E3}
+Matching Drivers:
+    Driver Name:            printqueue.inf
+    Provider Name:          Microsoft
+    Class Name:             PrintQueue
+    Class GUID:             {1ed2bbf9-11f0-4084-b21f-ad83a8e6dcdc}
+    Driver Version:         06/21/2006 10.0.26100.1
+    Signer Name:            Microsoft Windows
+    Matching Device ID:     PRINTENUM\LocalPrintQueue
+    Driver Rank:            00000000
+    Driver Status:          Best Ranked
+                            
+    Driver Name:            c_swdevice.inf
+    Provider Name:          Microsoft
+    Class Name:             SoftwareDevice
+    Class GUID:             {62f9c741-b25a-46ce-b54c-9bccce08b6f2}
+    Driver Version:         06/21/2006 10.0.26100.1
+    Signer Name:            Microsoft Windows
+    Matching Device ID:     SWD\GenericRaw
+    Driver Rank:            00FF3000
+    Driver Status:          Outranked
+
+Instance ID:                ROOT\volmgr\redacted
+Device Description:         Volume Manager
+Class Name:                 System
+Class GUID:                 {4d36e97d-e325-11ce-bfc1-08002be10318}
+Manufacturer Name:          Microsoft
+Status:                     Started
+Driver Name:                volmgr.inf
+Parent:                     HTREE\ROOT\redacted
+Children:                   STORAGE\Volume\redacted:0000
+                            STORAGE\Volume\redacted:0000
+                            STORAGE\Volume\redacted:0000
+                            STORAGE\Volume\redacted:0000
+                            STORAGE\Volume\redacted:0000
+Matching Drivers:
+    Driver Name:            volmgr.inf
+    Provider Name:          Microsoft
+    Class Name:             System
+    Class GUID:             {4d36e97d-e325-11ce-bfc1-08002be10318}
+    Driver Version:         06/21/2006 10.0.26100.8972
+    Signer Name:            Microsoft Windows
+    Matching Device ID:     ROOT\VOLMGR
+    Driver Rank:            00FF0000
+    Driver Status:          Best Ranked / Installed
+
+Instance ID:                SWD\MSRRAS\redacted:PORT
+Device Description:         WAN Miniport (PPPOE)
+Class Name:                 Net
+Class GUID:                 {4d36e972-e325-11ce-bfc1-08002be10318}
+Manufacturer Name:          Microsoft
+Status:                     Started
+Driver Name:                netrasa.inf
+Parent:                     SWD\MSRRAS\redacted:bc0}
+Matching Drivers:
+    Driver Name:            netrasa.inf
+    Provider Name:          Microsoft
+    Class Name:             Net
+    Class GUID:             {4d36e972-e325-11ce-bfc1-08002be10318}
+    Driver Version:         06/21/2006 10.0.26100.1
+    Signer Name:            Microsoft Windows
+    Matching Device ID:     redacted:PORT
+    Driver Rank:            00FF0000
+    Driver Status:          Best Ranked / Installed
+
+Instance ID:                ROOT\VMBus\redacted
+Device Description:         Microsoft Hyper-V Virtual Machine Bus Provider
+Class Name:                 System
+Class GUID:                 {4d36e97d-e325-11ce-bfc1-08002be10318}
+Manufacturer Name:          Microsoft
+Status:                     Started
+Driver Name:                wvmbusr.inf
+Parent:                     HTREE\ROOT\redacted
+Matching Drivers:
+    Driver Name:            wvmbusr.inf
+    Provider Name:          Microsoft
+    Class Name:             System
+    Class GUID:             {4d36e97d-e325-11ce-bfc1-08002be10318}
+    Driver Version:         06/21/2006 10.0.26100.9278
+    Signer Name:            Microsoft Windows
+    Matching Device ID:     root\VMBus
+    Driver Rank:            00FF0000
+    Driver Status:          Best Ranked / Installed
+
+Instance ID:                ROOT\BasicDisplay\redacted
+Device Description:         Microsoft Basic Display Driver
+Class Name:                 System
+Class GUID:                 {4d36e97d-e325-11ce-bfc1-08002be10318}
+Manufacturer Name:          (Standard display types)
+Status:                     Started
+Driver Name:                basicdisplay.inf
+Parent:                     HTREE\ROOT\redacted
+Matching Drivers:
+    Driver Name:            basicdisplay.inf
+    Provider Name:          Microsoft
+    Class Name:             System
+    Class GUID:             {4d36e97d-e325-11ce-bfc1-08002be10318}
+    Driver Version:         06/21/2006 10.0.26100.8521
+    Signer Name:            Microsoft Windows
+    Matching Device ID:     ROOT\BasicDisplay
+    Driver Rank:            00FB0000
+    Driver Status:          Best Ranked / Installed
+
+Instance ID:                HID\VID_203A&PID_FFFC&MI_02\redacted:0000
+Device Description:         HID-compliant digitizer
+Class Name:                 HIDClass
+Class GUID:                 {745a17a0-74d3-11d0-b6fe-00a0c90f57da}
+Manufacturer Name:          (Standard system devices)
+Status:                     Started
+Driver Name:                input.inf
+Parent:                     USB\VID_203A&PID_FFFC&MI_02\redacted:0002
+Matching Drivers:
+    Driver Name:            input.inf
+    Provider Name:          Microsoft
+    Class Name:             HIDClass
+    Class GUID:             {745a17a0-74d3-11d0-b6fe-00a0c90f57da}
+    Driver Version:         06/21/2006 10.0.26100.9444
+    Signer Name:            Microsoft Windows
+    Matching Device ID:     HID_DEVICE_UP:000D_U:0001
+    Driver Rank:            00FF1003
+    Driver Status:          Best Ranked / Installed
+                            
+    Driver Name:            input.inf
+    Provider Name:          Microsoft
+    Class Name:             HIDClass
+    Class GUID:             {745a17a0-74d3-11d0-b6fe-00a0c90f57da}
+    Driver Version:         06/21/2006 10.0.26100.9444
+    Signer Name:            Microsoft Windows
+    Matching Device ID:     HID_DEVICE
+    Driver Rank:            00FF1004
+    Driver Status:          Outranked
+
+Instance ID:                USB\VID_203A&PID_FFFB&MI_01\redacted:0001
+Device Description:         USB Input Device
+Class Name:                 HIDClass
+Class GUID:                 {745a17a0-74d3-11d0-b6fe-00a0c90f57da}
+Manufacturer Name:          (Standard system devices)
+Status:                     Started
+Driver Name:                input.inf
+Parent:                     USB\VID_203A&PID_FFFB\redacted:D1.1
+Children:                   HID\VID_203A&PID_FFFB&MI_01&Col01\redacted:0000
+                            HID\VID_203A&PID_FFFB&MI_01&Col02\redacted:0001
+                            HID\VID_203A&PID_FFFB&MI_01&Col03\redacted:0002
+Matching Drivers:
+    Driver Name:            input.inf
+    Provider Name:          Microsoft
+    Class Name:             HIDClass
+    Class GUID:             {745a17a0-74d3-11d0-b6fe-00a0c90f57da}
+    Driver Version:         06/21/2006 10.0.26100.9444
+    Signer Name:            Microsoft Windows
+    Matching Device ID:     USB\Class_03
+    Driver Rank:            00FF3205
+    Driver Status:          Best Ranked / Installed
+
+Instance ID:                PCI\VEN_1AF4&DEV_1000&SUBSYS_00011AB8&REV_00\redacted:0&28
+Device Description:         Parallels VirtIO Ethernet Adapter
+Class Name:                 Net
+Class GUID:                 {4d36e972-e325-11ce-bfc1-08002be10318}
+Manufacturer Name:          Parallels International GmbH
+Status:                     Started
+Driver Name:                oem0.inf
+Parent:                     ACPI\PNP0A08\redacted
+Matching Drivers:
+    Driver Name:            oem0.inf
+    Original Name:          netkvm.inf
+    Provider Name:          Parallels International GmbH
+    Class Name:             Net
+    Class GUID:             {4d36e972-e325-11ce-bfc1-08002be10318}
+    Driver Version:         11/25/2025 100.2.0.0
+    Signer Name:            Microsoft Windows Hardware Compatibility Publisher
+    Matching Device ID:     PCI\VEN_1AF4&DEV_1000&SUBSYS_00011AB8&REV_00
+    Driver Rank:            00FF0000
+    Driver Status:          Best Ranked / Installed
+                            
+    Driver Name:            oem0.inf
+    Original Name:          netkvm.inf
+    Provider Name:          Parallels International GmbH
+    Class Name:             Net
+    Class GUID:             {4d36e972-e325-11ce-bfc1-08002be10318}
+    Driver Version:         11/25/2025 100.2.0.0
+    Signer Name:            Microsoft Windows Hardware Compatibility Publisher
+    Matching Device ID:     PCI\VEN_1AF4&DEV_1000
+    Driver Rank:            00FF3001
+    Driver Status:          Outranked
+
+Instance ID:                ACPI\PRLS0000\redacted:ff&0
+Device Description:         Trusted Platform Module 2.0
+Class Name:                 SecurityDevices
+Class GUID:                 {d94ee5d8-d189-4994-83d2-f68d7d41b0e6}
+Manufacturer Name:          (Standard)
+Status:                     Started
+Driver Name:                tpm.inf
+Parent:                     ACPI_HAL\PNP0C08\redacted
+Matching Drivers:
+    Driver Name:            tpm.inf
+    Provider Name:          Microsoft
+    Class Name:             SecurityDevices
+    Class GUID:             {d94ee5d8-d189-4994-83d2-f68d7d41b0e6}
+    Driver Version:         06/21/2006 10.0.26100.8972
+    Signer Name:            Microsoft Windows
+    Matching Device ID:     ACPI\MSFT0101
+    Driver Rank:            00FF2000
+    Driver Status:          Best Ranked / Installed
+
+Instance ID:                USB\VID_203A&PID_FFFB&MI_00\redacted:0000
+Device Description:         USB Input Device
+Class Name:                 HIDClass
+Class GUID:                 {745a17a0-74d3-11d0-b6fe-00a0c90f57da}
+Manufacturer Name:          (Standard system devices)
+Status:                     Started
+Driver Name:                input.inf
+Parent:                     USB\VID_203A&PID_FFFB\redacted:D1.1
+Children:                   HID\VID_203A&PID_FFFB&MI_00\redacted:0000
+Matching Drivers:
+    Driver Name:            input.inf
+    Provider Name:          Microsoft
+    Class Name:             HIDClass
+    Class GUID:             {745a17a0-74d3-11d0-b6fe-00a0c90f57da}
+    Driver Version:         06/21/2006 10.0.26100.9444
+    Signer Name:            Microsoft Windows
+    Matching Device ID:     USB\Class_03&SubClass_01
+    Driver Rank:            00FF3104
+    Driver Status:          Best Ranked / Installed
+                            
+    Driver Name:            input.inf
+    Provider Name:          Microsoft
+    Class Name:             HIDClass
+    Class GUID:             {745a17a0-74d3-11d0-b6fe-00a0c90f57da}
+    Driver Version:         06/21/2006 10.0.26100.9444
+    Signer Name:            Microsoft Windows
+    Matching Device ID:     USB\Class_03
+    Driver Rank:            00FF3205
+    Driver Status:          Outranked
+
+Instance ID:                SWD\MSRRAS\redacted:bc0}
+Device Description:         Microsoft RRAS Root Enumerator
+Class Name:                 SoftwareDevice
+Class GUID:                 {62f9c741-b25a-46ce-b54c-9bccce08b6f2}
+Manufacturer Name:          Microsoft
+Status:                     Started
+Driver Name:                c_swdevice.inf
+Parent:                     HTREE\ROOT\redacted
+Children:                   SWD\MSRRAS\redacted:PORT
+                            SWD\MSRRAS\redacted:PORT
+                            SWD\MSRRAS\redacted:PORT
+                            SWD\MSRRAS\redacted:PORT
+                            SWD\MSRRAS\redacted:PORT
+                            SWD\MSRRAS\redacted:ANIP
+                            SWD\MSRRAS\redacted:IPV6
+                            SWD\MSRRAS\redacted:ANBH
+Matching Drivers:
+    Driver Name:            c_swdevice.inf
+    Provider Name:          Microsoft
+    Class Name:             SoftwareDevice
+    Class GUID:             {62f9c741-b25a-46ce-b54c-9bccce08b6f2}
+    Driver Version:         06/21/2006 10.0.26100.1
+    Signer Name:            Microsoft Windows
+    Matching Device ID:     SWD\GenericRaw
+    Driver Rank:            00FF3000
+    Driver Status:          Best Ranked / Installed
+
+Instance ID:                PCI\VEN_8086&DEV_293E&SUBSYS_04001AB8&REV_00\redacted:0&08
+Device Description:         High Definition Audio Controller
+Class Name:                 System
+Class GUID:                 {4d36e97d-e325-11ce-bfc1-08002be10318}
+Manufacturer Name:          Microsoft
+Status:                     Started
+Driver Name:                hdaudbus.inf
+Parent:                     ACPI\PNP0A08\redacted
+Children:                   HDAUDIO\FUNC_01&VEN_1AB8&DEV_0001&SUBSYS_1AB80101&REV_1001\redacted:0001
+Matching Drivers:
+    Driver Name:            hdaudbus.inf
+    Provider Name:          Microsoft
+    Class Name:             System
+    Class GUID:             {4d36e97d-e325-11ce-bfc1-08002be10318}
+    Driver Version:         09/04/2026 10.0.26100.9444
+    Signer Name:            Microsoft Windows
+    Matching Device ID:     PCI\CC_0403
+    Driver Rank:            00FF2006
+    Driver Status:          Best Ranked / Installed
+
+Instance ID:                ACPI\ACPI0013\redacted
+Device Description:         ACPI Devices driver
+Class Name:                 System
+Class GUID:                 {4d36e97d-e325-11ce-bfc1-08002be10318}
+Manufacturer Name:          (Standard system devices)
+Status:                     Started
+Driver Name:                acpidev.inf
+Parent:                     ACPI_HAL\PNP0C08\redacted
+Matching Drivers:
+    Driver Name:            acpidev.inf
+    Provider Name:          Microsoft
+    Class Name:             System
+    Class GUID:             {4d36e97d-e325-11ce-bfc1-08002be10318}
+    Driver Version:         06/21/2006 10.0.26100.8521
+    Signer Name:            Microsoft Windows
+    Matching Device ID:     *ACPI0013
+    Driver Rank:            00FF0002
+    Driver Status:          Best Ranked / Installed
+
+Instance ID:                HID\VID_203A&PID_FFFC&MI_01\redacted:0000
+Device Description:         HID-compliant mouse
+Class Name:                 Mouse
+Class GUID:                 {4d36e96f-e325-11ce-bfc1-08002be10318}
+Manufacturer Name:          Microsoft
+Status:                     Started
+Driver Name:                msmouse.inf
+Parent:                     USB\VID_203A&PID_FFFC&MI_01\redacted:0001
+Matching Drivers:
+    Driver Name:            msmouse.inf
+    Provider Name:          Microsoft
+    Class Name:             Mouse
+    Class GUID:             {4d36e96f-e325-11ce-bfc1-08002be10318}
+    Driver Version:         06/21/2006 10.0.26100.1
+    Signer Name:            Microsoft Windows
+    Matching Device ID:     HID_DEVICE_SYSTEM_MOUSE
+    Driver Rank:            00FF1003
+    Driver Status:          Best Ranked / Installed
+                            
+    Driver Name:            input.inf
+    Provider Name:          Microsoft
+    Class Name:             HIDClass
+    Class GUID:             {745a17a0-74d3-11d0-b6fe-00a0c90f57da}
+    Driver Version:         06/21/2006 10.0.26100.9444
+    Signer Name:            Microsoft Windows
+    Matching Device ID:     HID_DEVICE
+    Driver Rank:            00FF1005
+    Driver Status:          Outranked
+
+Instance ID:                SWD\MSRRAS\redacted:PORT
+Device Description:         WAN Miniport (PPTP)
+Class Name:                 Net
+Class GUID:                 {4d36e972-e325-11ce-bfc1-08002be10318}
+Manufacturer Name:          Microsoft
+Status:                     Started
+Driver Name:                netrasa.inf
+Parent:                     SWD\MSRRAS\redacted:bc0}
+Matching Drivers:
+    Driver Name:            netrasa.inf
+    Provider Name:          Microsoft
+    Class Name:             Net
+    Class GUID:             {4d36e972-e325-11ce-bfc1-08002be10318}
+    Driver Version:         06/21/2006 10.0.26100.1
+    Signer Name:            Microsoft Windows
+    Matching Device ID:     redacted:PORT
+    Driver Rank:            00FF0000
+    Driver Status:          Best Ranked / Installed
+
+Instance ID:                ROOT\VID\redacted
+Device Description:         Microsoft Hyper-V Virtualization Infrastructure Driver
+Class Name:                 System
+Class GUID:                 {4d36e97d-e325-11ce-bfc1-08002be10318}
+Manufacturer Name:          Microsoft
+Status:                     Started
+Driver Name:                wvid.inf
+Parent:                     HTREE\ROOT\redacted
+Matching Drivers:
+    Driver Name:            wvid.inf
+    Provider Name:          Microsoft
+    Class Name:             System
+    Class GUID:             {4d36e97d-e325-11ce-bfc1-08002be10318}
+    Driver Version:         06/21/2006 10.0.26100.9278
+    Signer Name:            Microsoft Windows
+    Matching Device ID:     ROOT\VID
+    Driver Rank:            00FF0000
+    Driver Status:          Best Ranked / Installed
+
+Instance ID:                PCI\VEN_8086&DEV_265C&SUBSYS_04001AB8&REV_02\redacted:0&10
+Device Description:         Intel(R) 82801FB/FBM USB2 Enhanced Host Controller - 265C
+Class Name:                 USB
+Class GUID:                 {36fc9e60-c465-11cf-8056-444553540000}
+Manufacturer Name:          Intel
+Status:                     Started
+Driver Name:                usbport.inf
+Parent:                     ACPI\PNP0A08\redacted
+Children:                   USB\ROOT_HUB20\redacted:d6&0
+Matching Drivers:
+    Driver Name:            usbport.inf
+    Provider Name:          Microsoft
+    Class Name:             USB
+    Class GUID:             {36fc9e60-c465-11cf-8056-444553540000}
+    Driver Version:         06/21/2006 10.0.26100.9278
+    Signer Name:            Microsoft Windows
+    Matching Device ID:     PCI\VEN_8086&DEV_265C
+    Driver Rank:            00FF2001
+    Driver Status:          Best Ranked / Installed
+                            
+    Driver Name:            usbport.inf
+    Provider Name:          Microsoft
+    Class Name:             USB
+    Class GUID:             {36fc9e60-c465-11cf-8056-444553540000}
+    Driver Version:         06/21/2006 10.0.26100.9278
+    Signer Name:            Microsoft Windows
+    Matching Device ID:     PCI\CC_0C0320
+    Driver Rank:            00FF2005
+    Driver Status:          Outranked
+
+Instance ID:                SWD\MSRRAS\redacted:PORT
+Device Description:         WAN Miniport (IKEv2)
+Class Name:                 Net
+Class GUID:                 {4d36e972-e325-11ce-bfc1-08002be10318}
+Manufacturer Name:          Microsoft
+Status:                     Started
+Driver Name:                netavpna.inf
+Parent:                     SWD\MSRRAS\redacted:bc0}
+Matching Drivers:
+    Driver Name:            netavpna.inf
+    Provider Name:          Microsoft
+    Class Name:             Net
+    Class GUID:             {4d36e972-e325-11ce-bfc1-08002be10318}
+    Driver Version:         06/21/2006 10.0.26100.1
+    Signer Name:            Microsoft Windows
+    Matching Device ID:     redacted:PORT
+    Driver Rank:            00FF0000
+    Driver Status:          Best Ranked / Installed
+
+Instance ID:                ROOT\CompositeBus\redacted
+Device Description:         Composite Bus Enumerator
+Class Name:                 System
+Class GUID:                 {4d36e97d-e325-11ce-bfc1-08002be10318}
+Manufacturer Name:          Microsoft
+Status:                     Started
+Driver Name:                compositebus.inf
+Parent:                     HTREE\ROOT\redacted
+Matching Drivers:
+    Driver Name:            compositebus.inf
+    Provider Name:          Microsoft
+    Class Name:             System
+    Class GUID:             {4d36e97d-e325-11ce-bfc1-08002be10318}
+    Driver Version:         06/21/2006 10.0.26100.1
+    Signer Name:            Microsoft Windows
+    Matching Device ID:     ROOT\CompositeBus
+    Driver Rank:            00FF0000
+    Driver Status:          Best Ranked / Installed
+
+Instance ID:                ROOT\vdrvroot\redacted
+Device Description:         Microsoft Virtual Drive Enumerator
+Class Name:                 System
+Class GUID:                 {4d36e97d-e325-11ce-bfc1-08002be10318}
+Manufacturer Name:          Microsoft
+Status:                     Started
+Driver Name:                vdrvroot.inf
+Parent:                     HTREE\ROOT\redacted
+Matching Drivers:
+    Driver Name:            vdrvroot.inf
+    Provider Name:          Microsoft
+    Class Name:             System
+    Class GUID:             {4d36e97d-e325-11ce-bfc1-08002be10318}
+    Driver Version:         06/21/2006 10.0.26100.1591
+    Signer Name:            Microsoft Windows
+    Matching Device ID:     ROOT\vdrvroot
+    Driver Rank:            00FF0000
+    Driver Status:          Best Ranked / Installed
+
+Instance ID:                ROOT\spaceport\redacted
+Device Description:         Microsoft Storage Spaces Controller
+Class Name:                 SCSIAdapter
+Class GUID:                 {4d36e97b-e325-11ce-bfc1-08002be10318}
+Manufacturer Name:          Microsoft
+Status:                     Started
+Driver Name:                spaceport.inf
+Parent:                     HTREE\ROOT\redacted
+Matching Drivers:
+    Driver Name:            spaceport.inf
+    Provider Name:          Microsoft
+    Class Name:             SCSIAdapter
+    Class GUID:             {4d36e97b-e325-11ce-bfc1-08002be10318}
+    Driver Version:         06/21/2006 10.0.26100.9444
+    Signer Name:            Microsoft Windows
+    Matching Device ID:     Root\Spaceport
+    Driver Rank:            00FF0000
+    Driver Status:          Best Ranked / Installed
+
+Instance ID:                SWD\COMPUTER\redacted:M_VM
+Device Description:         Parallels International GmbH. Parallels ARM Virtual Machine
+Class Name:                 Computer
+Class GUID:                 {4d36e966-e325-11ce-bfc1-08002be10318}
+Manufacturer Name:          Microsoft
+Status:                     Started
+Driver Name:                compdev.inf
+Extension Driver Names:     VocaEffectPack-Extension.inf
+Parent:                     HTREE\ROOT\redacted
+Children:                   SWD\DRIVERENUM\redacted:06&0
+Matching Drivers:
+    Driver Name:            compdev.inf
+    Provider Name:          Microsoft
+    Class Name:             Computer
+    Class GUID:             {4d36e966-e325-11ce-bfc1-08002be10318}
+    Driver Version:         06/21/2006 10.0.26100.1
+    Signer Name:            Microsoft Windows
+    Matching Device ID:     COMPUTER\Generic
+    Driver Rank:            00002000
+    Driver Status:          Best Ranked / Installed
+                            
+    Driver Name:            VocaEffectPack-Extension.inf
+    Provider Name:          Microsoft
+    Class Name:             Extension
+    Class GUID:             {e2f84ce7-8efa-411c-aa69-97454ca4cb57}
+    Driver Version:         06/21/2006 10.0.26100.8524
+    Extension ID:           {96bedf2c-18cb-4a15-b821-5e95ed0fea61}
+    Signer Name:            Microsoft Windows
+    Matching Device ID:     COMPUTER\Generic
+    Driver Rank:            00FF2000
+    Driver Status:          Best Ranked / Installed / Extension
+                            
+    Driver Name:            c_swdevice.inf
+    Provider Name:          Microsoft
+    Class Name:             SoftwareDevice
+    Class GUID:             {62f9c741-b25a-46ce-b54c-9bccce08b6f2}
+    Driver Version:         06/21/2006 10.0.26100.1
+    Signer Name:            Microsoft Windows
+    Matching Device ID:     SWD\GenericRaw
+    Driver Rank:            00FF3001
+    Driver Status:          Outranked
+
+Instance ID:                ROOT\KDNIC\redacted
+Device Description:         Microsoft Kernel Debug Network Adapter
+Class Name:                 Net
+Class GUID:                 {4d36e972-e325-11ce-bfc1-08002be10318}
+Manufacturer Name:          Microsoft
+Status:                     Started
+Driver Name:                kdnic.inf
+Parent:                     HTREE\ROOT\redacted
+Matching Drivers:
+    Driver Name:            kdnic.inf
+    Provider Name:          Microsoft
+    Class Name:             Net
+    Class GUID:             {4d36e972-e325-11ce-bfc1-08002be10318}
+    Driver Version:         06/21/2006 10.0.26100.8521
+    Signer Name:            Microsoft Windows
+    Matching Device ID:     root\kdnic
+    Driver Rank:            00FF0000
+    Driver Status:          Best Ranked / Installed
+
+Instance ID:                HID\VID_203A&PID_FFFC&MI_00\redacted:0000
+Device Description:         Parallels USB Mouse Synchronization Device
+Class Name:                 Mouse
+Class GUID:                 {4d36e96f-e325-11ce-bfc1-08002be10318}
+Manufacturer Name:          Parallels
+Status:                     Started
+Driver Name:                oem4.inf
+Parent:                     USB\VID_203A&PID_FFFC&MI_00\redacted:0000
+Matching Drivers:
+    Driver Name:            oem4.inf
+    Original Name:          prl_mouf.inf
+    Provider Name:          Parallels
+    Class Name:             Mouse
+    Class GUID:             {4d36e96f-e325-11ce-bfc1-08002be10318}
+    Driver Version:         08/11/2026 27.0.0.58628
+    Signer Name:            Microsoft Windows Hardware Compatibility Publisher
+    Matching Device ID:     HID\VID_203A&PID_FFFC&MI_00
+    Driver Rank:            00FF0001
+    Driver Status:          Best Ranked / Installed
+                            
+    Driver Name:            msmouse.inf
+    Provider Name:          Microsoft
+    Class Name:             Mouse
+    Class GUID:             {4d36e96f-e325-11ce-bfc1-08002be10318}
+    Driver Version:         06/21/2006 10.0.26100.1
+    Signer Name:            Microsoft Windows
+    Matching Device ID:     HID_DEVICE_SYSTEM_MOUSE
+    Driver Rank:            00FF1003
+    Driver Status:          Outranked
+                            
+    Driver Name:            input.inf
+    Provider Name:          Microsoft
+    Class Name:             HIDClass
+    Class GUID:             {745a17a0-74d3-11d0-b6fe-00a0c90f57da}
+    Driver Version:         06/21/2006 10.0.26100.9444
+    Signer Name:            Microsoft Windows
+    Matching Device ID:     HID_DEVICE
+    Driver Rank:            00FF1005
+    Driver Status:          Outranked
+
+Instance ID:                STORAGE\Volume\redacted:0000
+Device Description:         Volume
+Class Name:                 Volume
+Class GUID:                 {71a27cdd-812a-11d0-bec7-08002be2092f}
+Manufacturer Name:          Microsoft
+Status:                     Started
+Driver Name:                volume.inf
+Parent:                     ROOT\volmgr\redacted
+Children:                   STORAGE\VolumeSnapshot\redacted:hot1
+                            STORAGE\VolumeSnapshot\redacted:hot2
+                            STORAGE\VolumeSnapshot\redacted:hot3
+Matching Drivers:
+    Driver Name:            volume.inf
+    Provider Name:          Microsoft
+    Class Name:             Volume
+    Class GUID:             {71a27cdd-812a-11d0-bec7-08002be2092f}
+    Driver Version:         06/21/2006 10.0.26100.5074
+    Signer Name:            Microsoft Windows
+    Matching Device ID:     STORAGE\Volume
+    Driver Rank:            00FF0000
+    Driver Status:          Best Ranked / Installed
+
+Instance ID:                STORAGE\VolumeSnapshot\redacted:hot1
+Device Description:         Generic volume shadow copy
+Class Name:                 VolumeSnapshot
+Class GUID:                 {533c5b84-ec70-11d2-9505-00c04f79deaf}
+Manufacturer Name:          Microsoft
+Status:                     Started
+Driver Name:                volsnap.inf
+Parent:                     STORAGE\Volume\redacted:0000
+Matching Drivers:
+    Driver Name:            volsnap.inf
+    Provider Name:          Microsoft
+    Class Name:             VolumeSnapshot
+    Class GUID:             {533c5b84-ec70-11d2-9505-00c04f79deaf}
+    Driver Version:         06/21/2006 10.0.26100.1
+    Signer Name:            Microsoft Windows
+    Matching Device ID:     STORAGE\VolumeSnapshot
+    Driver Rank:            00FF0000
+    Driver Status:          Best Ranked / Installed
+
+Instance ID:                STORAGE\VolumeSnapshot\redacted:hot2
+Device Description:         Generic volume shadow copy
+Class Name:                 VolumeSnapshot
+Class GUID:                 {533c5b84-ec70-11d2-9505-00c04f79deaf}
+Manufacturer Name:          Microsoft
+Status:                     Started
+Driver Name:                volsnap.inf
+Parent:                     STORAGE\Volume\redacted:0000
+Matching Drivers:
+    Driver Name:            volsnap.inf
+    Provider Name:          Microsoft
+    Class Name:             VolumeSnapshot
+    Class GUID:             {533c5b84-ec70-11d2-9505-00c04f79deaf}
+    Driver Version:         06/21/2006 10.0.26100.1
+    Signer Name:            Microsoft Windows
+    Matching Device ID:     STORAGE\VolumeSnapshot
+    Driver Rank:            00FF0000
+    Driver Status:          Best Ranked / Installed
+
+Instance ID:                STORAGE\VolumeSnapshot\redacted:hot3
+Device Description:         Generic volume shadow copy
+Class Name:                 VolumeSnapshot
+Class GUID:                 {533c5b84-ec70-11d2-9505-00c04f79deaf}
+Manufacturer Name:          Microsoft
+Status:                     Started
+Driver Name:                volsnap.inf
+Parent:                     STORAGE\Volume\redacted:0000
+Matching Drivers:
+    Driver Name:            volsnap.inf
+    Provider Name:          Microsoft
+    Class Name:             VolumeSnapshot
+    Class GUID:             {533c5b84-ec70-11d2-9505-00c04f79deaf}
+    Driver Version:         06/21/2006 10.0.26100.1
+    Signer Name:            Microsoft Windows
+    Matching Device ID:     STORAGE\VolumeSnapshot
+    Driver Rank:            00FF0000
+    Driver Status:          Best Ranked / Installed
+
+Instance ID:                SWD\MMDEVAPI\redacted:e51}
+Device Description:         Speakers (High Definition Audio Device)
+Class Name:                 AudioEndpoint
+Class GUID:                 {c166523c-fe0c-4a94-a586-f1a80cfbbf3e}
+Manufacturer Name:          Microsoft
+Status:                     Started
+Driver Name:                audioendpoint.inf
+Parent:                     HDAUDIO\FUNC_01&VEN_1AB8&DEV_0001&SUBSYS_1AB80101&REV_1001\redacted:0001
+Matching Drivers:
+    Driver Name:            audioendpoint.inf
+    Provider Name:          Microsoft
+    Class Name:             AudioEndpoint
+    Class GUID:             {c166523c-fe0c-4a94-a586-f1a80cfbbf3e}
+    Driver Version:         03/31/2024 10.0.26100.1
+    Signer Name:            Microsoft Windows
+    Matching Device ID:     MMDEVAPI\AudioEndpoints
+    Driver Rank:            00FF0000
+    Driver Status:          Best Ranked / Installed
+                            
+    Driver Name:            c_swdevice.inf
+    Provider Name:          Microsoft
+    Class Name:             SoftwareDevice
+    Class GUID:             {62f9c741-b25a-46ce-b54c-9bccce08b6f2}
+    Driver Version:         06/21/2006 10.0.26100.1
+    Signer Name:            Microsoft Windows
+    Matching Device ID:     SWD\GenericRaw
+    Driver Rank:            00FF3001
+    Driver Status:          Outranked
+
+Instance ID:                USB\VID_203A&PID_FFFC&MI_00\redacted:0000
+Device Description:         USB Input Device
+Class Name:                 HIDClass
+Class GUID:                 {745a17a0-74d3-11d0-b6fe-00a0c90f57da}
+Manufacturer Name:          (Standard system devices)
+Status:                     Started
+Driver Name:                input.inf
+Parent:                     USB\VID_203A&PID_FFFC\redacted:W3.0
+Children:                   HID\VID_203A&PID_FFFC&MI_00\redacted:0000
+Matching Drivers:
+    Driver Name:            input.inf
+    Provider Name:          Microsoft
+    Class Name:             HIDClass
+    Class GUID:             {745a17a0-74d3-11d0-b6fe-00a0c90f57da}
+    Driver Version:         06/21/2006 10.0.26100.9444
+    Signer Name:            Microsoft Windows
+    Matching Device ID:     USB\Class_03
+    Driver Rank:            00FF3205
+    Driver Status:          Best Ranked / Installed
+
+Instance ID:                HID\VID_203A&PID_FFFB&MI_01&Col01\redacted:0000
+Device Description:         HID Keyboard Device
+Class Name:                 Keyboard
+Class GUID:                 {4d36e96b-e325-11ce-bfc1-08002be10318}
+Manufacturer Name:          (Standard keyboards)
+Status:                     Started
+Driver Name:                keyboard.inf
+Parent:                     USB\VID_203A&PID_FFFB&MI_01\redacted:0001
+Matching Drivers:
+    Driver Name:            keyboard.inf
+    Provider Name:          Microsoft
+    Class Name:             Keyboard
+    Class GUID:             {4d36e96b-e325-11ce-bfc1-08002be10318}
+    Driver Version:         06/21/2006 10.0.26100.8521
+    Signer Name:            Microsoft Windows
+    Matching Device ID:     HID_DEVICE_SYSTEM_KEYBOARD
+    Driver Rank:            00FF1003
+    Driver Status:          Best Ranked / Installed
+                            
+    Driver Name:            input.inf
+    Provider Name:          Microsoft
+    Class Name:             HIDClass
+    Class GUID:             {745a17a0-74d3-11d0-b6fe-00a0c90f57da}
+    Driver Version:         06/21/2006 10.0.26100.9444
+    Signer Name:            Microsoft Windows
+    Matching Device ID:     HID_DEVICE
+    Driver Rank:            00FF1005
+    Driver Status:          Outranked
+
+Instance ID:                ACPI\PNP0A08\redacted
+Device Description:         PCI Express Root Complex
+Class Name:                 System
+Class GUID:                 {4d36e97d-e325-11ce-bfc1-08002be10318}
+Manufacturer Name:          (Standard system devices)
+Status:                     Started
+Driver Name:                pci.inf
+Parent:                     ACPI_HAL\PNP0C08\redacted
+Children:                   PCI\VEN_8086&DEV_293E&SUBSYS_04001AB8&REV_00\redacted:0&08
+                            PCI\VEN_8086&DEV_265C&SUBSYS_04001AB8&REV_02\redacted:0&10
+                            PCI\VEN_1033&DEV_0194&SUBSYS_04001AB8&REV_04\redacted:0&18
+                            PCI\VEN_1AF4&DEV_1000&SUBSYS_00011AB8&REV_00\redacted:0&28
+Matching Drivers:
+    Driver Name:            pci.inf
+    Provider Name:          Microsoft
+    Class Name:             System
+    Class GUID:             {4d36e97d-e325-11ce-bfc1-08002be10318}
+    Driver Version:         06/21/2006 10.0.26100.9278
+    Signer Name:            Microsoft Windows
+    Matching Device ID:     *PNP0A08
+    Driver Rank:            00FF0002
+    Driver Status:          Best Ranked / Installed
+                            
+    Driver Name:            pci.inf
+    Provider Name:          Microsoft
+    Class Name:             System
+    Class GUID:             {4d36e97d-e325-11ce-bfc1-08002be10318}
+    Driver Version:         06/21/2006 10.0.26100.9278
+    Signer Name:            Microsoft Windows
+    Matching Device ID:     *PNP0A03
+    Driver Rank:            00FF2000
+    Driver Status:          Outranked
+
+Instance ID:                ROOT\UMBUS\redacted
+Device Description:         UMBus Root Bus Enumerator
+Class Name:                 System
+Class GUID:                 {4d36e97d-e325-11ce-bfc1-08002be10318}
+Manufacturer Name:          Microsoft
+Status:                     Started
+Driver Name:                umbus.inf
+Parent:                     HTREE\ROOT\redacted
+Matching Drivers:
+    Driver Name:            umbus.inf
+    Provider Name:          Microsoft
+    Class Name:             System
+    Class GUID:             {4d36e97d-e325-11ce-bfc1-08002be10318}
+    Driver Version:         06/21/2006 10.0.26100.1
+    Signer Name:            Microsoft Windows
+    Matching Device ID:     root\umbus
+    Driver Rank:            00FF0000
+    Driver Status:          Best Ranked / Installed
+
+Instance ID:                ROOT\ARM64_HAL\redacted
+Device Description:         ACPI ARM64-based PC
+Class Name:                 Computer
+Class GUID:                 {4d36e966-e325-11ce-bfc1-08002be10318}
+Manufacturer Name:          (Standard computers)
+Status:                     Started
+Driver Name:                hal.inf
+Parent:                     HTREE\ROOT\redacted
+Children:                   ACPI_HAL\PNP0C08\redacted
+                            ACPI_HAL\UEFI\redacted
+Matching Drivers:
+    Driver Name:            hal.inf
+    Provider Name:          Microsoft
+    Class Name:             Computer
+    Class GUID:             {4d36e966-e325-11ce-bfc1-08002be10318}
+    Driver Version:         06/21/2006 10.0.26100.1
+    Signer Name:            Microsoft Windows
+    Matching Device ID:     ACPIARM64
+    Driver Rank:            00FF0000
+    Driver Status:          Best Ranked / Installed
+
+Instance ID:                SWD\RADIO\redacted:8D2}
+Device Description:         Microsoft Radio Device Enumeration Bus
+Class Name:                 SoftwareDevice
+Class GUID:                 {62f9c741-b25a-46ce-b54c-9bccce08b6f2}
+Manufacturer Name:          Microsoft
+Status:                     Started
+Driver Name:                c_swdevice.inf
+Parent:                     HTREE\ROOT\redacted
+Matching Drivers:
+    Driver Name:            c_swdevice.inf
+    Provider Name:          Microsoft
+    Class Name:             SoftwareDevice
+    Class GUID:             {62f9c741-b25a-46ce-b54c-9bccce08b6f2}
+    Driver Version:         06/21/2006 10.0.26100.1
+    Signer Name:            Microsoft Windows
+    Matching Device ID:     SWD\GenericRaw
+    Driver Rank:            00FF3000
+    Driver Status:          Best Ranked / Installed
+
+Instance ID:                HID\VID_203A&PID_FFFB&MI_00\redacted:0000
+Device Description:         HID Keyboard Device
+Class Name:                 Keyboard
+Class GUID:                 {4d36e96b-e325-11ce-bfc1-08002be10318}
+Manufacturer Name:          (Standard keyboards)
+Status:                     Started
+Driver Name:                keyboard.inf
+Parent:                     USB\VID_203A&PID_FFFB&MI_00\redacted:0000
+Matching Drivers:
+    Driver Name:            keyboard.inf
+    Provider Name:          Microsoft
+    Class Name:             Keyboard
+    Class GUID:             {4d36e96b-e325-11ce-bfc1-08002be10318}
+    Driver Version:         06/21/2006 10.0.26100.8521
+    Signer Name:            Microsoft Windows
+    Matching Device ID:     HID_DEVICE_SYSTEM_KEYBOARD
+    Driver Rank:            00FF1003
+    Driver Status:          Best Ranked / Installed
+                            
+    Driver Name:            input.inf
+    Provider Name:          Microsoft
+    Class Name:             HIDClass
+    Class GUID:             {745a17a0-74d3-11d0-b6fe-00a0c90f57da}
+    Driver Version:         06/21/2006 10.0.26100.9444
+    Signer Name:            Microsoft Windows
+    Matching Device ID:     HID_DEVICE
+    Driver Rank:            00FF1005
+    Driver Status:          Outranked
+
+Instance ID:                SCSI\CdRom&Ven_&Prod_Virtual_DVD-ROM\redacted:0000
+Device Description:          Virtual DVD-ROM
+Class Name:                 CDROM
+Class GUID:                 {4d36e965-e325-11ce-bfc1-08002be10318}
+Manufacturer Name:          (Standard CD-ROM drives)
+Status:                     Started
+Driver Name:                cdrom.inf
+Parent:                     ACPI\PRL4010\redacted:ff&0
+Matching Drivers:
+    Driver Name:            cdrom.inf
+    Provider Name:          Microsoft
+    Class Name:             CDROM
+    Class GUID:             {4d36e965-e325-11ce-bfc1-08002be10318}
+    Driver Version:         06/21/2006 10.0.26100.9444
+    Signer Name:            Microsoft Windows
+    Matching Device ID:     GenCdRom
+    Driver Rank:            00FF0005
+    Driver Status:          Best Ranked / Installed
+
+Instance ID:                SWD\MSRRAS\redacted:ANBH
+Device Description:         WAN Miniport (Network Monitor)
+Class Name:                 Net
+Class GUID:                 {4d36e972-e325-11ce-bfc1-08002be10318}
+Manufacturer Name:          Microsoft
+Status:                     Started
+Driver Name:                netrasa.inf
+Parent:                     SWD\MSRRAS\redacted:bc0}
+Matching Drivers:
+    Driver Name:            netrasa.inf
+    Provider Name:          Microsoft
+    Class Name:             Net
+    Class GUID:             {4d36e972-e325-11ce-bfc1-08002be10318}
+    Driver Version:         06/21/2006 10.0.26100.1
+    Signer Name:            Microsoft Windows
+    Matching Device ID:     redacted:ANBH
+    Driver Rank:            00FF0000
+    Driver Status:          Best Ranked / Installed
+
+Instance ID:                SWD\MSRRAS\redacted:ANIP
+Device Description:         WAN Miniport (IP)
+Class Name:                 Net
+Class GUID:                 {4d36e972-e325-11ce-bfc1-08002be10318}
+Manufacturer Name:          Microsoft
+Status:                     Started
+Driver Name:                netrasa.inf
+Parent:                     SWD\MSRRAS\redacted:bc0}
+Matching Drivers:
+    Driver Name:            netrasa.inf
+    Provider Name:          Microsoft
+    Class Name:             Net
+    Class GUID:             {4d36e972-e325-11ce-bfc1-08002be10318}
+    Driver Version:         06/21/2006 10.0.26100.1
+    Signer Name:            Microsoft Windows
+    Matching Device ID:     redacted:ANIP
+    Driver Rank:            00FF0000
+    Driver Status:          Best Ranked / Installed
+
+Instance ID:                ACPI\PRL4000\redacted
+Device Description:         Parallels Tool Device
+Class Name:                 System
+Class GUID:                 {4d36e97d-e325-11ce-bfc1-08002be10318}
+Manufacturer Name:          Parallels
+Status:                     Started
+Driver Name:                oem1.inf
+Parent:                     ACPI_HAL\PNP0C08\redacted
+Matching Drivers:
+    Driver Name:            oem1.inf
+    Original Name:          prl_tg.inf
+    Provider Name:          Parallels
+    Class Name:             System
+    Class GUID:             {4d36e97d-e325-11ce-bfc1-08002be10318}
+    Driver Version:         08/11/2026 27.0.0.58628
+    Signer Name:            Microsoft Windows Hardware Compatibility Publisher
+    Matching Device ID:     ACPI\VEN_PRL&DEV_4000
+    Driver Rank:            00FF0000
+    Driver Status:          Best Ranked / Installed
+
+Instance ID:                ROOT\VPCIVSP\redacted
+Device Description:         Microsoft Hyper-V PCI Server
+Class Name:                 System
+Class GUID:                 {4d36e97d-e325-11ce-bfc1-08002be10318}
+Manufacturer Name:          Microsoft
+Status:                     Started
+Driver Name:                wvpcivsp.inf
+Parent:                     HTREE\ROOT\redacted
+Matching Drivers:
+    Driver Name:            wvpcivsp.inf
+    Provider Name:          Microsoft
+    Class Name:             System
+    Class GUID:             {4d36e97d-e325-11ce-bfc1-08002be10318}
+    Driver Version:         06/21/2006 10.0.26100.8521
+    Signer Name:            Microsoft Windows
+    Matching Device ID:     root\Vpcivsp
+    Driver Rank:            00FF0000
+    Driver Status:          Best Ranked / Installed
+
+Instance ID:                ACPI\PRL4005\redacted
+Device Description:         Parallels Display Adapter (WDDM)
+Class Name:                 Display
+Class GUID:                 {4d36e968-e325-11ce-bfc1-08002be10318}
+Manufacturer Name:          Parallels
+Status:                     Started
+Driver Name:                oem6.inf
+Parent:                     ACPI_HAL\PNP0C08\redacted
+Children:                   DISPLAY\PRL5000\redacted:UID0
+Matching Drivers:
+    Driver Name:            oem6.inf
+    Original Name:          prl_dd.inf
+    Provider Name:          Parallels
+    Class Name:             Display
+    Class GUID:             {4d36e968-e325-11ce-bfc1-08002be10318}
+    Driver Version:         08/11/2026 20.18.2700.58628
+    Signer Name:            Microsoft Windows Hardware Compatibility Publisher
+    Matching Device ID:     ACPI\VEN_PRL&DEV_4005
+    Driver Rank:            00E00000
+    Driver Status:          Best Ranked / Installed
+
+Instance ID:                ACPI\PRL4006\redacted
+Device Description:         Parallels Memory Controller
+Class Name:                 System
+Class GUID:                 {4d36e97d-e325-11ce-bfc1-08002be10318}
+Manufacturer Name:          Parallels
+Status:                     Started
+Driver Name:                oem2.inf
+Parent:                     ACPI_HAL\PNP0C08\redacted
+Matching Drivers:
+    Driver Name:            oem2.inf
+    Original Name:          prl_memdev.inf
+    Provider Name:          Parallels
+    Class Name:             System
+    Class GUID:             {4d36e97d-e325-11ce-bfc1-08002be10318}
+    Driver Version:         08/11/2026 27.0.0.58628
+    Signer Name:            Microsoft Windows Hardware Compatibility Publisher
+    Matching Device ID:     ACPI\VEN_PRL&DEV_4006
+    Driver Rank:            00FF0000
+    Driver Status:          Best Ranked / Installed
+
+Instance ID:                ACPI\PNP0C0C\redacted:ff&0
+Device Description:         ACPI Power Button
+Class Name:                 System
+Class GUID:                 {4d36e97d-e325-11ce-bfc1-08002be10318}
+Manufacturer Name:          (Standard system devices)
+Status:                     Started
+Driver Name:                machine.inf
+Parent:                     ACPI_HAL\PNP0C08\redacted
+Matching Drivers:
+    Driver Name:            machine.inf
+    Provider Name:          Microsoft
+    Class Name:             System
+    Class GUID:             {4d36e97d-e325-11ce-bfc1-08002be10318}
+    Driver Version:         06/21/2006 10.0.26100.1
+    Signer Name:            Microsoft Windows
+    Matching Device ID:     *PNP0C0C
+    Driver Rank:            00FF0002
+    Driver Status:          Best Ranked / Installed
+
+Instance ID:                ACPI_HAL\PNP0C08\redacted
+Device Description:         Microsoft ACPI-Compliant System
+Class Name:                 System
+Class GUID:                 {4d36e97d-e325-11ce-bfc1-08002be10318}
+Manufacturer Name:          Microsoft
+Status:                     Started
+Driver Name:                acpi.inf
+Parent:                     ROOT\ARM64_HAL\redacted
+Children:                   ACPI\PNP0A08\redacted
+                            ACPI\__-_ARMv8_(64-bit)_Family_8_Model_0_Revision___0\redacted
+                            ACPI\__-_ARMv8_(64-bit)_Family_8_Model_0_Revision___0\redacted
+                            ACPI\__-_ARMv8_(64-bit)_Family_8_Model_0_Revision___0\redacted
+                            ACPI\__-_ARMv8_(64-bit)_Family_8_Model_0_Revision___0\redacted
+                            ACPI\PNP0C0C\redacted:ff&0
+                            ACPI\ACPI0013\redacted
+                            ACPI\PRL4005\redacted
+                            ACPI\PRL4000\redacted
+                            ACPI\PRL4006\redacted
+                            ACPI\PRL4010\redacted:ff&0
+                            ACPI\ACPI000E\redacted:ff&0
+                            ACPI\PRLS0000\redacted:ff&0
+Matching Drivers:
+    Driver Name:            acpi.inf
+    Provider Name:          Microsoft
+    Class Name:             System
+    Class GUID:             {4d36e97d-e325-11ce-bfc1-08002be10318}
+    Driver Version:         06/21/2006 10.0.26100.9278
+    Signer Name:            Microsoft Windows
+    Matching Device ID:     *PNP0C08
+    Driver Rank:            00FF0001
+    Driver Status:          Best Ranked / Installed
+
+Instance ID:                HTREE\ROOT\redacted
+Device Description:         Unknown
+Class Name:                 Unknown
+Class GUID:                 Unknown
+Manufacturer Name:          Unknown
+Status:                     Started
+Children:                   ROOT\volmgr\redacted
+                            ROOT\VMBus\redacted
+                            ROOT\BasicDisplay\redacted
+                            ROOT\VID\redacted
+                            ROOT\CompositeBus\redacted
+                            ROOT\vdrvroot\redacted
+                            ROOT\spaceport\redacted
+                            ROOT\KDNIC\redacted
+                            ROOT\UMBUS\redacted
+                            ROOT\ARM64_HAL\redacted
+                            ROOT\VPCIVSP\redacted
+                            ROOT\BasicRender\redacted
+                            ROOT\storvsp\redacted
+                            ROOT\PlutonQc\redacted
+                            ROOT\NdisVirtualBus\redacted
+                            ROOT\mssmbios\redacted
+                            ROOT\SYSTEM\redacted
+                            ROOT\RDPBUS\redacted
+                            SWD\COMPUTER\redacted:M_VM
+                            SWD\RADIO\redacted:8D2}
+                            SWD\MMDEVAPI\redacted:ynth
+                            SWD\PRINTENUM\redacted:eues
+                            SWD\MSRRAS\redacted:bc0}
+
+Instance ID:                ROOT\BasicRender\redacted
+Device Description:         Microsoft Basic Render Driver
+Class Name:                 System
+Class GUID:                 {4d36e97d-e325-11ce-bfc1-08002be10318}
+Manufacturer Name:          Microsoft
+Status:                     Started
+Driver Name:                basicrender.inf
+Parent:                     HTREE\ROOT\redacted
+Matching Drivers:
+    Driver Name:            basicrender.inf
+    Provider Name:          Microsoft
+    Class Name:             System
+    Class GUID:             {4d36e97d-e325-11ce-bfc1-08002be10318}
+    Driver Version:         06/21/2006 10.0.26100.8521
+    Signer Name:            Microsoft Windows
+    Matching Device ID:     ROOT\BasicRender
+    Driver Rank:            00FB0000
+    Driver Status:          Best Ranked / Installed
+
+Instance ID:                USB\VID_203A&PID_FFFC&MI_01\redacted:0001
+Device Description:         USB Input Device
+Class Name:                 HIDClass
+Class GUID:                 {745a17a0-74d3-11d0-b6fe-00a0c90f57da}
+Manufacturer Name:          (Standard system devices)
+Status:                     Started
+Driver Name:                input.inf
+Parent:                     USB\VID_203A&PID_FFFC\redacted:W3.0
+Children:                   HID\VID_203A&PID_FFFC&MI_01\redacted:0000
+Matching Drivers:
+    Driver Name:            input.inf
+    Provider Name:          Microsoft
+    Class Name:             HIDClass
+    Class GUID:             {745a17a0-74d3-11d0-b6fe-00a0c90f57da}
+    Driver Version:         06/21/2006 10.0.26100.9444
+    Signer Name:            Microsoft Windows
+    Matching Device ID:     USB\Class_03
+    Driver Rank:            00FF3205
+    Driver Status:          Best Ranked / Installed
+
+Instance ID:                STORAGE\Volume\redacted:0000
+Device Description:         Volume
+Class Name:                 Volume
+Class GUID:                 {71a27cdd-812a-11d0-bec7-08002be2092f}
+Manufacturer Name:          Microsoft
+Status:                     Started
+Driver Name:                volume.inf
+Parent:                     ROOT\volmgr\redacted
+Matching Drivers:
+    Driver Name:            volume.inf
+    Provider Name:          Microsoft
+    Class Name:             Volume
+    Class GUID:             {71a27cdd-812a-11d0-bec7-08002be2092f}
+    Driver Version:         06/21/2006 10.0.26100.5074
+    Signer Name:            Microsoft Windows
+    Matching Device ID:     STORAGE\Volume
+    Driver Rank:            00FF0000
+    Driver Status:          Best Ranked / Installed
+
+Instance ID:                SWD\MSRRAS\redacted:PORT
+Device Description:         WAN Miniport (SSTP)
+Class Name:                 Net
+Class GUID:                 {4d36e972-e325-11ce-bfc1-08002be10318}
+Manufacturer Name:          Microsoft
+Status:                     Started
+Driver Name:                netsstpa.inf
+Parent:                     SWD\MSRRAS\redacted:bc0}
+Matching Drivers:
+    Driver Name:            netsstpa.inf
+    Provider Name:          Microsoft
+    Class Name:             Net
+    Class GUID:             {4d36e972-e325-11ce-bfc1-08002be10318}
+    Driver Version:         06/21/2006 10.0.26100.1
+    Signer Name:            Microsoft Windows
+    Matching Device ID:     redacted:PORT
+    Driver Rank:            00FF0000
+    Driver Status:          Best Ranked / Installed
+
+Instance ID:                ACPI_HAL\UEFI\redacted
+Device Description:         Microsoft UEFI-Compliant System
+Class Name:                 System
+Class GUID:                 {4d36e97d-e325-11ce-bfc1-08002be10318}
+Manufacturer Name:          Microsoft
+Status:                     Started
+Driver Name:                uefi.inf
+Parent:                     ROOT\ARM64_HAL\redacted
+Children:                   UEFI\RES_{43a56d5a-5d67-4896-ab2e-d71ed3698ba2}\redacted
+Matching Drivers:
+    Driver Name:            uefi.inf
+    Provider Name:          Microsoft
+    Class Name:             System
+    Class GUID:             {4d36e97d-e325-11ce-bfc1-08002be10318}
+    Driver Version:         06/21/2006 10.0.26100.8737
+    Signer Name:            Microsoft Windows
+    Matching Device ID:     ACPI_HAL\UEFI
+    Driver Rank:            00FF0000
+    Driver Status:          Best Ranked / Installed
+
+Instance ID:                HID\VID_203A&PID_FFFB&MI_01&Col02\redacted:0001
+Device Description:         HID-compliant consumer control device
+Class Name:                 HIDClass
+Class GUID:                 {745a17a0-74d3-11d0-b6fe-00a0c90f57da}
+Manufacturer Name:          Microsoft
+Status:                     Started
+Driver Name:                hidserv.inf
+Parent:                     USB\VID_203A&PID_FFFB&MI_01\redacted:0001
+Matching Drivers:
+    Driver Name:            hidserv.inf
+    Provider Name:          Microsoft
+    Class Name:             HIDClass
+    Class GUID:             {745a17a0-74d3-11d0-b6fe-00a0c90f57da}
+    Driver Version:         06/21/2006 10.0.26100.1
+    Signer Name:            Microsoft Windows
+    Matching Device ID:     HID_DEVICE_UP:000C_U:0001
+    Driver Rank:            00FF0004
+    Driver Status:          Best Ranked / Installed
+                            
+    Driver Name:            input.inf
+    Provider Name:          Microsoft
+    Class Name:             HIDClass
+    Class GUID:             {745a17a0-74d3-11d0-b6fe-00a0c90f57da}
+    Driver Version:         06/21/2006 10.0.26100.9444
+    Signer Name:            Microsoft Windows
+    Matching Device ID:     HID_DEVICE
+    Driver Rank:            00FF1005
+    Driver Status:          Outranked
+
+Instance ID:                STORAGE\Volume\redacted:0000
+Device Description:         Volume
+Class Name:                 Volume
+Class GUID:                 {71a27cdd-812a-11d0-bec7-08002be2092f}
+Manufacturer Name:          Microsoft
+Status:                     Started
+Driver Name:                volume.inf
+Parent:                     ROOT\volmgr\redacted
+Matching Drivers:
+    Driver Name:            volume.inf
+    Provider Name:          Microsoft
+    Class Name:             Volume
+    Class GUID:             {71a27cdd-812a-11d0-bec7-08002be2092f}
+    Driver Version:         06/21/2006 10.0.26100.5074
+    Signer Name:            Microsoft Windows
+    Matching Device ID:     STORAGE\Volume
+    Driver Rank:            00FF0000
+    Driver Status:          Best Ranked / Installed
+
+Instance ID:                ACPI\__-_ARMv8_(64-bit)_Family_8_Model_0_Revision___0\redacted
+Device Description:         Apple Silicon
+Class Name:                 Processor
+Class GUID:                 {50127dc3-0f36-415e-a6cc-4cb3be910b65}
+Manufacturer Name:          (Standard processor types)
+Status:                     Started
+Driver Name:                cpu.inf
+Parent:                     ACPI_HAL\PNP0C08\redacted
+Matching Drivers:
+    Driver Name:            cpu.inf
+    Provider Name:          Microsoft
+    Class Name:             Processor
+    Class GUID:             {50127dc3-0f36-415e-a6cc-4cb3be910b65}
+    Driver Version:         04/21/2009 10.0.26100.9278
+    Signer Name:            Microsoft Windows
+    Matching Device ID:     ACPI\Processor
+    Driver Rank:            00FF2000
+    Driver Status:          Best Ranked / Installed
+
+Instance ID:                ACPI\__-_ARMv8_(64-bit)_Family_8_Model_0_Revision___0\redacted
+Device Description:         Apple Silicon
+Class Name:                 Processor
+Class GUID:                 {50127dc3-0f36-415e-a6cc-4cb3be910b65}
+Manufacturer Name:          (Standard processor types)
+Status:                     Started
+Driver Name:                cpu.inf
+Parent:                     ACPI_HAL\PNP0C08\redacted
+Matching Drivers:
+    Driver Name:            cpu.inf
+    Provider Name:          Microsoft
+    Class Name:             Processor
+    Class GUID:             {50127dc3-0f36-415e-a6cc-4cb3be910b65}
+    Driver Version:         04/21/2009 10.0.26100.9278
+    Signer Name:            Microsoft Windows
+    Matching Device ID:     ACPI\Processor
+    Driver Rank:            00FF2000
+    Driver Status:          Best Ranked / Installed
+
+Instance ID:                ACPI\__-_ARMv8_(64-bit)_Family_8_Model_0_Revision___0\redacted
+Device Description:         Apple Silicon
+Class Name:                 Processor
+Class GUID:                 {50127dc3-0f36-415e-a6cc-4cb3be910b65}
+Manufacturer Name:          (Standard processor types)
+Status:                     Started
+Driver Name:                cpu.inf
+Parent:                     ACPI_HAL\PNP0C08\redacted
+Matching Drivers:
+    Driver Name:            cpu.inf
+    Provider Name:          Microsoft
+    Class Name:             Processor
+    Class GUID:             {50127dc3-0f36-415e-a6cc-4cb3be910b65}
+    Driver Version:         04/21/2009 10.0.26100.9278
+    Signer Name:            Microsoft Windows
+    Matching Device ID:     ACPI\Processor
+    Driver Rank:            00FF2000
+    Driver Status:          Best Ranked / Installed
+
+Instance ID:                ACPI\__-_ARMv8_(64-bit)_Family_8_Model_0_Revision___0\redacted
+Device Description:         Apple Silicon
+Class Name:                 Processor
+Class GUID:                 {50127dc3-0f36-415e-a6cc-4cb3be910b65}
+Manufacturer Name:          (Standard processor types)
+Status:                     Started
+Driver Name:                cpu.inf
+Parent:                     ACPI_HAL\PNP0C08\redacted
+Matching Drivers:
+    Driver Name:            cpu.inf
+    Provider Name:          Microsoft
+    Class Name:             Processor
+    Class GUID:             {50127dc3-0f36-415e-a6cc-4cb3be910b65}
+    Driver Version:         04/21/2009 10.0.26100.9278
+    Signer Name:            Microsoft Windows
+    Matching Device ID:     ACPI\Processor
+    Driver Rank:            00FF2000
+    Driver Status:          Best Ranked / Installed
+
+Instance ID:                SCSI\Disk&Ven_&Prod_harddisk_SSD\redacted:0000
+Device Description:         harddisk SSD
+Class Name:                 DiskDrive
+Class GUID:                 {4d36e967-e325-11ce-bfc1-08002be10318}
+Manufacturer Name:          (Standard disk drives)
+Status:                     Started
+Driver Name:                disk.inf
+Parent:                     ACPI\PRL4010\redacted:ff&0
+Matching Drivers:
+    Driver Name:            disk.inf
+    Provider Name:          Microsoft
+    Class Name:             DiskDrive
+    Class GUID:             {4d36e967-e325-11ce-bfc1-08002be10318}
+    Driver Version:         06/21/2006 10.0.26100.8972
+    Signer Name:            Microsoft Windows
+    Matching Device ID:     GenDisk
+    Driver Rank:            00FF0005
+    Driver Status:          Best Ranked / Installed
+
+Instance ID:                ACPI\ACPI000E\redacted:ff&0
+Device Description:         ACPI Wake Alarm
+Class Name:                 System
+Class GUID:                 {4d36e97d-e325-11ce-bfc1-08002be10318}
+Manufacturer Name:          (Standard system devices)
+Status:                     Started
+Driver Name:                acpitime.inf
+Parent:                     ACPI_HAL\PNP0C08\redacted
+Matching Drivers:
+    Driver Name:            acpitime.inf
+    Provider Name:          Microsoft
+    Class Name:             System
+    Class GUID:             {4d36e97d-e325-11ce-bfc1-08002be10318}
+    Driver Version:         06/21/2006 10.0.26100.1
+    Signer Name:            Microsoft Windows
+    Matching Device ID:     *ACPI000E
+    Driver Rank:            00FF0002
+    Driver Status:          Best Ranked / Installed
+
+Instance ID:                SWD\DRIVERENUM\redacted:06&0
+Device Description:         Voice Clarity
+Class Name:                 AudioProcessingObject
+Class GUID:                 {5989fce8-9cd0-467d-8a6a-5419e31529d4}
+Manufacturer Name:          Microsoft Corporation
+Status:                     Started
+Driver Name:                oem8.inf
+Parent:                     SWD\COMPUTER\redacted:M_VM
+Matching Drivers:
+    Driver Name:            oem8.inf
+    Original Name:          voiceclarityep_audio_component.inf
+    Provider Name:          Microsoft Corporation
+    Class Name:             AudioProcessingObject
+    Class GUID:             {5989fce8-9cd0-467d-8a6a-5419e31529d4}
+    Driver Version:         06/16/2026 1.0.4.7057
+    Signer Name:            Microsoft Windows Hardware Compatibility Publisher
+    Matching Device ID:     SWC\VEN_MSFT&AUDIO_EFFECTPACK_VOICECLARITY
+    Driver Rank:            00FF0000
+    Driver Status:          Best Ranked / Installed
+                            
+    Driver Name:            c_swcomponent.inf
+    Provider Name:          Microsoft
+    Class Name:             SoftwareComponent
+    Class GUID:             {5c4c3332-344d-483c-8739-259e934c9cc8}
+    Driver Version:         06/21/2006 10.0.26100.1
+    Signer Name:            Microsoft Windows
+    Matching Device ID:     SWC\Generic
+    Driver Rank:            00FF3000
+    Driver Status:          Outranked
+                            
+    Driver Name:            c_swdevice.inf
+    Provider Name:          Microsoft
+    Class Name:             SoftwareDevice
+    Class GUID:             {62f9c741-b25a-46ce-b54c-9bccce08b6f2}
+    Driver Version:         06/21/2006 10.0.26100.1
+    Signer Name:            Microsoft Windows
+    Matching Device ID:     SWD\GenericRaw
+    Driver Rank:            00FF3001
+    Driver Status:          Outranked
+
+Instance ID:                ROOT\storvsp\redacted
+Device Description:         Microsoft Hyper-V Virtual Disk Server
+Class Name:                 System
+Class GUID:                 {4d36e97d-e325-11ce-bfc1-08002be10318}
+Manufacturer Name:          Microsoft
+Status:                     Started
+Driver Name:                wstorvsp.inf
+Parent:                     HTREE\ROOT\redacted
+Matching Drivers:
+    Driver Name:            wstorvsp.inf
+    Provider Name:          Microsoft
+    Class Name:             System
+    Class GUID:             {4d36e97d-e325-11ce-bfc1-08002be10318}
+    Driver Version:         06/21/2006 10.0.26100.9444
+    Signer Name:            Microsoft Windows
+    Matching Device ID:     root\storvsp
+    Driver Rank:            00FF0000
+    Driver Status:          Best Ranked / Installed
+
+Instance ID:                ACPI\PRL4010\redacted:ff&0
+Device Description:         Standard SATA AHCI Controller
+Class Name:                 HDC
+Class GUID:                 {4d36e96a-e325-11ce-bfc1-08002be10318}
+Manufacturer Name:          Standard SATA AHCI Controller
+Status:                     Started
+Driver Name:                mshdc.inf
+Parent:                     ACPI_HAL\PNP0C08\redacted
+Children:                   SCSI\Disk&Ven_&Prod_harddisk_SSD\redacted:0000
+                            SCSI\CdRom&Ven_&Prod_Virtual_DVD-ROM\redacted:0000
+Matching Drivers:
+    Driver Name:            mshdc.inf
+    Provider Name:          Microsoft
+    Class Name:             HDC
+    Class GUID:             {4d36e96a-e325-11ce-bfc1-08002be10318}
+    Driver Version:         06/21/2006 10.0.26100.8521
+    Signer Name:            Microsoft Windows
+    Matching Device ID:     ACPI\CLS_0001&SUBCLS_0006&PI_01
+    Driver Rank:            00FF2003
+    Driver Status:          Best Ranked / Installed
+
+Instance ID:                SWD\MMDEVAPI\redacted:ynth
+Device Description:         Microsoft GS Wavetable Synth
+Class Name:                 SoftwareDevice
+Class GUID:                 {62f9c741-b25a-46ce-b54c-9bccce08b6f2}
+Manufacturer Name:          Microsoft
+Status:                     Started
+Driver Name:                c_swdevice.inf
+Parent:                     HTREE\ROOT\redacted
+Matching Drivers:
+    Driver Name:            c_swdevice.inf
+    Provider Name:          Microsoft
+    Class Name:             SoftwareDevice
+    Class GUID:             {62f9c741-b25a-46ce-b54c-9bccce08b6f2}
+    Driver Version:         06/21/2006 10.0.26100.1
+    Signer Name:            Microsoft Windows
+    Matching Device ID:     SWD\GenericRaw
+    Driver Rank:            00FF3000
+    Driver Status:          Best Ranked / Installed
+
+Instance ID:                USB\VID_203A&PID_FFFC&MI_02\redacted:0002
+Device Description:         USB Input Device
+Class Name:                 HIDClass
+Class GUID:                 {745a17a0-74d3-11d0-b6fe-00a0c90f57da}
+Manufacturer Name:          (Standard system devices)
+Status:                     Started
+Driver Name:                input.inf
+Parent:                     USB\VID_203A&PID_FFFC\redacted:W3.0
+Children:                   HID\VID_203A&PID_FFFC&MI_02\redacted:0000
+Matching Drivers:
+    Driver Name:            input.inf
+    Provider Name:          Microsoft
+    Class Name:             HIDClass
+    Class GUID:             {745a17a0-74d3-11d0-b6fe-00a0c90f57da}
+    Driver Version:         06/21/2006 10.0.26100.9444
+    Signer Name:            Microsoft Windows
+    Matching Device ID:     USB\Class_03
+    Driver Rank:            00FF3205
+    Driver Status:          Best Ranked / Installed
+
+Instance ID:                STORAGE\Volume\redacted:0000
+Device Description:         Volume
+Class Name:                 Volume
+Class GUID:                 {71a27cdd-812a-11d0-bec7-08002be2092f}
+Manufacturer Name:          Microsoft
+Status:                     Started
+Driver Name:                volume.inf
+Parent:                     ROOT\volmgr\redacted
+Matching Drivers:
+    Driver Name:            volume.inf
+    Provider Name:          Microsoft
+    Class Name:             Volume
+    Class GUID:             {71a27cdd-812a-11d0-bec7-08002be2092f}
+    Driver Version:         06/21/2006 10.0.26100.5074
+    Signer Name:            Microsoft Windows
+    Matching Device ID:     STORAGE\Volume
+    Driver Rank:            00FF0000
+    Driver Status:          Best Ranked / Installed
+
+Instance ID:                ROOT\PlutonQc\redacted
+Device Description:         Microsoft Pluton security processor
+Class Name:                 SecurityDevices
+Class GUID:                 {d94ee5d8-d189-4994-83d2-f68d7d41b0e6}
+Manufacturer Name:          (Standard)
+Status:                     Started
+Driver Name:                PlutonQc.inf
+Parent:                     HTREE\ROOT\redacted
+Matching Drivers:
+    Driver Name:            PlutonQc.inf
+    Provider Name:          Microsoft
+    Class Name:             SecurityDevices
+    Class GUID:             {d94ee5d8-d189-4994-83d2-f68d7d41b0e6}
+    Driver Version:         06/21/2006 10.0.26100.9278
+    Signer Name:            Microsoft Windows
+    Matching Device ID:     Root\PlutonQc
+    Driver Rank:            00FF0000
+    Driver Status:          Best Ranked / Installed
+
+Instance ID:                ROOT\NdisVirtualBus\redacted
+Device Description:         NDIS Virtual Network Adapter Enumerator
+Class Name:                 System
+Class GUID:                 {4d36e97d-e325-11ce-bfc1-08002be10318}
+Manufacturer Name:          Microsoft
+Status:                     Started
+Driver Name:                ndisvirtualbus.inf
+Parent:                     HTREE\ROOT\redacted
+Matching Drivers:
+    Driver Name:            ndisvirtualbus.inf
+    Provider Name:          Microsoft
+    Class Name:             System
+    Class GUID:             {4d36e97d-e325-11ce-bfc1-08002be10318}
+    Driver Version:         06/21/2006 10.0.26100.1
+    Signer Name:            Microsoft Windows
+    Matching Device ID:     ROOT\NdisVirtualBus
+    Driver Rank:            00FF0000
+    Driver Status:          Best Ranked / Installed
+
+Instance ID:                HID\VID_203A&PID_FFFB&MI_01&Col03\redacted:0002
+Device Description:         HID-compliant system controller
+Class Name:                 HIDClass
+Class GUID:                 {745a17a0-74d3-11d0-b6fe-00a0c90f57da}
+Manufacturer Name:          (Standard system devices)
+Status:                     Started
+Driver Name:                input.inf
+Parent:                     USB\VID_203A&PID_FFFB&MI_01\redacted:0001
+Matching Drivers:
+    Driver Name:            input.inf
+    Provider Name:          Microsoft
+    Class Name:             HIDClass
+    Class GUID:             {745a17a0-74d3-11d0-b6fe-00a0c90f57da}
+    Driver Version:         06/21/2006 10.0.26100.9444
+    Signer Name:            Microsoft Windows
+    Matching Device ID:     HID_DEVICE_UP:0001_U:0080
+    Driver Rank:            00FF1004
+    Driver Status:          Best Ranked / Installed
+                            
+    Driver Name:            input.inf
+    Provider Name:          Microsoft
+    Class Name:             HIDClass
+    Class GUID:             {745a17a0-74d3-11d0-b6fe-00a0c90f57da}
+    Driver Version:         06/21/2006 10.0.26100.9444
+    Signer Name:            Microsoft Windows
+    Matching Device ID:     HID_DEVICE
+    Driver Rank:            00FF1005
+    Driver Status:          Outranked
+
+Instance ID:                USB\VID_203A&PID_FFFB\redacted:D1.1
+Device Description:         USB Composite Device
+Class Name:                 USB
+Class GUID:                 {36fc9e60-c465-11cf-8056-444553540000}
+Manufacturer Name:          (Standard USB Host Controller)
+Status:                     Started
+Driver Name:                usb.inf
+Parent:                     USB\ROOT_HUB30\redacted:&0&0
+Children:                   USB\VID_203A&PID_FFFB&MI_00\redacted:0000
+                            USB\VID_203A&PID_FFFB&MI_01\redacted:0001
+Matching Drivers:
+    Driver Name:            usb.inf
+    Provider Name:          Microsoft
+    Class Name:             USB
+    Class GUID:             {36fc9e60-c465-11cf-8056-444553540000}
+    Driver Version:         06/21/2006 10.0.26100.9444
+    Signer Name:            Microsoft Windows
+    Matching Device ID:     USB\COMPOSITE
+    Driver Rank:            00FF2006
+    Driver Status:          Best Ranked / Installed
+
+Instance ID:                STORAGE\Volume\redacted:0000
+Device Description:         Volume
+Class Name:                 Volume
+Class GUID:                 {71a27cdd-812a-11d0-bec7-08002be2092f}
+Manufacturer Name:          Microsoft
+Status:                     Started
+Driver Name:                volume.inf
+Parent:                     ROOT\volmgr\redacted
+Matching Drivers:
+    Driver Name:            volume.inf
+    Provider Name:          Microsoft
+    Class Name:             Volume
+    Class GUID:             {71a27cdd-812a-11d0-bec7-08002be2092f}
+    Driver Version:         06/21/2006 10.0.26100.5074
+    Signer Name:            Microsoft Windows
+    Matching Device ID:     STORAGE\Volume
+    Driver Rank:            00FF0000
+    Driver Status:          Best Ranked / Installed
+
+Instance ID:                USB\ROOT_HUB20\redacted:d6&0
+Device Description:         USB Root Hub
+Class Name:                 USB
+Class GUID:                 {36fc9e60-c465-11cf-8056-444553540000}
+Manufacturer Name:          (Standard USB Host Controller)
+Status:                     Started
+Driver Name:                usbport.inf
+Parent:                     PCI\VEN_8086&DEV_265C&SUBSYS_04001AB8&REV_02\redacted:0&10
+Matching Drivers:
+    Driver Name:            usbport.inf
+    Provider Name:          Microsoft
+    Class Name:             USB
+    Class GUID:             {36fc9e60-c465-11cf-8056-444553540000}
+    Driver Version:         06/21/2006 10.0.26100.9278
+    Signer Name:            Microsoft Windows
+    Matching Device ID:     USB\ROOT_HUB20
+    Driver Rank:            00FF0002
+    Driver Status:          Best Ranked / Installed
+
+Instance ID:                DISPLAY\PRL5000\redacted:UID0
+Device Description:         Generic Monitor (Parallels Vu)
+Class Name:                 Monitor
+Class GUID:                 {4d36e96e-e325-11ce-bfc1-08002be10318}
+Manufacturer Name:          (Standard monitor types)
+Status:                     Started
+Driver Name:                monitor.inf
+Parent:                     ACPI\PRL4005\redacted
+Matching Drivers:
+    Driver Name:            monitor.inf
+    Provider Name:          Microsoft
+    Class Name:             Monitor
+    Class GUID:             {4d36e96e-e325-11ce-bfc1-08002be10318}
+    Driver Version:         06/21/2006 10.0.26100.9278
+    Signer Name:            Microsoft Windows
+    Matching Device ID:     *PNP09FF
+    Driver Rank:            00FF2000
+    Driver Status:          Best Ranked / Installed
+
+Instance ID:                ROOT\mssmbios\redacted
+Device Description:         Microsoft System Management BIOS Driver
+Class Name:                 System
+Class GUID:                 {4d36e97d-e325-11ce-bfc1-08002be10318}
+Manufacturer Name:          (Standard system devices)
+Status:                     Started
+Driver Name:                mssmbios.inf
+Parent:                     HTREE\ROOT\redacted
+Matching Drivers:
+    Driver Name:            mssmbios.inf
+    Provider Name:          Microsoft
+    Class Name:             System
+    Class GUID:             {4d36e97d-e325-11ce-bfc1-08002be10318}
+    Driver Version:         06/21/2006 10.0.26100.1
+    Signer Name:            Microsoft Windows
+    Matching Device ID:     ROOT\mssmbios
+    Driver Rank:            00FF0000
+    Driver Status:          Best Ranked / Installed
+
+Instance ID:                PCI\VEN_1033&DEV_0194&SUBSYS_04001AB8&REV_04\redacted:0&18
+Device Description:         Renesas USB 3.10 eXtensible Host Controller - 1.10 (Microsoft)
+Class Name:                 USB
+Class GUID:                 {36fc9e60-c465-11cf-8056-444553540000}
+Manufacturer Name:          Generic USB xHCI Host Controller
+Status:                     Started
+Driver Name:                usbxhci.inf
+Parent:                     ACPI\PNP0A08\redacted
+Children:                   USB\ROOT_HUB30\redacted:&0&0
+Matching Drivers:
+    Driver Name:            usbxhci.inf
+    Provider Name:          Microsoft
+    Class Name:             USB
+    Class GUID:             {36fc9e60-c465-11cf-8056-444553540000}
+    Driver Version:         09/03/2026 10.0.26100.9444
+    Signer Name:            Microsoft Windows
+    Matching Device ID:     PCI\CC_0C0330
+    Driver Rank:            00802005
+    Driver Status:          Best Ranked / Installed
+
+Instance ID:                ROOT\SYSTEM\redacted
+Device Description:         Plug and Play Software Device Enumerator
+Class Name:                 System
+Class GUID:                 {4d36e97d-e325-11ce-bfc1-08002be10318}
+Manufacturer Name:          (Standard system devices)
+Status:                     Started
+Driver Name:                swenum.inf
+Parent:                     HTREE\ROOT\redacted
+Matching Drivers:
+    Driver Name:            swenum.inf
+    Provider Name:          Microsoft
+    Class Name:             System
+    Class GUID:             {4d36e97d-e325-11ce-bfc1-08002be10318}
+    Driver Version:         05/23/2025 10.0.26100.4202
+    Signer Name:            Microsoft Windows
+    Matching Device ID:     ROOT\SWENUM
+    Driver Rank:            00FF0000
+    Driver Status:          Best Ranked / Installed
+
+Instance ID:                USB\VID_203A&PID_FFFC\redacted:W3.0
+Device Description:         USB Composite Device
+Class Name:                 USB
+Class GUID:                 {36fc9e60-c465-11cf-8056-444553540000}
+Manufacturer Name:          (Standard USB Host Controller)
+Status:                     Started
+Driver Name:                usb.inf
+Parent:                     USB\ROOT_HUB30\redacted:&0&0
+Children:                   USB\VID_203A&PID_FFFC&MI_00\redacted:0000
+                            USB\VID_203A&PID_FFFC&MI_01\redacted:0001
+                            USB\VID_203A&PID_FFFC&MI_02\redacted:0002
+Matching Drivers:
+    Driver Name:            usb.inf
+    Provider Name:          Microsoft
+    Class Name:             USB
+    Class GUID:             {36fc9e60-c465-11cf-8056-444553540000}
+    Driver Version:         06/21/2006 10.0.26100.9444
+    Signer Name:            Microsoft Windows
+    Matching Device ID:     USB\COMPOSITE
+    Driver Rank:            00FF2006
+    Driver Status:          Best Ranked / Installed
+
+Instance ID:                HDAUDIO\FUNC_01&VEN_1AB8&DEV_0001&SUBSYS_1AB80101&REV_1001\redacted:0001
+Device Description:         High Definition Audio Device
+Class Name:                 MEDIA
+Class GUID:                 {4d36e96c-e325-11ce-bfc1-08002be10318}
+Manufacturer Name:          Microsoft
+Status:                     Started
+Driver Name:                hdaudio.inf
+Parent:                     PCI\VEN_8086&DEV_293E&SUBSYS_04001AB8&REV_00\redacted:0&08
+Children:                   SWD\MMDEVAPI\redacted:e51}
+Matching Drivers:
+    Driver Name:            hdaudio.inf
+    Provider Name:          Microsoft
+    Class Name:             MEDIA
+    Class GUID:             {4d36e96c-e325-11ce-bfc1-08002be10318}
+    Driver Version:         08/25/2026 10.0.26100.9278
+    Signer Name:            Microsoft Windows
+    Matching Device ID:     HDAUDIO\FUNC_01
+    Driver Rank:            00FF300C
+    Driver Status:          Best Ranked / Installed
+
+Instance ID:                SWD\PRINTENUM\redacted:7E3}
+Device Description:         Microsoft Print to PDF
+Class Name:                 PrintQueue
+Class GUID:                 {1ed2bbf9-11f0-4084-b21f-ad83a8e6dcdc}
+Manufacturer Name:          Microsoft
+Status:                     Started
+Driver Name:                printqueue.inf
+Parent:                     SWD\PRINTENUM\redacted:eues
+Matching Drivers:
+    Driver Name:            printqueue.inf
+    Provider Name:          Microsoft
+    Class Name:             PrintQueue
+    Class GUID:             {1ed2bbf9-11f0-4084-b21f-ad83a8e6dcdc}
+    Driver Version:         06/21/2006 10.0.26100.1
+    Signer Name:            Microsoft Windows
+    Matching Device ID:     PRINTENUM\LocalPrintQueue
+    Driver Rank:            00000001
+    Driver Status:          Best Ranked / Installed
+                            
+    Driver Name:            oem7.inf
+    Original Name:          prnms009.inf
+    Provider Name:          Microsoft
+    Class Name:             Printer
+    Class GUID:             {4d36e979-e325-11ce-bfc1-08002be10318}
+    Driver Version:         06/21/2006 10.0.26100.4484
+    Signer Name:            Microsoft Windows
+    Matching Device ID:     {084f01fa-e634-4d77-83ee-074817c03581}
+    Driver Rank:            00FF0002
+    Driver Status:          Outranked
+                            
+    Driver Name:            c_swdevice.inf
+    Provider Name:          Microsoft
+    Class Name:             SoftwareDevice
+    Class GUID:             {62f9c741-b25a-46ce-b54c-9bccce08b6f2}
+    Driver Version:         06/21/2006 10.0.26100.1
+    Signer Name:            Microsoft Windows
+    Matching Device ID:     SWD\GenericRaw
+    Driver Rank:            00FF3001
+    Driver Status:          Outranked
+
+Instance ID:                ROOT\RDPBUS\redacted
+Device Description:         Remote Desktop Device Redirector Bus
+Class Name:                 System
+Class GUID:                 {4d36e97d-e325-11ce-bfc1-08002be10318}
+Manufacturer Name:          Microsoft
+Status:                     Started
+Driver Name:                rdpbus.inf
+Parent:                     HTREE\ROOT\redacted
+Matching Drivers:
+    Driver Name:            rdpbus.inf
+    Provider Name:          Microsoft
+    Class Name:             System
+    Class GUID:             {4d36e97d-e325-11ce-bfc1-08002be10318}
+    Driver Version:         06/21/2006 10.0.26100.8737
+    Signer Name:            Microsoft Windows
+    Matching Device ID:     ROOT\RDPBUS
+    Driver Rank:            00FF0000
+    Driver Status:          Best Ranked / Installed
+
+Instance ID:                USB\ROOT_HUB30\redacted:&0&0
+Device Description:         USB Root Hub (USB 3.0)
+Class Name:                 USB
+Class GUID:                 {36fc9e60-c465-11cf-8056-444553540000}
+Manufacturer Name:          (Standard USB HUBs)
+Status:                     Started
+Driver Name:                usbhub3.inf
+Parent:                     PCI\VEN_1033&DEV_0194&SUBSYS_04001AB8&REV_04\redacted:0&18
+Children:                   USB\VID_203A&PID_FFFC\redacted:W3.0
+                            USB\VID_203A&PID_FFFB\redacted:D1.1
+Matching Drivers:
+    Driver Name:            usbhub3.inf
+    Provider Name:          Microsoft
+    Class Name:             USB
+    Class GUID:             {36fc9e60-c465-11cf-8056-444553540000}
+    Driver Version:         09/03/2026 10.0.26100.9444
+    Signer Name:            Microsoft Windows
+    Matching Device ID:     USB\ROOT_HUB30
+    Driver Rank:            00800002
+    Driver Status:          Best Ranked / Installed
+
+Instance ID:                SWD\MSRRAS\redacted:IPV6
+Device Description:         WAN Miniport (IPv6)
+Class Name:                 Net
+Class GUID:                 {4d36e972-e325-11ce-bfc1-08002be10318}
+Manufacturer Name:          Microsoft
+Status:                     Started
+Driver Name:                netrasa.inf
+Parent:                     SWD\MSRRAS\redacted:bc0}
+Matching Drivers:
+    Driver Name:            netrasa.inf
+    Provider Name:          Microsoft
+    Class Name:             Net
+    Class GUID:             {4d36e972-e325-11ce-bfc1-08002be10318}
+    Driver Version:         06/21/2006 10.0.26100.1
+    Signer Name:            Microsoft Windows
+    Matching Device ID:     redacted:IPV6
+    Driver Rank:            00FF0000
+    Driver Status:          Best Ranked / Installed
+
+Instance ID:                SWD\MSRRAS\redacted:PORT
+Device Description:         WAN Miniport (L2TP)
+Class Name:                 Net
+Class GUID:                 {4d36e972-e325-11ce-bfc1-08002be10318}
+Manufacturer Name:          Microsoft
+Status:                     Started
+Driver Name:                netrasa.inf
+Parent:                     SWD\MSRRAS\redacted:bc0}
+Matching Drivers:
+    Driver Name:            netrasa.inf
+    Provider Name:          Microsoft
+    Class Name:             Net
+    Class GUID:             {4d36e972-e325-11ce-bfc1-08002be10318}
+    Driver Version:         06/21/2006 10.0.26100.1
+    Signer Name:            Microsoft Windows
+    Matching Device ID:     redacted:PORT
+    Driver Rank:            00FF0000
+    Driver Status:          Best Ranked / Installed

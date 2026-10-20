@@ -50,11 +50,22 @@ const FALLBACK_SYSTEM_ROOT = "C:\\Windows";
  * @returns {string} Absolute powershell.exe path.
  */
 export function resolveWindowsPowerShellPath(env = process.env) {
+  return resolveWindowsSystemPath(WINDOWS_POWERSHELL_RELATIVE_PATH, env);
+}
+
+/**
+ * Resolve an absolute path under the validated `SystemRoot`.
+ *
+ * @param {string} relativePath Path below `SystemRoot`, such as `System32\reg.exe`.
+ * @param {{ SystemRoot?: string }} [env=process.env] Environment to read.
+ * @returns {string} Absolute path.
+ */
+export function resolveWindowsSystemPath(relativePath, env = process.env) {
   const candidate = String(env?.SystemRoot ?? "");
   const root = SYSTEM_ROOT_PATTERN.test(candidate)
     ? candidate.replace(/[\\]+$/u, "")
     : FALLBACK_SYSTEM_ROOT;
-  return `${root}\\${WINDOWS_POWERSHELL_RELATIVE_PATH}`;
+  return `${root}\\${relativePath}`;
 }
 
 /**

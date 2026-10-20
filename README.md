@@ -39,7 +39,7 @@ Common options:
 - `--platform <value>` override platform detection
 - `--arch <value>` override architecture detection
 - `--sensitive` include raw identifiers instead of redacted defaults
-- `--no-command-enrichment` disable optional command-based enrichment (Linux commands; on Windows only the `windows-cim-platform` batch runs)
+- `--no-command-enrichment` disable optional command-based enrichment (Linux commands; on macOS the per-interface `ifconfig` and `pmset` calls are skipped; on Windows only the `windows-cim-platform` batch runs)
 - `--privileged` collect sources that need elevated rights. On Linux this enables privileged enrichment and explicit non-interactive `sudo -n` retries for documented permission-sensitive commands that opt in (currently `drm_info`). On Windows it adds the `windows-cim-privileged` batch (TPM, BitLocker, storage reliability counters, `Confirm-SecureBootUEFI`), which only administrators can read; cdx-hbom never elevates itself, so run it from an elevated session to get that data and expect `permission-denied` diagnostics otherwise
 - `--plist-enrichment` enable additional Darwin plist-based enrichment
 - `--strict` fail instead of returning partial results when enrichment fails
@@ -215,6 +215,18 @@ Option semantics on Windows:
 - `--plist-enrichment` does not apply to Windows.
 - `--timeout <ms>` overrides the per-batch timeouts (60 s per CIM batch,
   90 s for `windows-pnp-devices`).
+- When `powershell.exe` cannot start (missing, blocked by AppLocker, WDAC or
+  the command allowlist) or runs in Constrained Language Mode, a fallback
+  reads board, firmware and processor from `reg.exe query
+  HKLM\HARDWARE\DESCRIPTION\System\{BIOS,CentralProcessor\0}` and the
+  device inventory from `pnputil /enum-devices /connected /relations
+  /drivers`, and records a `windows-fallback` `partial-support` diagnostic.
+  The registry value names are not documented by Microsoft. pnputil labels are
+  localized, so on a non-English host only the registry part applies. The
+  fallback commands are not in the command plan; an allowlist must name
+  `reg.exe` and `pnputil.exe` to permit them.
+- Command allowlist entries match Windows commands case-insensitively
+  (`POWERSHELL.EXE` allows `powershell.exe`); POSIX commands match exactly.
 
 Permissions, PowerShell restrictions, EDR allowlisting, slow providers and the
 x64-on-ARM64 case are covered in
