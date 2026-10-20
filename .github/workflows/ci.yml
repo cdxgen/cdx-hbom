@@ -71,6 +71,11 @@ jobs:
       - name: Publish with provenance
         run: npm publish --provenance --access public
 
+      # JSR is best effort: npm is the primary registry, and a JSR outage
+      # (v0.6.0: connection reset while polling publish status) must not
+      # fail a release that already reached npm.
       - name: Publish to JSR
         if: ${{ hashFiles('jsr.json') != '' }}
+        continue-on-error: true
+        timeout-minutes: 10
         run: npx -y jsr publish
