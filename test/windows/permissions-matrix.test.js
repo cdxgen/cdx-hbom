@@ -16,7 +16,10 @@ const TROUBLESHOOTING = fileURLToPath(
 );
 
 test("the committed Windows permissions matrix matches the fixtures", () => {
-  const committed = extractPermissionsMatrix(readFileSync(TROUBLESHOOTING, "utf8"));
+  const committed = extractPermissionsMatrix(
+    // Windows checkouts may convert docs to CRLF (core.autocrlf).
+    readFileSync(TROUBLESHOOTING, "utf8").replaceAll("\r\n", "\n"),
+  );
   const generated = renderPermissionsMatrix(buildPermissionsMatrix());
   assert.equal(
     committed,

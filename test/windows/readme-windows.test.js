@@ -46,7 +46,7 @@ function renderWindowsSources() {
 }
 
 test("the README Windows source list matches the command registry", () => {
-  const readme = readFileSync(README, "utf8");
+  const readme = readFileSync(README, "utf8").replaceAll("\r\n", "\n");
   const start = readme.indexOf(START);
   const end = readme.indexOf(END);
   assert.ok(start !== -1 && end > start, "README carries the windows-sources markers");
@@ -59,7 +59,7 @@ test("the README Windows source list matches the command registry", () => {
 });
 
 test("the README lists the Windows targets and the Windows troubleshooting page", () => {
-  const readme = readFileSync(README, "utf8");
+  const readme = readFileSync(README, "utf8").replaceAll("\r\n", "\n");
   assert.match(readme, /- `win32\/amd64`/u);
   assert.match(readme, /- `win32\/arm64`/u);
   assert.match(readme, /\(windows-troubleshooting\.md\)/u);
