@@ -4,14 +4,11 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 import { join } from "node:path";
 
-import { parseWindowsEnvelope } from "../../src/windows/common/cim.js";
 import {
   WINDOWS_FALLBACK_COMMANDS,
   parsePnputilDevices,
-  parseRegQuery,
   parseWindowsBuild,
   selectPnputilCommand,
-  toFallbackPlatformEnvelope,
   toFallbackPnpEnvelope,
 } from "../../src/windows/common/fallback.js";
 import { buildWindowsHbom, getWindowsCommandPlan } from "../../src/windows/common/index.js";
@@ -19,10 +16,6 @@ import { buildWindowsHbom, getWindowsCommandPlan } from "../../src/windows/commo
 const FALLBACK_DIR = fileURLToPath(
   new URL("../fixtures/windows-fallback/arm64/vm-parallels-elevated", import.meta.url),
 );
-const CIM_DIR = fileURLToPath(
-  new URL("../fixtures/windows/arm64/vm-parallels-elevated", import.meta.url),
-);
-
 // Synthetic T0 baseline (test input, not captured).
 const TEST_BASELINE = Object.freeze({
   cpuModel: "Baseline CPU",
@@ -40,77 +33,13 @@ function prop(component, name) {
   return component.properties?.find((entry) => entry.name === name)?.value;
 }
 
-function byClass(bom, hardwareClass) {
-  return bom.components.filter(
-    (component) => prop(component, "cdx:hbom:hardwareClass") === hardwareClass,
-  );
-}
-
 function fallbackSources() {
-  const bios = Object.values(parseRegQuery(fixture(FALLBACK_DIR, "windows-reg-bios")))[0];
-  const cpu = Object.values(parseRegQuery(fixture(FALLBACK_DIR, "windows-reg-cpu")))[0];
   const { devices } = parsePnputilDevices(fixture(FALLBACK_DIR, "windows-pnputil-devices"));
   return {
     baseline: TEST_BASELINE,
-    platformEnvelope: toFallbackPlatformEnvelope(bios, cpu),
     pnpDevicesEnvelope: toFallbackPnpEnvelope(devices),
   };
 }
-
-test("parseRegQuery reads typed values and skips binary ones", () => {
-  const keys = parseRegQuery(fixture(FALLBACK_DIR, "windows-reg-cpu"));
-  const [path] = Object.keys(keys);
-  assert.equal(path, "HKEY_LOCAL_MACHINE\\HARDWARE\\DESCRIPTION\\System\\CentralProcessor\\0");
-  const values = keys[path];
-  assert.equal(typeof values.ProcessorNameString, "string");
-  assert.equal(typeof values["~MHz"], "number");
-  assert.equal(values["Component Information"], undefined, "REG_BINARY is dropped");
-  assert.equal(values["Configuration Data"], undefined, "resource descriptors are dropped");
-
-  const synthetic = parseRegQuery(
-    [
-      "",
-      "HKEY_LOCAL_MACHINE\\HARDWARE\\DESCRIPTION\\System\\BIOS",
-      "    BIOSReleaseDate    REG_SZ    06/21/2024",
-      "    EnclosureType    REG_DWORD    0xa",
-      "    Empty Value    REG_SZ    ",
-      "",
-    ].join("\r\n"),
-  );
-  assert.deepEqual(Object.values(synthetic)[0], {
-    BIOSReleaseDate: "06/21/2024",
-    EnclosureType: 10,
-  });
-});
-
-test("the registry fallback yields board, firmware and processor matching the CIM capture", () => {
-  const fallback = buildWindowsHbom({ sources: fallbackSources(), collectedAt: "2026-10-20T00:00:00Z" });
-  const cim = buildWindowsHbom({
-    sources: {
-      baseline: TEST_BASELINE,
-      platformEnvelope: parseWindowsEnvelope(fixture(CIM_DIR, "windows-cim-platform")),
-    },
-    collectedAt: "2026-10-20T00:00:00Z",
-  });
-  assert.equal(
-    fallbackSources().platformEnvelope.results.processor.items[0].Architecture,
-    12,
-    "ARMv8 Identifier maps to Win32_Processor.Architecture 12",
-  );
-  for (const hardwareClass of ["processor", "board", "firmware"]) {
-    const [actual] = byClass(fallback, hardwareClass);
-    const [expected] = byClass(cim, hardwareClass);
-    assert.ok(actual, `fallback emits a ${hardwareClass}`);
-    assert.equal(actual.name, expected.name, `${hardwareClass} name matches CIM`);
-    assert.equal(actual.manufacturer?.name, expected.manufacturer?.name);
-  }
-  assert.equal(fallback.metadata.component.name, cim.metadata.component.name);
-  assert.equal(
-    prop(fallback.metadata.component, "cdx:hbom:architectureSource"),
-    prop(cim.metadata.component, "cdx:hbom:architectureSource"),
-    "the processor Identifier gives the hardware architecture",
-  );
-});
 
 test("the pnputil fallback yields the PnP device inventory with parent links", () => {
   const { devices, recognized } = parsePnputilDevices(
@@ -159,7 +88,7 @@ test("pnputil flags are gated on the OS build", () => {
 
 test("fallback commands use absolute System32 paths and stay out of the command plan", () => {
   for (const spec of WINDOWS_FALLBACK_COMMANDS) {
-    assert.match(spec.command, /^[A-Za-z]:\\.+\\System32\\(?:reg|pnputil)\.exe$/u);
+    assert.match(spec.command, /^[A-Za-z]:\\.+\\System32\\pnputil\.exe$/u);
     assert.equal(spec.phase, "fallback");
   }
   const planIds = getWindowsCommandPlan().map((spec) => spec.id);
