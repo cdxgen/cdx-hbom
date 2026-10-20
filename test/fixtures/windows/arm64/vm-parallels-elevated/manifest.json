@@ -32,6 +32,14 @@
       "durationMs": 1275,
       "bytes": 24900,
       "provenance": "captured"
+    },
+    {
+      "id": "windows-cim-display-media",
+      "argsSha256": "88b7b1f52ce0035b29a0e37d8f5f941dbb38611414a0fae8fb43aab1f8d51864",
+      "exitCode": 0,
+      "durationMs": 1739,
+      "bytes": 2066,
+      "provenance": "captured"
     }
   ]
 }
