@@ -6,22 +6,6 @@
   "osRelease": "10.0.26200",
   "commands": [
     {
-      "id": "windows-reg-bios",
-      "argsSha256": "7ffc5c7eea683320ad6a1c3d9978fdcde59c60df3b9e9298401f2858c9e1eef3",
-      "exitCode": 0,
-      "durationMs": 33,
-      "bytes": 869,
-      "provenance": "captured"
-    },
-    {
-      "id": "windows-reg-cpu",
-      "argsSha256": "95464b197300b2e6b3040fba6f45edd08c3b4e65ee5a880242c456cb97c5a619",
-      "exitCode": 0,
-      "durationMs": 33,
-      "bytes": 1174,
-      "provenance": "captured"
-    },
-    {
       "id": "windows-pnputil-devices",
       "argsSha256": "977d3ed4c1ad0f89dfac014db91e8a0ec97e27afcca7b10c1882b75f8b999d88",
       "exitCode": 0,

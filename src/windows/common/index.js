@@ -33,12 +33,9 @@ import {
 } from "./cim.js";
 import { WINDOWS_COMMANDS, getRequiredWindowsCommand } from "./commands.js";
 import {
-  getWindowsFallbackCommand,
   parsePnputilDevices,
-  parseRegQuery,
   parseWindowsBuild,
   selectPnputilCommand,
-  toFallbackPlatformEnvelope,
   toFallbackPnpEnvelope,
 } from "./fallback.js";
 import {
@@ -548,7 +545,7 @@ export async function collectWindowsHardware(options = {}) {
     commandDiagnostics.push({
       id: "windows-fallback",
       issue: "partial-support",
-      message: `${degradedReason}: board, firmware and processor come from reg.exe and the device inventory from pnputil; storage, network, display, media and trust details are missing`,
+      message: `${degradedReason}: the device inventory comes from pnputil and the processor and memory from the Node baseline; board, firmware, storage, network, display, media and trust details are missing`,
     });
   }
 
@@ -580,10 +577,9 @@ function powershellFailureIssue(error) {
 }
 
 /**
- * Fill missing sources from the T4 fallback (C10): reg.exe for the platform
- * envelope, pnputil for the PnP envelope. Existing envelopes win, so a CLM
- * session that still returned CIM data keeps it. pnputil is enrichment and
- * honours `includeCommandEnrichment: false`.
+ * Fill the PnP envelope from the T4 fallback (C10, pnputil) when no
+ * PowerShell batch produced one. pnputil is enrichment and honours
+ * `includeCommandEnrichment: false`.
  *
  * @param {Record<string, unknown>} sources Collector sources (mutated).
  * @param {object} options Collector options plus `executedCommands` and `recordCommandError`.
@@ -601,20 +597,6 @@ async function collectWindowsFallback(sources, options) {
       options.recordCommandError,
     );
   };
-
-  const platformItems = sources.platformEnvelope?.results?.bios?.ok === true;
-  if (!platformItems) {
-    const values = {};
-    await run(getWindowsFallbackCommand("windows-reg-bios"), (stdout) => {
-      values.bios = Object.values(parseRegQuery(stdout))[0];
-    });
-    await run(getWindowsFallbackCommand("windows-reg-cpu"), (stdout) => {
-      values.cpu = Object.values(parseRegQuery(stdout))[0];
-    });
-    if (values.bios || values.cpu) {
-      sources.platformEnvelope = toFallbackPlatformEnvelope(values.bios, values.cpu);
-    }
-  }
 
   if (sources.pnpDevicesEnvelope === undefined && options.includeCommandEnrichment !== false) {
     const spec = selectPnputilCommand(parseWindowsBuild(sources.baseline?.osRelease));
