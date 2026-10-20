@@ -114,9 +114,34 @@ export function assertWindowsScriptInvariants(script) {
  */
 
 /**
+ * @typedef {object} RegistryChildrenManifestEntry
+ * @property {string} key Result key inside the envelope's `results` table.
+ * @property {"registry-children"} kind Entry kind.
+ * @property {string} path Registry key whose subkeys are enumerated.
+ * @property {string[]} names Value names read from each subkey.
+ */
+
+/**
+ * @typedef {object} CmdletScalarManifestEntry
+ * @property {string} key Result key inside the envelope's `results` table.
+ * @property {"cmdlet-scalar"} kind Entry kind.
+ * @property {string} cmdlet Allowlisted cmdlet name, run with no arguments.
+ */
+
+/**
+ * Cmdlets a `cmdlet-scalar` entry may run. Each one is a documented
+ * read-only query whose scalar result the envelope stores as `value`.
+ * Confirm-SecureBootUEFI:
+ * https://learn.microsoft.com/en-us/powershell/module/secureboot/confirm-securebootuefi
+ *
+ * @type {ReadonlyArray<string>}
+ */
+export const WINDOWS_SCALAR_CMDLETS = Object.freeze(["Confirm-SecureBootUEFI"]);
+
+/**
  * @typedef {object} CimManifest
  * @property {string} commandId Command identifier recorded in the envelope.
- * @property {ReadonlyArray<CimManifestEntry | RegistryManifestEntry | PnpPropertiesManifestEntry>} entries Ordered entries.
+ * @property {ReadonlyArray<CimManifestEntry | RegistryManifestEntry | PnpPropertiesManifestEntry | RegistryChildrenManifestEntry | CmdletScalarManifestEntry>} entries Ordered entries.
  */
 
 /**
@@ -191,6 +216,15 @@ export function buildCimScript(manifest) {
       "function P($k,$keys){try{if($denied.ContainsKey('root/cimv2')){$o.results[$k]=@{ok=$false;error=$denied['root/cimv2'];shortCircuited=$true;kind='pnp-properties'};return};$devs=@(Get-PnpDevice -PresentOnly -ErrorAction Stop);$ke=[ordered]@{};$valid=@($keys);$mode='per-device';if($devs.Count -gt 0){try{$null=@($devs[0]|Get-PnpDeviceProperty -KeyName $keys -ErrorAction Stop)}catch{$mode='per-device-retry';$valid=@();foreach($kn in $keys){try{$null=@($devs[0]|Get-PnpDeviceProperty -KeyName $kn -ErrorAction Stop);$valid+=$kn}catch{$ke[$kn]=@{nativeErrorCode=[string]$_.Exception.NativeErrorCode;statusCode=$_.Exception.StatusCode;category=[string]$_.CategoryInfo.Category;fqid=[string]$_.FullyQualifiedErrorId;message=[string]$_.Exception.Message}}}}};$rows=@();$pe=@();if($valid.Count -gt 0){foreach($d in $devs){$rows+=@($d|Get-PnpDeviceProperty -KeyName $valid -ErrorAction SilentlyContinue -ErrorVariable +pe)}};$o.results[$k]=@{ok=$true;kind='pnp-properties';mode=$mode;deviceCount=$devs.Count;errorCount=$pe.Count;items=@($rows|Select-Object -Property InstanceId,KeyName,Type,Data);keyErrors=$ke}}catch{E $k $_;$o.results[$k].kind='pnp-properties'}}",
     );
   }
+  if (kinds.has("registry-children")) {
+    parts.push(
+      "Remove-Item Alias:c -ErrorAction SilentlyContinue",
+      // One row per subkey, named by the subkey, carrying the requested
+      // values that exist; a missing parent key is reported through E as
+      // ItemNotFound, which the parser classifies as not-present.
+      "function C($k,$path,$n){try{$items=@();foreach($key in @(Get-ChildItem -Path $path -ErrorAction Stop)){$v=Get-ItemProperty -Path $key.PSPath -ErrorAction Stop;$r=[ordered]@{Name=$key.PSChildName};foreach($x in $n){if($v.PSObject.Properties.Name -contains $x){$r[$x]=$v.$x}};$items+=,$r};$o.results[$k]=@{ok=$true;kind='registry-children';items=$items}}catch{E $k $_;$o.results[$k].kind='registry-children'}}",
+    );
+  }
 
   for (const entry of entries) {
     parts.push(buildEntryCall(entry));
@@ -218,6 +252,27 @@ function buildEntryCall(entry) {
     return `R '${escapePowerShellSingleQuoted(key)}' '${escapePowerShellSingleQuoted(path)}' @(${names
       .map((name) => `'${escapePowerShellSingleQuoted(name)}'`)
       .join(",")})`;
+  }
+
+  if (entry?.kind === "registry-children") {
+    const path = requireManifestString(entry.path, `${key} registry path`);
+    const names = requireManifestStringArray(entry.names, `${key} registry names`);
+    return `C '${escapePowerShellSingleQuoted(key)}' '${escapePowerShellSingleQuoted(path)}' @(${names
+      .map((name) => `'${escapePowerShellSingleQuoted(name)}'`)
+      .join(",")})`;
+  }
+
+  if (entry?.kind === "cmdlet-scalar") {
+    const cmdlet = requireManifestString(entry.cmdlet, `${key} cmdlet`);
+    // The cmdlet name is interpolated as a command, so only names from the
+    // allowlist may appear, and never with arguments.
+    if (!WINDOWS_SCALAR_CMDLETS.includes(cmdlet)) {
+      throw new Error(
+        `Windows CIM manifest ${key} cmdlet '${cmdlet}' is not an allowlisted scalar cmdlet`,
+      );
+    }
+    const safeKey = escapePowerShellSingleQuoted(key);
+    return `try{$o.results['${safeKey}']=@{ok=$true;kind='cmdlet-scalar';value=(${cmdlet} -ErrorAction Stop)}}catch{E '${safeKey}' $_;$o.results['${safeKey}'].kind='cmdlet-scalar'}`;
   }
 
   if (entry?.kind === "pnp-properties") {
