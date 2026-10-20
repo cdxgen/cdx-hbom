@@ -308,6 +308,38 @@ export function cimArray(value) {
 }
 
 /**
+ * Normalize a CIM number, dropping zero and negative values, which Windows
+ * classes use for "unknown" or "not supported".
+ *
+ * @param {unknown} value Candidate value.
+ * @returns {number | undefined} Positive number or undefined.
+ */
+export function cimPositiveNumber(value) {
+  const number = cimNumber(value);
+  return number !== undefined && number > 0 ? number : undefined;
+}
+
+/**
+ * Return the items of a successful envelope result.
+ *
+ * @param {{ ok?: boolean, items?: object[] } | undefined} result Envelope result.
+ * @returns {Record<string, unknown>[]} Items, empty when the result failed.
+ */
+export function cimResultItems(result) {
+  return result?.ok ? [...(result.items ?? [])] : [];
+}
+
+/**
+ * Return the first item of a successful envelope result.
+ *
+ * @param {{ ok?: boolean, items?: object[] } | undefined} result Envelope result.
+ * @returns {Record<string, unknown> | undefined} First item or undefined.
+ */
+export function cimFirstItem(result) {
+  return result?.ok ? result.items?.[0] : undefined;
+}
+
+/**
  * Format a Date as an ISO calendar date.
  *
  * @param {Date} date Parsed date.

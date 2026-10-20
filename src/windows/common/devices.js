@@ -14,9 +14,17 @@ import {
   normalizeIdentityString,
   redactIdentifier,
 } from "../../common/shape.js";
-import { cimArray, cimBool, cimDate, cimNumber, cimString } from "./cim.js";
+import {
+  cimArray,
+  cimBool,
+  cimDate,
+  cimNumber,
+  cimResultItems,
+  cimString,
+} from "./cim.js";
 import { windowsSetupClassName } from "./enums.js";
 import {
+  getInstanceSegment,
   parseDeviceInstanceId,
   parseHardwareIds,
   redactHardwareIds,
@@ -53,6 +61,13 @@ const UNCLASSIFIED_ENUMERATORS = Object.freeze({
   MANA_BUS: "Azure MANA bus child; the adapter is represented through MSFT_NetAdapter when HardwareInterface is true",
   TS_USB_HUB_ENUMERATOR: "Remote Desktop USB redirection hub",
 });
+
+// Per-device instance segments also turn up inside other strings. On Hyper-V
+// (windows-2025 and windows-11-arm GitHub runners), DEVPKEY_Device_LocationPaths
+// embeds the VMBus instance GUID, and a hardware ID can repeat another
+// device's instance GUID. Every emitted string that may carry them is therefore
+// scrubbed of every instance segment the index knows, keyed by index.
+const INSTANCE_SEGMENT_PATTERNS = new WeakMap();
 
 const EMPTY_SOURCES = Object.freeze({
   entities: [],
@@ -103,9 +118,9 @@ export function parsePnpDevicesEnvelope(envelope) {
   const results = envelope?.results ?? {};
   const properties = results.pnpProperties;
   return {
-    entities: okItems(results.pnpEntity),
-    properties: okItems(properties),
-    signedDrivers: okItems(results.signedDriver),
+    entities: cimResultItems(results.pnpEntity),
+    properties: cimResultItems(properties),
+    signedDrivers: cimResultItems(results.signedDriver),
     keyErrors:
       properties?.ok && properties.keyErrors ? { ...properties.keyErrors } : {},
     propertiesAvailable: properties?.ok === true,
@@ -180,6 +195,7 @@ export function buildPnpDeviceIndex(sources = EMPTY_SOURCES) {
   }
 
   assignBomRefs(index);
+  INSTANCE_SEGMENT_PATTERNS.set(index, instanceSegmentPattern(index));
   return index;
 }
 
@@ -295,7 +311,7 @@ export function buildPnpComponents(index, options = {}) {
 
   const components = emit.map(([record, hardwareClass]) => {
     summary.counts[hardwareClass] = (summary.counts[hardwareClass] ?? 0) + 1;
-    return buildPnpComponent(record, hardwareClass, options);
+    return buildPnpComponent(record, hardwareClass, index, options);
   });
   return { components, summary };
 }
@@ -368,9 +384,31 @@ export function pnpEnrichmentProperties(index, instanceId, options = {}, existin
     return [];
   }
   const taken = new Set(existing.filter(Boolean).map((property) => property.name));
-  return commonPnpProperties(record, options).filter(
+  return commonPnpProperties(record, index, options).filter(
     (property) => !taken.has(property.name),
   );
+}
+
+/**
+ * Component fields for a device another builder represents: its PnP bom-ref
+ * and its properties followed by the PnP-derived ones it does not already
+ * carry. Without PnP data the properties pass through unchanged.
+ *
+ * @param {Map<string, PnpDeviceRecord> | undefined} index Device index.
+ * @param {string | undefined} instanceId Raw device instance ID.
+ * @param {{ includeSensitiveIdentifiers?: boolean }} options Build options.
+ * @param {object[]} properties Properties the builder already made.
+ * @returns {{ "bom-ref"?: string, properties: object[] }} Fields to spread into the component.
+ */
+export function withPnpIdentity(index, instanceId, options, properties) {
+  const ref = pnpBomRef(index, instanceId);
+  return {
+    ...(ref ? { "bom-ref": ref } : {}),
+    properties: [
+      ...properties,
+      ...pnpEnrichmentProperties(index, instanceId, options, properties),
+    ],
+  };
 }
 
 /**
@@ -404,10 +442,11 @@ export function pnpDevicesDiagnostics(sources) {
  *
  * @param {PnpDeviceRecord} record Device record.
  * @param {string} hardwareClass Hardware class.
+ * @param {Map<string, PnpDeviceRecord>} index Device index.
  * @param {{ includeSensitiveIdentifiers?: boolean }} options Build options.
  * @returns {object} Component.
  */
-function buildPnpComponent(record, hardwareClass, options) {
+function buildPnpComponent(record, hardwareClass, index, options) {
   const entity = record.entity ?? {};
   // Hardware IDs lead (most specific first, so REV_ is kept); the instance ID
   // is the fallback for entities without a hardware ID list.
@@ -461,7 +500,7 @@ function buildPnpComponent(record, hardwareClass, options) {
             ),
           ]
         : []),
-      ...commonPnpProperties(record, options),
+      ...commonPnpProperties(record, index, options),
     ]),
   });
 }
@@ -470,16 +509,18 @@ function buildPnpComponent(record, hardwareClass, options) {
  * Properties every PnP-backed component shares.
  *
  * @param {PnpDeviceRecord} record Device record.
+ * @param {Map<string, PnpDeviceRecord> | undefined} index Device index.
  * @param {{ includeSensitiveIdentifiers?: boolean }} options Build options.
  * @returns {object[]} Properties (undefined entries removed).
  */
-function commonPnpProperties(record, options) {
+function commonPnpProperties(record, index, options) {
   const entity = record.entity ?? {};
   const signed = record.signedDriver ?? {};
   const name = cimString(entity.Name);
   const problemCode = cimNumber(entity.ConfigManagerErrorCode);
-  const hardwareIds = redactHardwareIds(cimArray(entity.HardwareID), record.id, options);
-  const compatibleIds = redactHardwareIds(cimArray(entity.CompatibleID), record.id, options);
+  const scrub = (value) => redactEmbeddedSegments(value, index, options);
+  const hardwareIds = redactHardwareIds(cimArray(entity.HardwareID), record.id, options).map(scrub);
+  const compatibleIds = redactHardwareIds(cimArray(entity.CompatibleID), record.id, options).map(scrub);
   return compact([
     createProperty("cdx:hbom:driver", cimString(entity.Service)),
     createProperty(
@@ -510,7 +551,7 @@ function commonPnpProperties(record, options) {
         ? record.busReportedName
         : undefined,
     ),
-    createProperty("cdx:hbom:locationPath", record.locationPaths[0]),
+    createProperty("cdx:hbom:locationPath", scrub(record.locationPaths[0])),
     createProperty("cdx:hbom:present", cimBool(entity.Present)),
     createProperty(
       "cdx:hbom:hardwareIds",
@@ -522,6 +563,47 @@ function commonPnpProperties(record, options) {
     ),
     createProperty("cdx:hbom:pnpInstanceId", redactInstanceId(record.id, options)),
   ]);
+}
+
+/**
+ * Build one case-insensitive pattern matching every raw instance segment in
+ * the index that `redactIdentifier` would not reduce to a bare `redacted`.
+ * Longer segments come first so a segment never matches part of a longer one.
+ *
+ * @param {Map<string, PnpDeviceRecord>} index Device index.
+ * @returns {RegExp | undefined} Pattern, or undefined when there is nothing to scrub.
+ */
+function instanceSegmentPattern(index) {
+  const segments = new Set();
+  for (const record of index.values()) {
+    const segment = getInstanceSegment(record.id);
+    if (segment && segment.length > 4 && !/^redacted(?::|$)/u.test(segment)) {
+      segments.add(segment.toLowerCase());
+    }
+  }
+  if (segments.size === 0) {
+    return undefined;
+  }
+  const alternatives = [...segments]
+    .sort((a, b) => b.length - a.length || (a < b ? -1 : 1))
+    .map((segment) => segment.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&"));
+  return new RegExp(alternatives.join("|"), "giu");
+}
+
+/**
+ * Replace every known instance segment inside a string with its redacted form.
+ *
+ * @param {string | undefined} text Candidate string.
+ * @param {Map<string, PnpDeviceRecord> | undefined} index Device index.
+ * @param {{ includeSensitiveIdentifiers?: boolean }} options Redaction options.
+ * @returns {string | undefined} Scrubbed string.
+ */
+function redactEmbeddedSegments(text, index, options) {
+  const pattern = index ? INSTANCE_SEGMENT_PATTERNS.get(index) : undefined;
+  if (text === undefined || pattern === undefined || options.includeSensitiveIdentifiers === true) {
+    return text;
+  }
+  return text.replace(pattern, (segment) => redactIdentifier(segment, options));
 }
 
 /**
@@ -698,14 +780,4 @@ function defaultName(hardwareClass) {
 function lookup(index, instanceId) {
   const key = cimString(instanceId)?.toLowerCase();
   return index && key !== undefined ? index.get(key) : undefined;
-}
-
-/**
- * Return the items of a successful envelope result.
- *
- * @param {{ ok?: boolean, items?: object[] } | undefined} result Envelope result.
- * @returns {Record<string, unknown>[]} Items, empty when the result failed.
- */
-function okItems(result) {
-  return result?.ok ? [...(result.items ?? [])] : [];
 }

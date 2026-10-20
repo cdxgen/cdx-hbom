@@ -28,7 +28,7 @@ import { existsSync, readFileSync, readdirSync, rmSync, writeFileSync } from "no
 import { join } from "node:path";
 import process from "node:process";
 
-import { isPlaceholderIdentity } from "../../src/common/shape.js";
+import { isPlaceholderIdentity, redactIdentifier } from "../../src/common/shape.js";
 import {
   WINDOWS_COMMANDS,
   WINDOWS_SELFTEST_COMMAND,
@@ -204,6 +204,21 @@ function redactFile(filePath) {
         () => `"${escapeJson(replacement)}"`,
       );
     }
+  }
+
+  // Instance segments also appear inside longer strings: Hyper-V location
+  // paths embed the VMBus instance GUID (`VMBUS({guid})`, both GitHub
+  // runners), and a hardware ID can repeat another device's. After the
+  // whole-token pass, replace them inside any string, longest first, with the
+  // form `redactInstanceId` gives the segment itself, as the builder does.
+  const segments = [...new Set(collectRawInstanceSegments(envelope))]
+    .filter((segment) => segment.length > 4)
+    .sort((a, b) => b.length - a.length);
+  for (const segment of segments) {
+    text = text.replaceAll(
+      new RegExp(jsonTextPattern(segment), "giu"),
+      () => escapeJson(redactIdentifier(segment)),
+    );
   }
 
   for (const literal of literals) {

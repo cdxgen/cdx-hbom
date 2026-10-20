@@ -9,7 +9,7 @@ import {
   redactIdentifier,
 } from "../../common/shape.js";
 import { cimBool, cimDate, cimNumber, cimString } from "./cim.js";
-import { pnpBomRef, pnpEnrichmentProperties } from "./devices.js";
+import { withPnpIdentity } from "./devices.js";
 import { WINDOWS_NDIS_PHYSICAL_MEDIA, windowsEnumName } from "./enums.js";
 import { parseDeviceInstanceId } from "./pnp.js";
 
@@ -122,7 +122,6 @@ function buildNetAdapterComponent(
   const legacy = findLegacyByInstanceId(legacyAdapters, adapter.PnPDeviceID);
   const connectState = cimNumber(adapter.MediaConnectState);
   const pnpId = cimString(adapter.PnPDeviceID);
-  const ref = pnpBomRef(options.pnpIndex, pnpId);
   const properties = compact([
     createProperty("cdx:hbom:interfaceName", cimString(adapter.Name)),
     createProperty("cdx:hbom:driver", netAdapterDriver(adapter, legacy)),
@@ -178,16 +177,12 @@ function buildNetAdapterComponent(
   ]);
 
   return createHardwareComponent(hardwareClass, {
-    ...(ref ? { "bom-ref": ref } : {}),
     name: cimString(adapter.InterfaceDescription) ?? cimString(adapter.DriverDescription) ?? "Network Adapter",
     version: cimString(adapter.Name),
     manufacturer: cimString(legacy?.Manufacturer)
       ? { name: cimString(legacy.Manufacturer) }
       : undefined,
-    properties: [
-      ...properties,
-      ...pnpEnrichmentProperties(options.pnpIndex, pnpId, options, properties),
-    ],
+    ...withPnpIdentity(options.pnpIndex, pnpId, options, properties),
   });
 }
 
@@ -204,7 +199,6 @@ function buildNetAdapterComponent(
 function buildLegacyAdapterComponent(adapter, options) {
   const connectionStatus = cimNumber(adapter.NetConnectionStatus);
   const pnpId = cimString(adapter.PNPDeviceID);
-  const ref = pnpBomRef(options.pnpIndex, pnpId);
   const properties = compact([
     createProperty("cdx:hbom:driver", cimString(adapter.ServiceName)),
     createProperty(
@@ -229,15 +223,11 @@ function buildLegacyAdapterComponent(adapter, options) {
     createProperty("cdx:hbom:adapterType", cimString(adapter.AdapterType)),
   ]);
   return createHardwareComponent("network-interface", {
-    ...(ref ? { "bom-ref": ref } : {}),
     name: cimString(adapter.Name) ?? "Network Adapter",
     manufacturer: cimString(adapter.Manufacturer)
       ? { name: cimString(adapter.Manufacturer) }
       : undefined,
-    properties: [
-      ...properties,
-      ...pnpEnrichmentProperties(options.pnpIndex, pnpId, options, properties),
-    ],
+    ...withPnpIdentity(options.pnpIndex, pnpId, options, properties),
   });
 }
 

@@ -10,8 +10,15 @@ import {
   createProperty,
   normalizeIdentityString,
 } from "../../common/shape.js";
-import { cimArray, cimBool, cimNumber, cimString } from "./cim.js";
-import { pnpBomRef, pnpEnrichmentProperties } from "./devices.js";
+import {
+  cimArray,
+  cimBool,
+  cimFirstItem,
+  cimNumber,
+  cimResultItems,
+  cimString,
+} from "./cim.js";
+import { withPnpIdentity } from "./devices.js";
 import {
   normalizeGuid,
   WINDOWS_BITLOCKER_CONVERSION_STATUSES,
@@ -65,12 +72,12 @@ const TPM_NOT_SUPPORTED = "not supported";
 export function parseTrustEnvelope(envelope) {
   const results = envelope?.results ?? {};
   return {
-    deviceGuard: firstItem(results.deviceGuard),
+    deviceGuard: cimFirstItem(results.deviceGuard),
     secureBootRegistry: results.secureBootState?.ok
       ? results.secureBootState.values ?? {}
       : undefined,
-    firmwareResources: okItems(results.firmwareResources),
-    batteries: okItems(results.battery),
+    firmwareResources: cimResultItems(results.firmwareResources),
+    batteries: cimResultItems(results.battery),
   };
 }
 
@@ -83,10 +90,10 @@ export function parseTrustEnvelope(envelope) {
 export function parsePrivilegedEnvelope(envelope) {
   const results = envelope?.results ?? {};
   return {
-    tpm: firstItem(results.tpm),
+    tpm: cimFirstItem(results.tpm),
     tpmQueried: results.tpm?.ok === true,
-    encryptableVolumes: okItems(results.encryptableVolume),
-    storageReliability: okItems(results.storageReliability),
+    encryptableVolumes: cimResultItems(results.encryptableVolume),
+    storageReliability: cimResultItems(results.storageReliability),
     secureBootCmdlet: results.secureBootCmdlet?.ok
       ? cimBool(results.secureBootCmdlet.value)
       : undefined,
@@ -196,14 +203,10 @@ export function buildTpmComponents(pnpIndex, privileged, options = {}) {
       createProperty("cdx:hbom:driver", cimString(entity.Service)),
     ]);
     return createHardwareComponent("tpm", {
-      ...(record.ref ? { "bom-ref": record.ref } : {}),
       name: cimString(entity.Name) ?? "Trusted Platform Module",
       version: spec,
       manufacturer: manufacturer ? { name: manufacturer } : undefined,
-      properties: [
-        ...properties,
-        ...pnpEnrichmentProperties(pnpIndex, record.id, options, properties),
-      ],
+      ...withPnpIdentity(pnpIndex, record.id, options, properties),
     });
   });
 }
@@ -255,13 +258,9 @@ export function buildFirmwareDeviceComponents(pnpIndex, trust, options = {}) {
     ]);
     components.push(
       createHardwareComponent("firmware-device", {
-        ...(record.ref ? { "bom-ref": record.ref } : {}),
         name: cimString(entity.Name) ?? "Firmware Resource",
         version: revision,
-        properties: [
-          ...properties,
-          ...pnpEnrichmentProperties(pnpIndex, record.id, options, properties),
-        ],
+        ...withPnpIdentity(pnpIndex, record.id, options, properties),
       }),
     );
   }
@@ -506,24 +505,4 @@ function enumList(table, value) {
     .map((code) => windowsEnumName(table, cimNumber(code)))
     .filter((name) => name !== undefined);
   return names.length > 0 ? names.join(", ") : undefined;
-}
-
-/**
- * Return the first item of a successful envelope result.
- *
- * @param {{ ok?: boolean, items?: object[] } | undefined} result Envelope result.
- * @returns {Record<string, unknown> | undefined} First item or undefined.
- */
-function firstItem(result) {
-  return result?.ok ? result.items?.[0] : undefined;
-}
-
-/**
- * Return the items of a successful envelope result.
- *
- * @param {{ ok?: boolean, items?: object[] } | undefined} result Envelope result.
- * @returns {Record<string, unknown>[]} Items, empty when the result failed.
- */
-function okItems(result) {
-  return result?.ok ? [...(result.items ?? [])] : [];
 }

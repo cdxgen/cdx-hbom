@@ -10,7 +10,7 @@ import {
   createProperty,
   normalizeIdentityString,
 } from "../../common/shape.js";
-import { cimNumber, cimString } from "./cim.js";
+import { cimNumber, cimPositiveNumber, cimString } from "./cim.js";
 import {
   WINDOWS_BATTERY_CHEMISTRIES,
   WINDOWS_BATTERY_STATUSES,
@@ -63,7 +63,7 @@ export function buildPowerComponents(trust) {
             windowsEnumName(WINDOWS_BATTERY_CHEMISTRIES, cimNumber(battery.Chemistry)),
           ),
         ),
-        createProperty("cdx:hbom:designVoltageMv", positiveNumber(battery.DesignVoltage)),
+        createProperty("cdx:hbom:designVoltageMv", cimPositiveNumber(battery.DesignVoltage)),
         createProperty(
           "cdx:hbom:estimatedRunTimeMinutes",
           runTime !== undefined && runTime > 0 && runTime !== BATTERY_UNKNOWN_RUN_TIME_MINUTES
@@ -104,15 +104,4 @@ export function buildHostPowerProperties(trust) {
  */
 function isAcAttached(status) {
   return status === BATTERY_STATUS_ON_AC || BATTERY_STATUS_CHARGING.has(status);
-}
-
-/**
- * Normalize a CIM number, dropping the documented 0 "not supported" value.
- *
- * @param {unknown} value Candidate value.
- * @returns {number | undefined} Positive number or undefined.
- */
-function positiveNumber(value) {
-  const number = cimNumber(value);
-  return number !== undefined && number > 0 ? number : undefined;
 }

@@ -9,7 +9,7 @@ import {
   normalizeIdentityString,
 } from "../../common/shape.js";
 import { cimArray, cimBool, cimString } from "./cim.js";
-import { pnpBomRef, pnpEnrichmentProperties } from "./devices.js";
+import { withPnpIdentity } from "./devices.js";
 import { windowsSetupClassName } from "./enums.js";
 import {
   parseDeviceInstanceId,
@@ -149,13 +149,8 @@ export function buildCameraComponents(sources, options = {}) {
  * @returns {object} Component.
  */
 function withPnp(hardwareClass, pnpId, options, component) {
-  const ref = pnpBomRef(options.pnpIndex, pnpId);
   return createHardwareComponent(hardwareClass, {
-    ...(ref ? { "bom-ref": ref } : {}),
     ...component,
-    properties: [
-      ...component.properties,
-      ...pnpEnrichmentProperties(options.pnpIndex, pnpId, options, component.properties),
-    ],
+    ...withPnpIdentity(options.pnpIndex, pnpId, options, component.properties),
   });
 }

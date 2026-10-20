@@ -10,8 +10,14 @@ import {
   isPlaceholderIdentity,
   redactIdentifier,
 } from "../../common/shape.js";
-import { cimArray, cimBool, cimNumber, cimString } from "./cim.js";
-import { pnpBomRef, pnpEnrichmentProperties } from "./devices.js";
+import {
+  cimArray,
+  cimBool,
+  cimNumber,
+  cimResultItems,
+  cimString,
+} from "./cim.js";
+import { withPnpIdentity } from "./devices.js";
 import {
   WINDOWS_OPERATIONAL_STATUSES,
   WINDOWS_STORAGE_BUS_TYPES,
@@ -49,12 +55,12 @@ const CAPABILITY_REMOVABLE_MEDIA = 7;
 export function parseStorageNetworkEnvelope(envelope) {
   const results = envelope?.results ?? {};
   return {
-    physicalDisks: okItems(results.physicalDisk),
-    diskDrives: okItems(results.diskDrive),
-    volumes: okItems(results.volume),
-    netAdapters: okItems(results.netAdapter),
-    netAdapterHardware: okItems(results.netAdapterHardware),
-    legacyNetworkAdapters: okItems(results.networkAdapterLegacy),
+    physicalDisks: cimResultItems(results.physicalDisk),
+    diskDrives: cimResultItems(results.diskDrive),
+    volumes: cimResultItems(results.volume),
+    netAdapters: cimResultItems(results.netAdapter),
+    netAdapterHardware: cimResultItems(results.netAdapterHardware),
+    legacyNetworkAdapters: cimResultItems(results.networkAdapterLegacy),
   };
 }
 
@@ -83,7 +89,6 @@ export function buildStorageComponents(sources, options = {}) {
     const busTypeName = disk
       ? windowsEnumName(WINDOWS_STORAGE_BUS_TYPES, cimNumber(disk.BusType))
       : undefined;
-    const ref = pnpBomRef(options.pnpIndex, pnpId);
     const properties = compact([
       createProperty("cdx:hbom:diskNumber", index),
       createProperty(
@@ -149,22 +154,20 @@ export function buildStorageComponents(sources, options = {}) {
     ]);
 
     return createHardwareComponent("storage", {
-      ...(ref ? { "bom-ref": ref } : {}),
       name:
         cimString(disk?.FriendlyName) ??
         cimString(drive.Model) ??
         "Disk Drive",
       manufacturer: diskOrDriveManufacturer(disk, drive),
       version: index === undefined ? undefined : `disk${index}`,
-      properties: [
+      ...withPnpIdentity(options.pnpIndex, pnpId, options, [
         ...properties,
         // MSFT_StorageReliabilityCounter.DeviceId equals MSFT_PhysicalDisk.DeviceId,
         // the string form of Win32_DiskDrive.Index (privileged batch only).
         ...(index === undefined
           ? []
-          : options.storageReliability?.get(String(index)) ?? []),
-        ...pnpEnrichmentProperties(options.pnpIndex, pnpId, options, properties),
-      ],
+          : (options.storageReliability?.get(String(index)) ?? [])),
+      ]),
     });
   });
 }
@@ -326,14 +329,4 @@ function redactSerial(value, options) {
     return undefined;
   }
   return redactIdentifier(text, options);
-}
-
-/**
- * Return the items of a successful envelope result.
- *
- * @param {{ ok?: boolean, items?: object[] } | undefined} result Envelope result.
- * @returns {Record<string, unknown>[]} Items, empty when the result failed.
- */
-function okItems(result) {
-  return result?.ok ? [...(result.items ?? [])] : [];
 }

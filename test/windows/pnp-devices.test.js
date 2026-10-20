@@ -555,6 +555,63 @@ test("hardware IDs echoing the instance segment are redacted (Hyper-V VMBus shap
   assert.match(prop(device, "cdx:hbom:compatibleIds"), /^VMBUS\\redacted/u);
 });
 
+test("instance GUIDs embedded in location paths and other devices' IDs are redacted", () => {
+  // Shape from the windows-2025 and windows-11-arm runner captures that the
+  // redactor first rejected: DEVPKEY_Device_LocationPaths embeds the VMBus
+  // instance GUID, and a hardware ID of another device repeats it. The GUID
+  // and instance values below are synthetic test input.
+  const guid = "{1A2B3C4D-1111-2222-3333-44445555AAAA}";
+  const vmbusId = `VMBUS\\{f8615163-df3e-46c5-913f-f2d2f965ed0e}\\${guid}`;
+  const pciId = "PCI\\VEN_15B3&DEV_101A&SUBSYS_00151414&REV_80\\5&1f2e3d4c&0&0";
+  const envelope = {
+    results: {
+      pnpEntity: {
+        ok: true,
+        items: [
+          { Name: "Derived VMBus Bus", PNPDeviceID: vmbusId, Present: true },
+          {
+            Name: "Derived Pass-through NIC",
+            PNPDeviceID: pciId,
+            ClassGuid: "{4d36e972-e325-11ce-bfc1-08002be10318}",
+            HardwareID: ["PCI\\VEN_15B3&DEV_101A&SUBSYS_00151414&REV_80", `VPCI\\${guid}_BUS`],
+            Present: true,
+          },
+        ],
+      },
+      pnpProperties: {
+        ok: true,
+        kind: "pnp-properties",
+        items: [
+          {
+            InstanceId: pciId,
+            KeyName: "DEVPKEY_Device_LocationPaths",
+            Data: [`ACPI(_SB_)#VMBUS(${guid})#PCI(0200)`],
+          },
+        ],
+        keyErrors: {},
+      },
+      signedDriver: { ok: true, items: [] },
+    },
+  };
+  const build = (includeSensitiveIdentifiers) =>
+    buildWindowsHbom({
+      architecture: "x64",
+      includeSensitiveIdentifiers,
+      sources: { baseline: TEST_BASELINE, pnpDevicesEnvelope: envelope },
+    });
+
+  const bom = build(false);
+  const device = byClass(bom, "pci-device")[0];
+  assert.ok(!JSON.stringify(bom).toLowerCase().includes("44445555aaaa"), "instance GUID leaked");
+  assert.equal(prop(device, "cdx:hbom:locationPath"), "ACPI(_SB_)#VMBUS(redacted:AAA})#PCI(0200)");
+  assert.match(prop(device, "cdx:hbom:hardwareIds"), /VPCI\\redacted:AAA\}_BUS$/u);
+  // --sensitive keeps the raw value, as it does for every other identifier.
+  assert.equal(
+    prop(byClass(build(true), "pci-device")[0], "cdx:hbom:locationPath"),
+    `ACPI(_SB_)#VMBUS(${guid})#PCI(0200)`,
+  );
+});
+
 test("classifyPnpDevice explains GitHub-runner enumerators", () => {
   // Enumerators seen only on the Hyper-V runners (selftest pnpIds fixtures).
   const index = new Map();

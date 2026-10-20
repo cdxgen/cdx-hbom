@@ -14,10 +14,12 @@ import {
   cimBool,
   cimDate,
   cimNumber,
+  cimPositiveNumber,
+  cimResultItems,
   cimString,
   cimUint16String,
 } from "./cim.js";
-import { pnpBomRef, pnpEnrichmentProperties } from "./devices.js";
+import { withPnpIdentity } from "./devices.js";
 import { windowsVideoOutputTechnologyName } from "./enums.js";
 import { parseDeviceInstanceId, redactInstanceId } from "./pnp.js";
 
@@ -57,12 +59,12 @@ const WMI_INSTANCE_SUFFIX = /_\d+$/u;
 export function parseDisplayMediaEnvelope(envelope) {
   const results = envelope?.results ?? {};
   return {
-    videoControllers: okItems(results.videoController),
-    monitorIds: okItems(results.monitorId),
-    monitorBasics: okItems(results.monitorBasic),
-    monitorConnections: okItems(results.monitorConnection),
-    soundDevices: okItems(results.soundDevice),
-    mediaPnp: okItems(results.mediaPnp),
+    videoControllers: cimResultItems(results.videoController),
+    monitorIds: cimResultItems(results.monitorId),
+    monitorBasics: cimResultItems(results.monitorBasic),
+    monitorConnections: cimResultItems(results.monitorConnection),
+    soundDevices: cimResultItems(results.soundDevice),
+    mediaPnp: cimResultItems(results.mediaPnp),
   };
 }
 
@@ -86,7 +88,6 @@ export function buildDisplayAdapterComponents(sources, options = {}) {
     const manufacturer = normalizeIdentityString(
       cimString(controller.AdapterCompatibility),
     );
-    const ref = pnpBomRef(options.pnpIndex, pnpId);
     const properties = compact([
       createProperty("cdx:hbom:driverVersion", cimString(controller.DriverVersion)),
       createProperty(
@@ -108,7 +109,7 @@ export function buildDisplayAdapterComponents(sources, options = {}) {
       ),
       createProperty(
         "cdx:hbom:bitsPerPixel",
-        positiveNumber(controller.CurrentBitsPerPixel),
+        cimPositiveNumber(controller.CurrentBitsPerPixel),
       ),
       // AdapterRAM is a uint32, so adapters with 4 GiB or more of memory
       // cannot report their true size through this class.
@@ -127,14 +128,10 @@ export function buildDisplayAdapterComponents(sources, options = {}) {
     ]);
 
     return createHardwareComponent("display-adapter", {
-      ...(ref ? { "bom-ref": ref } : {}),
       name: cimString(controller.Name) ?? "Display Adapter",
       manufacturer: manufacturer ? { name: manufacturer } : undefined,
       description: cimString(controller.VideoProcessor),
-      properties: [
-        ...properties,
-        ...pnpEnrichmentProperties(options.pnpIndex, pnpId, options, properties),
-      ],
+      ...withPnpIdentity(options.pnpIndex, pnpId, options, properties),
     });
   });
 }
@@ -166,7 +163,6 @@ export function buildDisplayComponents(sources, options = {}) {
     const serial = cimUint16String(monitor.SerialNumberID);
     const week = cimNumber(monitor.WeekOfManufacture);
     const pnpId = monitorPnpInstanceId(instanceName);
-    const ref = pnpBomRef(options.pnpIndex, pnpId);
     const properties = compact([
       createProperty("cdx:hbom:productId", productCode),
       createProperty(
@@ -175,7 +171,7 @@ export function buildDisplayComponents(sources, options = {}) {
       ),
       createProperty(
         "cdx:hbom:manufactureYear",
-        positiveNumber(monitor.YearOfManufacture),
+        cimPositiveNumber(monitor.YearOfManufacture),
       ),
       createProperty(
         "cdx:hbom:manufactureWeek",
@@ -186,8 +182,8 @@ export function buildDisplayComponents(sources, options = {}) {
       createProperty(
         "cdx:hbom:physicalSize",
         formatDisplayPhysicalSize(
-          positiveNumber(basic?.MaxHorizontalImageSize),
-          positiveNumber(basic?.MaxVerticalImageSize),
+          cimPositiveNumber(basic?.MaxHorizontalImageSize),
+          cimPositiveNumber(basic?.MaxVerticalImageSize),
         ),
       ),
       createProperty(
@@ -204,14 +200,10 @@ export function buildDisplayComponents(sources, options = {}) {
     ]);
 
     return createHardwareComponent("display", {
-      ...(ref ? { "bom-ref": ref } : {}),
       name: cimUint16String(monitor.UserFriendlyName) ?? "Display",
       version: productCode,
       manufacturer: manufacturerId ? { name: manufacturerId } : undefined,
-      properties: [
-        ...properties,
-        ...pnpEnrichmentProperties(options.pnpIndex, pnpId, options, properties),
-      ],
+      ...withPnpIdentity(options.pnpIndex, pnpId, options, properties),
     });
   });
 }
@@ -237,8 +229,8 @@ export function monitorPnpInstanceId(instanceName) {
  * @returns {string | undefined} Resolution or undefined.
  */
 function formatResolution(horizontal, vertical) {
-  const width = positiveNumber(horizontal);
-  const height = positiveNumber(vertical);
+  const width = cimPositiveNumber(horizontal);
+  const height = cimPositiveNumber(vertical);
   return width !== undefined && height !== undefined
     ? `${width}x${height}`
     : undefined;
@@ -259,25 +251,4 @@ function findByInstanceName(items, instanceName) {
   return items.find(
     (item) => cimString(item.InstanceName)?.toLowerCase() === target,
   );
-}
-
-/**
- * Normalize a CIM number, dropping zero sentinels.
- *
- * @param {unknown} value Candidate value.
- * @returns {number | undefined} Positive number or undefined.
- */
-function positiveNumber(value) {
-  const number = cimNumber(value);
-  return number !== undefined && number > 0 ? number : undefined;
-}
-
-/**
- * Return the items of a successful envelope result.
- *
- * @param {{ ok?: boolean, items?: object[] } | undefined} result Envelope result.
- * @returns {Record<string, unknown>[]} Items, empty when the result failed.
- */
-function okItems(result) {
-  return result?.ok ? [...(result.items ?? [])] : [];
 }
