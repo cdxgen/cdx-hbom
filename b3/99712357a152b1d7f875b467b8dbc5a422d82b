@@ -1,0 +1,38 @@
+scripts/windows/dump-schema.ps1
+  h_6a4cc5cdf68def 1-47
+test/fixtures/windows/arm64/vm-parallels-elevated/manifest.json
+  h_6a4cc5cdf68def 51-66
+test/fixtures/windows/arm64/vm-parallels-elevated/windows-cim-privileged.stdout
+  h_6a4cc5cdf68def 1
+test/fixtures/windows/arm64/vm-parallels-elevated/windows-cim-trust.stdout
+  h_6a4cc5cdf68def 1
+test/fixtures/windows/arm64/vm-parallels-std-local/manifest.json
+  h_6a4cc5cdf68def 51-66
+test/fixtures/windows/arm64/vm-parallels-std-local/windows-cim-privileged.stdout
+  h_6a4cc5cdf68def 1
+test/fixtures/windows/arm64/vm-parallels-std-local/windows-cim-trust.stdout
+  h_6a4cc5cdf68def 1
+test/fixtures/windows/arm64/vm-parallels-std-network/manifest.json
+  h_6a4cc5cdf68def 50-65
+test/fixtures/windows/arm64/vm-parallels-std-network/windows-cim-privileged.stdout
+  h_6a4cc5cdf68def 1
+test/fixtures/windows/arm64/vm-parallels-std-network/windows-cim-trust.stdout
+  h_6a4cc5cdf68def 1
+test/fixtures/windows/schema/MSFT_StorageReliabilityCounter.schema.json
+  h_6a4cc5cdf68def 1-111
+test/fixtures/windows/schema/Win32_Battery.schema.json
+  h_6a4cc5cdf68def 1-244
+test/windows/trust-power.test.js
+  h_6a4cc5cdf68def 1-641
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b399712357a152b1d7f875b467b8dbc5a422d82b",
+  "prompts": {},
+  "humans": {
+    "h_6a4cc5cdf68def": {
+      "author": "Team AppThreat <cloud@appthreat.com>"
+    }
+  }
+}
