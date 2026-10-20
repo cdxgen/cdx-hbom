@@ -25,6 +25,7 @@ import {
   createHardwareComponent,
   createProperty,
   formatBytes,
+  formatDisplayPhysicalSize,
   normalizeIdentityString,
   redactIdentifier,
 } from "../../common/shape.js";
@@ -5626,15 +5627,6 @@ function formatDisplayName(manufacturerId, connectorName) {
     : connectorName
       ? `${connectorName} Display`
       : "Display";
-}
-
-function formatDisplayPhysicalSize(widthCm, heightCm) {
-  const normalizedWidth = getNumberValue(widthCm);
-  const normalizedHeight = getNumberValue(heightCm);
-
-  return normalizedWidth !== undefined && normalizedHeight !== undefined
-    ? `${normalizedWidth} x ${normalizedHeight} cm`
-    : undefined;
 }
 
 function classifyVideoHardwareClass(device) {
