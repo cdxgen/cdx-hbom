@@ -1,0 +1,34 @@
+docs/hardware-properties.md
+  h_6a4cc5cdf68def 104-120,405,443,445
+src/windows/common/commands.js
+  h_6a4cc5cdf68def 471-550,689-707,740,766,783
+src/windows/common/devices.js
+  h_6a4cc5cdf68def 1-711
+src/windows/common/display.js
+  h_6a4cc5cdf68def 20,89-127,130,134-137,169-204,207,211-214
+src/windows/common/index.js
+  h_6a4cc5cdf68def 17,27,35-41,45,55,117-118,120-129,174-175,190,197-201,242-243,247-251,258-259,265,271-275,278,281-284,303,459-462,465-510
+src/windows/common/media.js
+  h_6a4cc5cdf68def 12,33,41-50,56,68,76-84,86,99,116,119-133,136,140-161
+src/windows/common/network.js
+  h_6a4cc5cdf68def 12,124-178,181,187-190,206-230,232,237-240
+src/windows/common/powershell.js
+  h_6a4cc5cdf68def 109-115,119,166-194,223-238
+src/windows/common/storage.js
+  h_6a4cc5cdf68def 14,80-81,86-149,152,159-162
+test/commands.test.js
+  h_6a4cc5cdf68def 100,107,115-120
+test/dry-run.test.js
+  h_6a4cc5cdf68def 113
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "434e097badfc7eabf463fc0e7219cd6d9ea1b879",
+  "prompts": {},
+  "humans": {
+    "h_6a4cc5cdf68def": {
+      "author": "Team AppThreat <cloud@appthreat.com>"
+    }
+  }
+}
