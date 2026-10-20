@@ -225,6 +225,12 @@ function redactFile(filePath) {
     ...replacements.map(([value]) => value),
     ...collectRawInstanceSegments(envelope),
   ];
+  let redacted;
+  try {
+    redacted = JSON.parse(text);
+  } catch {
+    redacted = undefined;
+  }
   return [
     ...leftovers
       .filter((value) => String(value).length > 4)
@@ -233,10 +239,10 @@ function redactFile(filePath) {
           ? new RegExp(`(?<![0-9.])${value}(?![0-9.])`, "u").test(text)
           : new RegExp(jsonTextPattern(value), "u").test(text),
       )
-      .map(
-        (value) =>
-          `${fileName(filePath)}.stdout: sensitive value (${String(value).length} chars) still present`,
-      ),
+      .map((value) => {
+        const where = locateValue(redacted, String(value));
+        return `${fileName(filePath)}.stdout: sensitive value (${String(value).length} chars) still present${where.length > 0 ? ` in ${where.join(", ")}` : ""}`;
+      }),
     ...uint16Arrays
       .filter((codes) => uint16ArrayPattern(codes).test(text))
       .map(
@@ -244,6 +250,43 @@ function redactFile(filePath) {
           `${fileName(filePath)}.stdout: uint16 serial (${codes.length} codes) still present`,
       ),
   ];
+}
+
+/**
+ * Name the fields that still contain a value, so a fail-closed run in public
+ * CI says where to look without printing the value.
+ *
+ * Array indices are collapsed to `[]`. A DEVPKEY row adds its KeyName, which
+ * is a fixed property name, never host data.
+ *
+ * @param {unknown} root Parsed envelope after redaction.
+ * @param {string} value Surviving value.
+ * @returns {string[]} Up to three distinct field paths.
+ */
+function locateValue(root, value) {
+  const paths = new Set();
+  const walk = (node, path, keyName) => {
+    if (typeof node === "string") {
+      if (node.includes(value)) {
+        paths.add(keyName ? `${path} (${keyName})` : path);
+      }
+      return;
+    }
+    if (Array.isArray(node)) {
+      for (const entry of node) {
+        walk(entry, `${path}[]`, keyName);
+      }
+      return;
+    }
+    if (node && typeof node === "object") {
+      const rowKey = typeof node.KeyName === "string" ? node.KeyName : keyName;
+      for (const [name, child] of Object.entries(node)) {
+        walk(child, path ? `${path}.${name}` : name, rowKey);
+      }
+    }
+  };
+  walk(root, "", undefined);
+  return [...paths].slice(0, 3);
 }
 
 /**
