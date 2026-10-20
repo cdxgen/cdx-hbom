@@ -48,6 +48,22 @@
       "durationMs": 3324,
       "bytes": 137191,
       "provenance": "captured"
+    },
+    {
+      "id": "windows-cim-trust",
+      "argsSha256": "1d2f992e2c5bfaca4fa66dbe5d28200828a1bba2b9b8d0e242f69615e5942226",
+      "exitCode": 0,
+      "durationMs": 1315,
+      "bytes": 953,
+      "provenance": "captured"
+    },
+    {
+      "id": "windows-cim-privileged",
+      "argsSha256": "84fe0a9b462342110c6b6e2a4e2b2b6c5d7a7d6712cb830c2c61c16fd137d9c7",
+      "exitCode": 0,
+      "durationMs": 1236,
+      "bytes": 825,
+      "provenance": "captured"
     }
   ]
 }

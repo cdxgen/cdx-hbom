@@ -1,0 +1,111 @@
+{
+    "provenance":  "schema",
+    "capturedAt":  "2026-10-20T04:31:32Z",
+    "host":  "win11-vm",
+    "osBuild":  "26200",
+    "namespace":  "root/Microsoft/Windows/Storage",
+    "className":  "MSFT_StorageReliabilityCounter",
+    "instanceCount":  0,
+    "properties":  [
+                       {
+                           "name":  "ObjectId",
+                           "cimType":  "String"
+                       },
+                       {
+                           "name":  "PassThroughClass",
+                           "cimType":  "String"
+                       },
+                       {
+                           "name":  "PassThroughIds",
+                           "cimType":  "String"
+                       },
+                       {
+                           "name":  "PassThroughNamespace",
+                           "cimType":  "String"
+                       },
+                       {
+                           "name":  "PassThroughServer",
+                           "cimType":  "String"
+                       },
+                       {
+                           "name":  "UniqueId",
+                           "cimType":  "String"
+                       },
+                       {
+                           "name":  "DeviceId",
+                           "cimType":  "String"
+                       },
+                       {
+                           "name":  "FlushLatencyMax",
+                           "cimType":  "UInt64"
+                       },
+                       {
+                           "name":  "LoadUnloadCycleCount",
+                           "cimType":  "UInt32"
+                       },
+                       {
+                           "name":  "LoadUnloadCycleCountMax",
+                           "cimType":  "UInt32"
+                       },
+                       {
+                           "name":  "ManufactureDate",
+                           "cimType":  "String"
+                       },
+                       {
+                           "name":  "PowerOnHours",
+                           "cimType":  "UInt32"
+                       },
+                       {
+                           "name":  "ReadErrorsCorrected",
+                           "cimType":  "UInt64"
+                       },
+                       {
+                           "name":  "ReadErrorsTotal",
+                           "cimType":  "UInt64"
+                       },
+                       {
+                           "name":  "ReadErrorsUncorrected",
+                           "cimType":  "UInt64"
+                       },
+                       {
+                           "name":  "ReadLatencyMax",
+                           "cimType":  "UInt64"
+                       },
+                       {
+                           "name":  "StartStopCycleCount",
+                           "cimType":  "UInt32"
+                       },
+                       {
+                           "name":  "StartStopCycleCountMax",
+                           "cimType":  "UInt32"
+                       },
+                       {
+                           "name":  "Temperature",
+                           "cimType":  "UInt8"
+                       },
+                       {
+                           "name":  "TemperatureMax",
+                           "cimType":  "UInt8"
+                       },
+                       {
+                           "name":  "Wear",
+                           "cimType":  "UInt8"
+                       },
+                       {
+                           "name":  "WriteErrorsCorrected",
+                           "cimType":  "UInt64"
+                       },
+                       {
+                           "name":  "WriteErrorsTotal",
+                           "cimType":  "UInt64"
+                       },
+                       {
+                           "name":  "WriteErrorsUncorrected",
+                           "cimType":  "UInt64"
+                       },
+                       {
+                           "name":  "WriteLatencyMax",
+                           "cimType":  "UInt64"
+                       }
+                   ]
+}
