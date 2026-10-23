@@ -3,9 +3,11 @@
 cdx-hbom reads Windows hardware through Windows Management Instrumentation
 (WMI/CIM) using the built-in Windows PowerShell 5.1 at
 `%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe`. It never
-elevates: no UAC prompt, no `sudo.exe`. This page explains what each
-permission level yields, what to do when PowerShell is restricted, and how to
-read the diagnostics the BOM carries.
+elevates: no UAC prompt, no `sudo.exe`. When PowerShell cannot run at all,
+the device inventory still comes from `pnputil`, and the rest degrades to the
+Node baseline. This page explains what each permission level yields, what to
+do when PowerShell is restricted, and how to read the diagnostics the BOM
+carries.
 
 ## How a Windows collection runs
 
@@ -20,6 +22,9 @@ read the diagnostics the BOM carries.
 4. With `--privileged`, `windows-cim-privileged` runs as well. It queries the
    classes that only administrators can read; cdx-hbom does not try to become
    one.
+5. When no PowerShell batch ran at all (PowerShell missing, blocked, or in
+   Constrained Language Mode), `windows-pnputil-devices` enumerates connected
+   PnP devices without PowerShell; see below.
 
 Every process runs a fixed, single-line script with `-NoLogo -NoProfile
 -NonInteractive -Command`. `getCommandPlan({ platform: "win32" })` returns the
@@ -178,16 +183,38 @@ security decision for the administrator, not something cdx-hbom needs.
 
 **PowerShell blocked entirely** (AppLocker or WDAC denying
 `powershell.exe`, or a missing `%SystemRoot%\System32\WindowsPowerShell`):
-every batch fails, the BOM contains only the Node baseline, and each command
-records a diagnostic with `issue` `missing-command` (the executable could not
-be started) or `command-error` (it started and exited non-zero). Nothing is
-retried through another shell.
+every PowerShell batch fails and each command records a diagnostic with
+`issue` `missing-command` (the executable could not be started) or
+`command-error` (it started and exited non-zero). No other shell is tried,
+but the device inventory does not stop: cdx-hbom then reads PnP devices with
+`%SystemRoot%\System32\pnputil.exe /enum-devices /connected /relations /drivers`,
+which needs no PowerShell, and turns its output into the same envelope the
+`windows-pnp-devices` batch fills, so USB, PCI and Bluetooth devices keep
+their parent links and installed drivers. Processor and memory come from the
+Node baseline, and board, firmware, storage, network, display, media and
+trust details are missing. One `windows-fallback` diagnostic with `issue`
+`partial-support` names the reason PowerShell was unavailable and that split.
+
+The pnputil fallback has floors: `/relations` needs Windows 10 1903
+(build 18362) and `/drivers` needs 2004 (build 19041), so older builds run
+the command without `/drivers`, and a build older than 1903 gets no pnputil
+run at all and only the Node baseline. The run honours
+`--no-command-enrichment` and is skipped with it. pnputil's field labels are
+localized, so on a host whose pnputil speaks another language the output is
+recorded but not parsed: the PnP inventory is skipped and a
+`windows-pnputil-devices` diagnostic with `issue` `partial-support` says so,
+rather than the labels being misread. The fallback command is not part of the
+command plan, so `getCommandPlan` does not return it and an allowlist that
+should permit it must name `pnputil.exe` explicitly.
 
 **Constrained Language Mode or a restrictive WDAC policy**: the scripts use
 only cmdlets and syntax allowed in Constrained Language Mode, except for two
 guarded `.NET` calls: one switches the console to UTF-8 and one probes the
 Administrator role. Each sits in its own `try/catch`. This has not been
-exercised under a real AppLocker or WDAC policy. The BOM records what it saw:
+exercised under a real AppLocker or WDAC policy. When the session reports a
+language mode other than `FullLanguage`, the pnputil fallback described above
+runs as well, so the device inventory survives even there. The BOM records
+what it saw:
 
 - `cdx:hbom:evidence:languageMode` is the session's language mode
   (`FullLanguage` or `ConstrainedLanguage`);
@@ -229,6 +256,11 @@ always the same:
 - pipeline cmdlets: `Select-Object`, `Where-Object`, `ConvertTo-Json`;
 - `Remove-Item` on `Alias:` drive entries only, to remove any aliases that
   would shadow the script's own one-letter helper functions.
+
+When PowerShell is blocked and the pnputil fallback runs, the Node process
+starts `pnputil.exe` from the absolute System32 path with the read-only
+`/enum-devices` flags instead. The fallback command is not in the command
+plan, so an allowlist that should permit it must name `pnputil.exe`.
 
 To review or allowlist the scripts, call `getCommandPlan({ platform: "win32" })`
 from the library; it returns the complete command lines. `cdx-hbom --dry-run`
