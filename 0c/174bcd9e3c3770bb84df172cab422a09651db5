@@ -1,0 +1,21 @@
+.github/workflows/ci.yml
+  s_9ef41a999f4dfc::t_d744cd79c75cc8 34-35,62-63
+.github/workflows/windows-capture.yml
+  s_9ef41a999f4dfc::t_901fa150966372 30-31
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "0c174bcd9e3c3770bb84df172cab422a09651db5",
+  "prompts": {},
+  "sessions": {
+    "s_9ef41a999f4dfc": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "664079b5-fb65-49df-a81f-2b91f06cbafa",
+        "model": "claude-sonnet-5-5"
+      },
+      "human_author": "Prabhu Subramanian <prabhu@appthreat.com>"
+    }
+  }
+}
