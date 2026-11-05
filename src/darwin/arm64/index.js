@@ -2,7 +2,11 @@ import process from "node:process";
 
 import { runCommand } from "../../common/command.js";
 import { parsePlistArray, parsePlistDict } from "../../common/plist.js";
-import { createHbomDocument } from "../../common/schema.js";
+import {
+  createHbomDocument,
+  HBOM_TOOL_REF,
+  HBOM_TOOL_VERSION,
+} from "../../common/schema.js";
 import {
   compact,
   createComponent,
@@ -404,6 +408,8 @@ export function buildDarwinArm64Hbom(options = {}) {
             {
               type: "application",
               name: "cdx-hbom",
+              version: HBOM_TOOL_VERSION,
+              "bom-ref": HBOM_TOOL_REF,
             },
           ],
         },

@@ -33,6 +33,7 @@ Options:
 
 Examples:
   cdx-hbom --pretty
+  cdx-hbom --spec-version 2.0 --pretty > host-hbom.json
   cdx-hbom --pretty > host-hbom.json
   cdx-hbom --privileged --pretty > host-hbom.json
 `;
@@ -49,6 +50,17 @@ async function main(argv) {
     return;
   }
 
+  if (
+    options.specVersion &&
+    !["1.7", "2.0"].includes(options.specVersion)
+  ) {
+    process.stderr.write(
+      `Unsupported --spec-version '${options.specVersion}'. Supported: 1.7, 2.0.\n`,
+    );
+    process.exitCode = 1;
+    return;
+  }
+
   const bom = await collectHardware({
     allowPartial: !options.strict,
     architecture: options.arch,
@@ -58,6 +70,7 @@ async function main(argv) {
     includePrivilegedEnrichment: options.privileged,
     includeSensitiveIdentifiers: options.sensitive,
     platform: options.platform,
+    specVersion: options.specVersion,
     timeoutMs: options.timeout,
   });
 
@@ -130,6 +143,11 @@ function parseArgs(argv) {
     }
     if (arg === "--strict") {
       result.strict = true;
+      continue;
+    }
+    if (arg === "--spec-version") {
+      result.specVersion = requireValue(argv, index, arg);
+      index += 1;
       continue;
     }
     if (arg === "--platform") {

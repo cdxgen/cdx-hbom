@@ -14,6 +14,8 @@ export {
   safeReadlinkSync,
   safeSpawnSync,
 } from "./src/common/safe.js";
+import { createHbomDocument } from "./src/common/schema.js";
+
 export {
   createHbomDocument,
   HBOM_BOM_FORMAT,
@@ -178,6 +180,19 @@ export async function collectHardware(options = {}) {
       throw new Error(`Unsupported HBOM target: ${platform}/${architecture}`);
     }
 
+    // A 2.0 request re-envelopes the 1.x-shaped document the collectors
+    // build; the 1.7 output is untouched.
+    if (options.specVersion === "2.0") {
+      bom = createHbomDocument({
+        metadata: bom.metadata,
+        components: bom.components,
+        dependencies: bom.dependencies,
+        serialNumber: bom.serialNumber,
+        version: bom.version,
+        properties: bom.properties,
+        specVersion: "2.0",
+      });
+    }
     return attachCollectorTrace(bom, trace);
   });
 }
