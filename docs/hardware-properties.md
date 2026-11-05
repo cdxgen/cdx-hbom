@@ -597,3 +597,33 @@ These properties may contain unique identifiers and remain redacted by default w
 - `cdx:hbom:switchUid`
 - `cdx:hbom:volumeUuid`
 - `cdx:hbom:ownNumbers`
+
+## CycloneDX 2.0 overlap
+
+`src/common/cdx20.js` maps the hardware facts that gained native CycloneDX
+2.0 fields. The mapping is additive: every `cdx:hbom:*` property stays at
+2.0 because the `hbom-compliance`, `hbom-performance` and `hbom-security`
+audit rule packs read them.
+
+| cdx:hbom property | 2.0 field |
+| --- | --- |
+| `cdx:hbom:serialNumber` | `identifiers[].identities[scheme=serial-number]` |
+| `cdx:hbom:assetTag` | `identifiers[].identities[scheme=asset-tag]` |
+| `cdx:hbom:macAddress` | `identifiers[].identities[scheme=mac-address]` |
+| `cdx:hbom:imei` | `identifiers[].identities[scheme=imei]` |
+| `cdx:hbom:modelNumber` | `identifiers[].identities[scheme=model-number]` |
+| `cdx:hbom:hardwareClass` | `classification.category` |
+| `cdx:hbom:pciClassCode`, `cdx:hbom:usbClass` | `classification.codes` |
+| `manufacturer` | `parties[role=manufacturer].organization` |
+
+Identifiers are asserted identity, so they are emitted only when the
+collector ran with `includeSensitiveIdentifiers` (the policy property reads
+`include`) and the value is not the default `redacted:<last4>` form.
+
+Not mapped: `cdx:hbom:deviceType` (package types such as `bga`/`smd` are
+packaging, not the draft's device-type taxonomy), `cdx:hbom:quantity` (a
+host collector cannot observe it), and the firmware slot labels
+(`cdx:hbom:deviceLocator`, `bankLabel`, `socketDesignation`, `pciSlot`),
+which stay properties until the maintainer decides whether they belong in
+`boardLocation.designators`, a field the schema reserves for PCB reference
+designators such as `U5` or `R12`.

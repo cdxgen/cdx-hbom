@@ -17,6 +17,11 @@ export {
 import { createHbomDocument } from "./src/common/schema.js";
 
 export {
+  toCdx20HardwareComponent,
+  identifierIsAssertable,
+} from "./src/common/cdx20.js";
+
+export {
   createHbomDocument,
   HBOM_BOM_FORMAT,
   HBOM_SCHEMA_URL,

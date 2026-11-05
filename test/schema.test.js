@@ -118,3 +118,93 @@ test("collectHardware returns the same components at 1.7 and 2.0", async () => {
   assert.ok(tool17.version);
   assert.equal(tool20.version, tool17.version);
 });
+
+test("toCdx20HardwareComponent maps identifiers, classification, parties", async () => {
+  const { toCdx20HardwareComponent, identifierIsAssertable } = await import(
+    "../src/common/cdx20.js"
+  );
+  const sensitive = {
+    "bom-ref": "device:nic",
+    type: "device",
+    name: "nic",
+    manufacturer: { name: "Acme" },
+    properties: [
+      { name: "cdx:hbom:identifierPolicy", value: "include" },
+      { name: "cdx:hbom:serialNumber", value: "SN-123456" },
+      { name: "cdx:hbom:macAddress", value: "00:11:22:33:44:55" },
+      { name: "cdx:hbom:hardwareClass", value: "network-adapter" },
+      { name: "cdx:hbom:pciClassCode", value: "0200" },
+    ],
+  };
+  const mapped = toCdx20HardwareComponent(sensitive, "party-hbom");
+  assert.equal(mapped.refId, "device:nic");
+  assert.equal(mapped.properties.length, sensitive.properties.length);
+  assert.deepEqual(
+    mapped.identifiers,
+    [
+      {
+        party: "party-hbom",
+        identities: [
+          { scheme: "serial-number", value: "SN-123456" },
+          { scheme: "mac-address", value: "00:11:22:33:44:55" },
+        ],
+      },
+    ],
+  );
+  assert.deepEqual(mapped.classification, {
+    category: "network-adapter",
+    codes: ["0200"],
+  });
+  assert.deepEqual(mapped.parties, [
+    { roles: [{ role: "manufacturer" }], organization: { name: "Acme" } },
+  ]);
+  assert.equal(mapped.manufacturer, undefined);
+
+  const redacted = {
+    properties: [
+      { name: "cdx:hbom:identifierPolicy", value: "include" },
+      { name: "cdx:hbom:serialNumber", value: "redacted:3456" },
+    ],
+  };
+  assert.equal(identifierIsAssertable(redacted, "cdx:hbom:serialNumber"), false);
+  const withheld = {
+    properties: [
+      { name: "cdx:hbom:identifierPolicy", value: "redacted-by-default" },
+      { name: "cdx:hbom:serialNumber", value: "SN-123456" },
+    ],
+  };
+  assert.equal(
+    identifierIsAssertable(withheld, "cdx:hbom:serialNumber"),
+    false,
+  );
+  const mappedRedacted = toCdx20HardwareComponent(redacted, "party-hbom");
+  assert.equal(mappedRedacted.identifiers, undefined);
+
+  // deviceType/quantity are never emitted; firmware slot labels stay as
+  // properties only.
+  const packaged = {
+    properties: [
+      { name: "cdx:hbom:deviceType", value: "bga" },
+      { name: "cdx:hbom:quantity", value: "4" },
+      { name: "cdx:hbom:deviceLocator", value: "DIMM3" },
+    ],
+  };
+  const mappedPackaged = toCdx20HardwareComponent(packaged, "party-hbom");
+  assert.equal(mappedPackaged.deviceType, undefined);
+  assert.equal(mappedPackaged.quantity, undefined);
+  assert.equal(mappedPackaged.boardLocation, undefined);
+});
+
+test("2.0 collection output keeps every cdx:hbom property", async () => {
+  const bom = await collectHardware({ dryRun: true, specVersion: "2.0" });
+  const components = [
+    bom.inventories[0].subject,
+    ...(bom.inventories[0].components || []),
+  ];
+  for (const component of components) {
+    const names = (component.properties || []).map((entry) => entry.name);
+    for (const name of names) {
+      assert.match(name, /^cdx:/u);
+    }
+  }
+});

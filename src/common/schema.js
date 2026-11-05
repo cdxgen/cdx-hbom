@@ -3,6 +3,8 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
+import { toCdx20HardwareComponent } from "./cdx20.js";
+
 export const HBOM_BOM_FORMAT = "CycloneDX";
 export const HBOM_SPEC_VERSION = "1.7";
 export const HBOM_SCHEMA_URL =
@@ -33,6 +35,10 @@ export const HBOM_TOOL_VERSION = packageJson.version;
  * @returns {object} CycloneDX 2.0 document.
  */
 function toCdx20(input) {
+  const mapHardware = (component) =>
+    component && typeof component === "object"
+      ? toCdx20HardwareComponent(component, HBOM_TOOL_REF)
+      : component;
   const metadata = { ...input.metadata };
   const subject = metadata.component;
   delete metadata.component;
@@ -61,7 +67,7 @@ function toCdx20(input) {
         ...(subject
           ? { subject: renameRefIds(subject) }
           : { subject: { type: "device", name: "host" } }),
-        components: renameRefIds(input.components ?? []),
+        components: (input.components ?? []).map(mapHardware),
       },
     ],
     properties: input.properties ?? [],
