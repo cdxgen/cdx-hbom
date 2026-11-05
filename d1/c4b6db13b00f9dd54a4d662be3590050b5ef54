@@ -1,0 +1,28 @@
+src/common/cdx20.js
+  s_9452a625b7020e::t_e0938ecefa6d1a 1-113
+index.js
+  s_9452a625b7020e::t_fa269b1222e626 20-23
+  s_9452a625b7020e::t_53dcdc0a5fcf98 19
+test/schema.test.js
+  s_9452a625b7020e::t_999eeef400d055 121-210
+src/common/schema.js
+  s_9452a625b7020e::t_fa269b1222e626 6-7,38-41,70
+docs/hardware-properties.md
+  s_9452a625b7020e::t_36f576dd954350 600-629
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d1c4b6db13b00f9dd54a4d662be3590050b5ef54",
+  "prompts": {},
+  "sessions": {
+    "s_9452a625b7020e": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "sess_8885fbac-82ed-4e3a-8e68-8a24ba52d2d8",
+        "model": "GLM-5.3"
+      },
+      "human_author": "Team AppThreat <cloud@appthreat.com>"
+    }
+  }
+}
