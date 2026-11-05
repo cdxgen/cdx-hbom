@@ -1,0 +1,41 @@
+src/common/schema.js
+  s_9452a625b7020e::t_17cc3b6ae13bee 10-13,23-76,84-85,87,90-92
+  s_9452a625b7020e::t_3c963c1340cc68 2-4,14-20
+index.js
+  s_9452a625b7020e::t_250cf7b0b9f082 17-18
+  s_9452a625b7020e::t_0ece5f7ab9e507 183-195
+src/darwin/arm64/index.js
+  s_9452a625b7020e::t_3c963c1340cc68 8
+  s_9452a625b7020e::t_ca0786aafbd0e3 6-7,9,411-412
+  s_9452a625b7020e::t_c0704df5c3ebd2 5
+src/linux/common/index.js
+  s_9452a625b7020e::t_3c963c1340cc68 23
+  s_9452a625b7020e::t_ca0786aafbd0e3 21-22,24,1811-1812
+  s_9452a625b7020e::t_3db15bc00ac917 20
+bin/cdx-hbom.js
+  s_9452a625b7020e::t_c3fba5a01d2273 36,53-63,73,148-150
+  s_9452a625b7020e::t_f7f8d529d9f52f 151-152
+test/schema.test.js
+  s_9452a625b7020e::t_1c033846e9f97b 5
+  s_9452a625b7020e::t_d44de4d617362e 50-120
+src/windows/common/index.js
+  s_9452a625b7020e::t_3c963c1340cc68 24
+  s_9452a625b7020e::t_ca0786aafbd0e3 22-23,25,368-369
+  s_9452a625b7020e::t_4f6c517b72ea23 21
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "80a20b10551421e77ec4ec65f5cc7090199e1655",
+  "prompts": {},
+  "sessions": {
+    "s_9452a625b7020e": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "sess_8885fbac-82ed-4e3a-8e68-8a24ba52d2d8",
+        "model": "GLM-5.3"
+      },
+      "human_author": "Team AppThreat <cloud@appthreat.com>"
+    }
+  }
+}
