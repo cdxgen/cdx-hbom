@@ -1,0 +1,19 @@
+package.json
+  s_9452a625b7020e::t_cb861f46853570 30-31
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "47b5d16bc978b1111a753752ffd4b806d62a4b7c",
+  "prompts": {},
+  "sessions": {
+    "s_9452a625b7020e": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "sess_8885fbac-82ed-4e3a-8e68-8a24ba52d2d8",
+        "model": "GLM-5.3"
+      },
+      "human_author": "Team AppThreat <cloud@appthreat.com>"
+    }
+  }
+}
