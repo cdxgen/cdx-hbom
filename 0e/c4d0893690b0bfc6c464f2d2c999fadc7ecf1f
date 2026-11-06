@@ -1,0 +1,14 @@
+test/cdx20.test.js
+  h_6a4cc5cdf68def 6,36,39
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "0ec4d0893690b0bfc6c464f2d2c999fadc7ecf1f",
+  "prompts": {},
+  "humans": {
+    "h_6a4cc5cdf68def": {
+      "author": "Team AppThreat <cloud@appthreat.com>"
+    }
+  }
+}
