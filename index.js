@@ -17,8 +17,12 @@ export {
 import { createHbomDocument } from "./src/common/schema.js";
 
 export {
-  toCdx20HardwareComponent,
   identifierIsAssertable,
+  isRedactedIdentifier,
+  mapCdx20HardwareComponent,
+  RAW_IDENTIFIER_POLICY,
+  REDACTED_IDENTIFIER_POLICY,
+  toCdx20HardwareComponent,
 } from "./src/common/cdx20.js";
 
 export {
