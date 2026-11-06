@@ -3,7 +3,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
 import test from "node:test";
-import { pathToFileURL } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 import {
   collectHardware,
@@ -33,9 +33,10 @@ import {
 // cdx-hbom has no dependencies. The schema check borrows ajv from a cdxgen
 // checkout when one is present and is skipped otherwise; the structural
 // checks below always run.
+// Defaults to a cdxgen checkout next to this repository (../cdxgen).
 const CDXGEN_ROOT =
   process.env.CDX_HBOM_CDXGEN_ROOT ||
-  "/Users/appthreat/work/cdxgen/cdxgen-wt-4589";
+  fileURLToPath(new URL("../../cdxgen", import.meta.url));
 
 const TARGETS = [
   ["darwin", "arm64"],
