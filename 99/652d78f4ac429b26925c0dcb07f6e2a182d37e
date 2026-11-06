@@ -1,0 +1,18 @@
+index.js
+  h_6a4cc5cdf68def 21-25
+src/common/cdx20.js
+  h_6a4cc5cdf68def 16-20,29-34,43-78,84-98,102-103,106-109,112-117,121-127,130-137,139-142,150,156,159,162-171,173,178,180,183,190-204
+test/cdx20.test.js
+  h_6a4cc5cdf68def 1-170
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "99652d78f4ac429b26925c0dcb07f6e2a182d37e",
+  "prompts": {},
+  "humans": {
+    "h_6a4cc5cdf68def": {
+      "author": "Team AppThreat <cloud@appthreat.com>"
+    }
+  }
+}
