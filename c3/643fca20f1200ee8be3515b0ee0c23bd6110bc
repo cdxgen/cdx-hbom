@@ -1,0 +1,18 @@
+README.md
+  h_6a4cc5cdf68def 46,55,140-181
+bin/cdx-hbom.js
+  h_6a4cc5cdf68def 30,38
+docs/hardware-properties.md
+  h_6a4cc5cdf68def 603-608,618-658
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "c3643fca20f1200ee8be3515b0ee0c23bd6110bc",
+  "prompts": {},
+  "humans": {
+    "h_6a4cc5cdf68def": {
+      "author": "Team AppThreat <cloud@appthreat.com>"
+    }
+  }
+}
