@@ -1,15 +1,32 @@
 import assert from "node:assert/strict";
+import {
+  copyFileSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import test from "node:test";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 import {
   collectHardware,
   createHbomDocument,
+  getHbomToolVersion,
   HBOM_BOM_FORMAT,
   HBOM_SCHEMA_URL,
   HBOM_SPEC_VERSION,
   HBOM_TOOL_REF,
-  HBOM_TOOL_VERSION,
 } from "../index.js";
+import { readHbomToolVersion } from "../src/common/schema.js";
+
+const packageVersion = JSON.parse(
+  readFileSync(new URL("../package.json", import.meta.url), "utf8"),
+).version;
 
 test("createHbomDocument wraps data in the versioned HBOM envelope", () => {
   const document = createHbomDocument({
@@ -122,8 +139,66 @@ test("collectHardware returns the same components at 1.7 and 2.0", async () => {
     {
       type: "application",
       name: "cdx-hbom",
-      version: HBOM_TOOL_VERSION,
+      version: packageVersion,
       refId: HBOM_TOOL_REF,
     },
   ]);
+});
+
+test("readHbomToolVersion returns undefined for a missing or unusable package.json", () => {
+  const directory = mkdtempSync(join(tmpdir(), "cdx-hbom-version-"));
+  try {
+    const write = (name, text) => {
+      const path = join(directory, name);
+      writeFileSync(path, text);
+      return path;
+    };
+    assert.equal(readHbomToolVersion(join(directory, "missing.json")), undefined);
+    assert.equal(readHbomToolVersion(write("bad.json", "{ not json")), undefined);
+    assert.equal(readHbomToolVersion(write("none.json", "{}")), undefined);
+    assert.equal(
+      readHbomToolVersion(write("number.json", '{"version":1}')),
+      undefined,
+    );
+    assert.equal(
+      readHbomToolVersion(write("ok.json", '{"version":"1.2.3"}')),
+      "1.2.3",
+    );
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("schema.js imports without package.json and leaves the tool version out", async () => {
+  // Copy the two modules into a directory with no package.json two levels up,
+  // the layout a bundle that does not ship package.json would have.
+  const root = mkdtempSync(join(tmpdir(), "cdx-hbom-bundle-"));
+  try {
+    const moduleDir = join(root, "a", "b");
+    mkdirSync(moduleDir, { recursive: true });
+    for (const name of ["schema.js", "cdx20.js"]) {
+      copyFileSync(
+        fileURLToPath(new URL(`../src/common/${name}`, import.meta.url)),
+        join(moduleDir, name),
+      );
+    }
+    assert.equal(existsSync(join(root, "package.json")), false);
+    const bundled = await import(
+      pathToFileURL(join(moduleDir, "schema.js")).href
+    );
+    assert.equal(bundled.getHbomToolVersion(), undefined);
+    const document = bundled.createHbomDocument({
+      specVersion: "2.0",
+      metadata: {
+        tools: { components: [{ type: "application", name: "cdx-hbom" }] },
+        component: { type: "device", name: "host" },
+      },
+    });
+    assert.deepEqual(document.metadata.tools.components, [
+      { type: "application", name: "cdx-hbom", refId: HBOM_TOOL_REF },
+    ]);
+    assert.equal(getHbomToolVersion(), packageVersion);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
 });

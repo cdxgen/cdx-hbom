@@ -147,18 +147,30 @@ change. In the 2.0 document:
 
 - the host component is `inventories[0].subject` and the other components
   are `inventories[0].components`; every `bom-ref` becomes `refId`
-- the tool entry carries `version` and `refId: "pkg:npm/@cdxgen/cdx-hbom"`
-  (the 1.7 tool entry stays `{ type, name }`)
+- the tool entry carries `version` (left out when the package version cannot
+  be read, for example in a bundle without `package.json`) and
+  `refId: "pkg:npm/@cdxgen/cdx-hbom"` (the 1.7 tool entry stays
+  `{ type, name }`)
 - `manufacturer` becomes a `parties[]` entry with the `manufacturer` role
 - `cdx:hbom:hardwareClass` becomes `classification.category`, and
   `cdx:hbom:pciClassCode` / `cdx:hbom:usbClass` become `classification.codes`
   entries (`{ standard: "PCI-SIG class code" | "USB-IF class code", value }`)
-- identifiers (`serial-number`, `asset-tag`, `mac-address`, `imei`,
-  `model-number`) are emitted only when collection ran with
-  `includeSensitiveIdentifiers` / `--sensitive` and the value is not
-  redacted. They are asserted by the `party-cdx-hbom` party (role
-  `asserter`, system kind `automation`, pointing at the tool `refId`), which
-  is declared in `definitions.parties` only when an identifier references it
+- the per-unit identifiers (`serial-number`, `asset-tag`, `mac-address`,
+  `imei`) are emitted only when collection ran with
+  `includeSensitiveIdentifiers` / `--sensitive` and the value is not a
+  redaction marker. `model-number` names a product rather than a unit, so it
+  is emitted whenever its value is not a redaction marker. A redaction marker
+  is an empty value or one that starts with `redacted` or `withheld`, compared
+  without case and surrounding whitespace (`redacted`, `redacted:<last4>`,
+  `redacted-serial`, `Withheld`)
+- identifiers are asserted by the `party-cdx-hbom` party (role `asserter`,
+  system kind `automation`, with `system.ref` set to the refId of the
+  cdx-hbom tool entry, or no `ref` when the metadata has no such entry),
+  which is declared in `definitions.parties` only when an identifier
+  references it
+- `boardLocation` is not emitted: `boardLocation.designators` is reserved for
+  PCB reference designators such as `U5` or `R12`, so firmware slot labels
+  such as `DIMM3` stay in `cdx:hbom:*` properties
 - every `cdx:hbom:*` property is kept
 
 Tools that render their own 2.0 documents, such as cdxgen, can reuse the

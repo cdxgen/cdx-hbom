@@ -1,7 +1,5 @@
 import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
-import { dirname, join } from "node:path";
 
 import { mapCdx20HardwareComponent } from "./cdx20.js";
 
@@ -13,13 +11,43 @@ export const HBOM_SPEC_VERSION_20 = "2.0";
 export const HBOM_SCHEMA_URL_20 =
   "https://cyclonedx.org/schema/2.0/cyclonedx-2.0.schema.json";
 export const HBOM_TOOL_REF = "pkg:npm/@cdxgen/cdx-hbom";
-const packageJson = JSON.parse(
-  readFileSync(
-    join(dirname(fileURLToPath(import.meta.url)), "..", "..", "package.json"),
-    "utf8",
-  ),
-);
-export const HBOM_TOOL_VERSION = packageJson.version;
+
+const PACKAGE_JSON_URL = new URL("../../package.json", import.meta.url);
+
+/**
+ * Read the version field of a package.json file.
+ *
+ * @param {URL | string} packageJsonPath Location of the package.json file.
+ * @returns {string | undefined} The version, or undefined when the file is
+ *   missing, unreadable, not JSON or has no string version.
+ */
+export function readHbomToolVersion(packageJsonPath) {
+  try {
+    const { version } = JSON.parse(readFileSync(packageJsonPath, "utf8"));
+    return typeof version === "string" && version.length ? version : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+let toolVersion;
+let toolVersionRead = false;
+
+/**
+ * The cdx-hbom version from the package.json two directories above this
+ * module. The file is read on the first call, so a bundle that ships without
+ * package.json still imports; the version is then undefined and the 2.0 tool
+ * entry has no version.
+ *
+ * @returns {string | undefined} Package version.
+ */
+export function getHbomToolVersion() {
+  if (!toolVersionRead) {
+    toolVersion = readHbomToolVersion(PACKAGE_JSON_URL);
+    toolVersionRead = true;
+  }
+  return toolVersion;
+}
 
 /** refId of the party cdx-hbom declares when it asserts identities at 2.0. */
 export const HBOM_PARTY_REF = "party-cdx-hbom";
@@ -60,17 +88,35 @@ function completeToolEntry(metadata) {
     ...metadata,
     tools: {
       ...metadata.tools,
-      components: tools.map((tool) =>
-        tool?.name === "cdx-hbom"
-          ? {
-              ...tool,
-              version: tool.version ?? HBOM_TOOL_VERSION,
-              refId: tool.refId ?? HBOM_TOOL_REF,
-            }
-          : tool,
-      ),
+      components: tools.map((tool) => {
+        if (tool?.name !== "cdx-hbom") {
+          return tool;
+        }
+        const version = tool.version ?? getHbomToolVersion();
+        return {
+          ...tool,
+          ...(version ? { version } : {}),
+          refId: tool.refId ?? HBOM_TOOL_REF,
+        };
+      }),
     },
   };
+}
+
+/**
+ * The refId of the cdx-hbom tool entry in completed 2.0 metadata.
+ *
+ * @param {object} metadata 2.0 metadata after completeToolEntry.
+ * @returns {string | undefined} The tool refId, or undefined when there is no
+ *   cdx-hbom tool entry.
+ */
+function hbomToolRefId(metadata) {
+  const tools = metadata?.tools?.components;
+  if (!Array.isArray(tools)) {
+    return undefined;
+  }
+  const refId = tools.find((tool) => tool?.name === "cdx-hbom")?.refId;
+  return typeof refId === "string" && refId.length ? refId : undefined;
 }
 
 /**
@@ -81,7 +127,8 @@ function completeToolEntry(metadata) {
  * the same ids, which are now refIds. The subject and every component go
  * through the hardware mapping in cdx20.js. When an identity is asserted,
  * cdx-hbom declares itself as the asserting party (`party-cdx-hbom`, an
- * automation system that points at the tool entry).
+ * automation system). The party's system.ref is the refId of the cdx-hbom
+ * tool entry, and is left out when the metadata has no such entry.
  *
  * @param {{ metadata: Record<string, unknown>, components?: unknown[],
  *   dependencies?: unknown[], serialNumber?: string, version?: number,
@@ -136,6 +183,7 @@ function toCdx20(input) {
     document.dependencies = renameRefIds(input.dependencies);
   }
   if (referencedParties.has(HBOM_PARTY_REF)) {
+    const toolRefId = hbomToolRefId(metadata);
     document.definitions = {
       parties: [
         {
@@ -144,7 +192,7 @@ function toCdx20(input) {
           system: {
             label: "cdx-hbom",
             kind: "automation",
-            ref: HBOM_TOOL_REF,
+            ...(toolRefId ? { ref: toolRefId } : {}),
           },
         },
       ],

@@ -12,18 +12,19 @@
  * hbom-compliance, hbom-performance and hbom-security audit rules (25 rules)
  * read them. The overlap is documented in docs/hardware-properties.md.
  *
- * Identifier rules: the 2.0 identifiers carry an asserted identity, so a
- * value is emitted only when the caller passes includeSensitiveIdentifiers,
- * the recorded identifier policy (if any) is `raw-identifiers-enabled`, and
- * the value is not a redaction marker (`redacted`, `redacted:<last4>`,
- * `withheld`). Redacted values are false identities and never become
- * identifiers.
+ * Identifier rules: the 2.0 identifiers carry an asserted identity. The
+ * per-unit identifiers (serial number, asset tag, MAC address, IMEI) are
+ * emitted only when the caller passes includeSensitiveIdentifiers, the
+ * recorded identifier policy (if any) is `raw-identifiers-enabled`, and the
+ * value is not a redaction marker. The model number names a product, not a
+ * unit, so it is emitted whenever its value is not a redaction marker.
+ * Redacted values are false identities and never become identifiers.
  *
  * Not emitted: deviceType (package types like bga/smd describe packaging, not
- * the draft's device-type taxonomy) and quantity (a host collector cannot
- * observe it). Firmware slot labels stay as properties for the maintainer to
- * decide against boardLocation.designators, which the schema reserves for
- * PCB reference designators such as U5 or R12.
+ * the draft's device-type taxonomy), quantity (a host collector cannot
+ * observe it) and boardLocation. boardLocation.designators is reserved for
+ * PCB reference designators such as U5 or R12, so firmware slot labels such
+ * as DIMM3 stay in cdx:hbom properties.
  */
 
 /** Identifier policy the collectors record when raw identifiers were kept. */
@@ -40,6 +41,10 @@ const IDENTITY_SCHEMES = [
   { property: "cdx:hbom:modelNumber", scheme: "model-number" },
 ];
 
+// Product-level identifiers: they name a model, not a single unit, so they
+// do not need includeSensitiveIdentifiers or a raw identifier policy.
+const PRODUCT_IDENTIFIER_PROPERTIES = new Set(["cdx:hbom:modelNumber"]);
+
 // Taxonomy standard names for classification.codes
 // (#/$defs/cyclonedx-physical-2.0/$defs/taxonomyCode requires
 // {standard, value}).
@@ -53,10 +58,10 @@ const CLASSIFIABLE_TYPES = new Set(["device", "material"]);
 
 // Markers produced by redactIdentifier (src/common/shape.js): a bare
 // `redacted` for values of four characters or fewer, `redacted:<last4>`
-// otherwise. `withheld` covers values a source declined to report. Any value
-// that starts with a marker counts, which also covers hand-scrubbed captures
-// such as `redacted-serial` and `redacted:mac` in test/fixtures; the check
-// fails closed.
+// otherwise. `withheld` covers values a source declined to report. The value
+// is trimmed and lower-cased, and any value that starts with a marker counts,
+// which also covers hand-scrubbed captures such as `redacted-serial` and
+// `redacted:mac` in test/fixtures; the check fails closed.
 const REDACTION_MARKERS = ["redacted", "withheld"];
 
 /**
@@ -91,11 +96,14 @@ const normalizeOptions = (options) =>
   typeof options === "string" ? { partyRefId: options } : options || {};
 
 /**
- * Whether a hardware component may expose an identifier. All of these must
- * hold: the caller set includeSensitiveIdentifiers, the identifier policy
- * recorded on the component (or passed as options.identifierPolicy, the
- * document-level value) is absent or `raw-identifiers-enabled`, and the value
- * is not a redaction marker.
+ * Whether a hardware component may expose an identifier. The value must not
+ * be a redaction marker. For the per-unit identifiers (serial number, asset
+ * tag, MAC address, IMEI) the caller must also have set
+ * includeSensitiveIdentifiers, and the identifier policy recorded on the
+ * component (or passed as options.identifierPolicy, the document-level value)
+ * must be absent or `raw-identifiers-enabled`. The model number is a
+ * product-level identifier and needs only a value that is not a redaction
+ * marker.
  *
  * @param {object} component A 1.x-shaped hardware component
  * @param {string} propertyName The cdx:hbom:* identifier property name
@@ -104,6 +112,12 @@ const normalizeOptions = (options) =>
  * @returns {boolean}
  */
 export function identifierIsAssertable(component, propertyName, options) {
+  if (isRedactedIdentifier(propertyValue(component, propertyName))) {
+    return false;
+  }
+  if (PRODUCT_IDENTIFIER_PROPERTIES.has(propertyName)) {
+    return true;
+  }
   const { includeSensitiveIdentifiers = false, identifierPolicy } =
     normalizeOptions(options);
   if (includeSensitiveIdentifiers !== true) {
@@ -111,17 +125,14 @@ export function identifierIsAssertable(component, propertyName, options) {
   }
   const policy =
     propertyValue(component, "cdx:hbom:identifierPolicy") ?? identifierPolicy;
-  if (policy !== undefined && policy !== RAW_IDENTIFIER_POLICY) {
-    return false;
-  }
-  return !isRedactedIdentifier(propertyValue(component, propertyName));
+  return policy === undefined || policy === RAW_IDENTIFIER_POLICY;
 }
 
 /**
  * Map one cdx-hbom component to its 2.0 form and report which parties the
  * result references.
  *
- * Adds identifiers from the sensitive identifier properties (appended after
+ * Adds identifiers from the identifier properties (appended after
  * any identifiers the component already has, such as purl identities),
  * classification from hardwareClass and the class codes, and the
  * manufacturer as an inline manufacturer party. Renames bom-ref to refId.

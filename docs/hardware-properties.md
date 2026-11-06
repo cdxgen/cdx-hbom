@@ -623,17 +623,27 @@ read them.
 `classification` is set only on `device` and `material` components, the
 types the draft allows it on.
 
-Identifiers are asserted identity, so a value becomes an identifier only when
-all of these hold:
+Identifiers are asserted identity. A per-unit identifier (serial number,
+asset tag, MAC address, IMEI) becomes an identifier only when all of these
+hold:
 
 - the caller passed `includeSensitiveIdentifiers: true` (the CLI does so for
   `--sensitive`); the default is `false`
 - the recorded `cdx:hbom:identifierPolicy` (on the component, or on the
   document) is absent or `raw-identifiers-enabled`; `redacted-by-default`
   keeps the mapping closed
-- the value is not a redaction marker: anything starting with `redacted`
-  (the bare `redacted` and `redacted:<last4>` forms `redactIdentifier`
-  returns) or `withheld`
+- the value is not a redaction marker
+
+`cdx:hbom:modelNumber` names a product, not a single unit, and the
+collectors do not redact it, so it becomes a `model-number` identifier
+whenever its value is not a redaction marker, without the sensitive option
+or a raw identifier policy.
+
+A redaction marker is an empty value, or a value that starts with `redacted`
+or `withheld` after surrounding whitespace is trimmed, compared without
+case. That covers the bare `redacted` and `redacted:<last4>` forms
+`redactIdentifier` returns, hand-scrubbed values such as `redacted-serial`
+or `Redacted-ABC`, and `withheld`.
 
 The mapper appends its identifier entry after any identifiers the component
 already has, such as purl identities, and returns the party refIds it
@@ -652,15 +662,18 @@ declare them. In cdx-hbom's own 2.0 output the asserting party is:
 }
 ```
 
-It goes in `definitions.parties` only when an identifier references it. The
-tool entry in `metadata.tools.components` carries `version` and
+It goes in `definitions.parties` only when an identifier references it.
+`system.ref` is the refId of the cdx-hbom tool entry in
+`metadata.tools.components`, and is left out when the metadata has no such
+entry. The tool entry carries `version` and
 `refId: "pkg:npm/@cdxgen/cdx-hbom"` at 2.0 only; the 1.7 tool entry is
-unchanged.
+unchanged. `version` is read from `package.json` on first use and is left out
+when the file cannot be read, for example in a bundle that does not ship it.
 
 Not mapped: `cdx:hbom:deviceType` (package types such as `bga`/`smd` are
 packaging, not the draft's device-type taxonomy), `cdx:hbom:quantity` (a
 host collector cannot observe it), and the firmware slot labels
-(`cdx:hbom:deviceLocator`, `bankLabel`, `socketDesignation`, `pciSlot`),
-which stay properties until the maintainer decides whether they belong in
-`boardLocation.designators`, a field the schema reserves for PCB reference
-designators such as `U5` or `R12`.
+(`cdx:hbom:deviceLocator`, `bankLabel`, `socketDesignation`, `pciSlot`).
+`boardLocation` is not used: `boardLocation.designators` is reserved for PCB
+reference designators such as `U5` or `R12`, so firmware slot labels such as
+`DIMM3` stay in `cdx:hbom:*` properties.

@@ -30,13 +30,17 @@ import {
   parseLsusbText,
 } from "../src/linux/common/index.js";
 
-// cdx-hbom has no dependencies. The schema check borrows ajv from a cdxgen
-// checkout when one is present and is skipped otherwise; the structural
-// checks below always run.
-// Defaults to a cdxgen checkout next to this repository (../cdxgen).
+// cdx-hbom has no dependencies. The schema check borrows ajv, ajv-formats
+// and the 2.0 schema files from a directory laid out like a cdxgen checkout
+// (node_modules/ajv, node_modules/ajv-formats, data/*.schema.json). The CI
+// workflow builds one and sets CDX_HBOM_CDXGEN_ROOT; locally it defaults to a
+// cdxgen checkout next to this repository (../cdxgen). Without it the schema
+// check is skipped with a note, except under CI, where it fails. The
+// structural checks below always run.
 const CDXGEN_ROOT =
   process.env.CDX_HBOM_CDXGEN_ROOT ||
   fileURLToPath(new URL("../../cdxgen", import.meta.url));
+const REQUIRE_SCHEMA_VALIDATOR = Boolean(process.env.CI);
 
 const TARGETS = [
   ["darwin", "arm64"],
@@ -235,6 +239,10 @@ function assertStructurallyValid20(document) {
   for (const party of document.definitions?.parties || []) {
     if (party.system?.ref) {
       assert.ok(known.has(party.system.ref), "party system ref resolves");
+      assert.ok(
+        tools.has(party.system.ref),
+        `party system ref ${party.system.ref} is a tool entry refId`,
+      );
     }
   }
 }
@@ -303,8 +311,24 @@ function loadSchemaValidator() {
   return schemaValidatorPromise;
 }
 
-async function assertSchemaValid20(t, document, label) {
+/**
+ * Load the schema validator, failing under CI when it is missing.
+ *
+ * @returns {Promise<Function | undefined>} Validator, or undefined outside CI
+ *   when ajv or the schema is missing.
+ */
+async function requireSchemaValidator() {
   const validate = await loadSchemaValidator();
+  if (!validate && REQUIRE_SCHEMA_VALIDATOR) {
+    assert.fail(
+      `CI is set but ajv, ajv-formats or the 2.0 schema was not found under ${CDXGEN_ROOT}; set CDX_HBOM_CDXGEN_ROOT`,
+    );
+  }
+  return validate;
+}
+
+async function assertSchemaValid20(t, document, label) {
+  const validate = await requireSchemaValidator();
   if (!validate) {
     const note = `ajv or the 2.0 schema not found under ${CDXGEN_ROOT}; schema validation skipped`;
     console.log(`# ${note}`);
@@ -319,7 +343,7 @@ async function assertSchemaValid20(t, document, label) {
 }
 
 test("the borrowed 2.0 schema validator rejects the shapes the review found", async (t) => {
-  const validate = await loadSchemaValidator();
+  const validate = await requireSchemaValidator();
   if (!validate) {
     t.skip(`ajv or the 2.0 schema not found under ${CDXGEN_ROOT}`);
     return;
@@ -362,6 +386,175 @@ test("isRedactedIdentifier treats every redaction marker as redacted", () => {
     assert.equal(isRedactedIdentifier(value), false, value);
   }
 });
+
+test("isRedactedIdentifier ignores case and surrounding whitespace", () => {
+  const markers = {
+    empty: "",
+    "whitespace only": " \t\n",
+    redacted: "redacted",
+    "redacted, mixed case": "ReDaCtEd",
+    "redacted with padding": "  redacted  ",
+    "redacted:<anything>": "redacted:anything at all",
+    "redacted:<anything>, upper case": "REDACTED:XYZ",
+    "redacted:<anything>, padded": "\tredacted:3456\n",
+    "redacted-*": "redacted-asset",
+    "redacted-*, mixed case": "Redacted-ABC",
+    "redacted-*, padded": " redacted-mac ",
+    withheld: "withheld",
+    "withheld, padded": " withheld ",
+    "withheld, upper case": "WITHHELD",
+    "withheld, tab padded": "\tWithheld\n",
+  };
+  for (const [label, value] of Object.entries(markers)) {
+    assert.equal(isRedactedIdentifier(value), true, label);
+  }
+  for (const value of [" SN-123456 ", "Mac16,7", "NotRedacted", "X-withheld"]) {
+    assert.equal(isRedactedIdentifier(value), false, value);
+  }
+});
+
+test("identifierIsAssertable asserts model numbers without the sensitive gate", () => {
+  const name = "cdx:hbom:modelNumber";
+  const component = (value, policy) => ({
+    properties: [
+      ...(policy ? [{ name: "cdx:hbom:identifierPolicy", value: policy }] : []),
+      { name, value },
+    ],
+  });
+  assert.equal(identifierIsAssertable(component("MX2E3LL/A"), name), true);
+  assert.equal(
+    identifierIsAssertable(
+      component("MX2E3LL/A", REDACTED_IDENTIFIER_POLICY),
+      name,
+      { identifierPolicy: REDACTED_IDENTIFIER_POLICY },
+    ),
+    true,
+    "the redacted-by-default policy does not hold back a model number",
+  );
+  for (const value of ["", "redacted", "Redacted-ABC", " withheld ", "redacted:3456"]) {
+    assert.equal(
+      identifierIsAssertable(component(value), name, {
+        includeSensitiveIdentifiers: true,
+      }),
+      false,
+      `marker ${JSON.stringify(value)}`,
+    );
+  }
+  assert.equal(identifierIsAssertable({ properties: [] }, name), false);
+  // The per-unit identifiers keep the gate.
+  for (const property of [
+    "cdx:hbom:serialNumber",
+    "cdx:hbom:assetTag",
+    "cdx:hbom:macAddress",
+    "cdx:hbom:imei",
+  ]) {
+    const unit = { properties: [{ name: property, value: "AB-123456" }] };
+    assert.equal(identifierIsAssertable(unit, property), false, property);
+    assert.equal(
+      identifierIsAssertable(unit, property, { includeSensitiveIdentifiers: true }),
+      true,
+      property,
+    );
+  }
+});
+
+test("a redacted collection still asserts the model number, and only that", async (t) => {
+  const host = {
+    "bom-ref": "device:host",
+    type: "device",
+    name: "host",
+    properties: [
+      { name: "cdx:hbom:serialNumber", value: "redacted:6789" },
+      { name: "cdx:hbom:macAddress", value: "00:11:22:33:44:55" },
+      { name: "cdx:hbom:modelNumber", value: "MX2E3LL/A" },
+      { name: "cdx:hbom:identifierPolicy", value: REDACTED_IDENTIFIER_POLICY },
+    ],
+  };
+  const document = createHbomDocument({
+    specVersion: "2.0",
+    metadata: {
+      tools: { components: [{ type: "application", name: "cdx-hbom" }] },
+      component: host,
+    },
+    properties: [
+      { name: "cdx:hbom:identifierPolicy", value: REDACTED_IDENTIFIER_POLICY },
+    ],
+  });
+  assert.deepEqual(document.inventories[0].subject.identifiers, [
+    {
+      party: HBOM_PARTY_REF,
+      identities: [{ scheme: "model-number", value: "MX2E3LL/A" }],
+    },
+  ]);
+  assertStructurallyValid20(document);
+  await assertSchemaValid20(t, document, "model number only");
+  const markerOnly = structuredClone(host);
+  markerOnly.properties[2].value = "Withheld";
+  const closed = createHbomDocument({
+    specVersion: "2.0",
+    metadata: { component: markerOnly },
+  });
+  assert.equal(closed.inventories[0].subject.identifiers, undefined);
+  assert.equal(closed.definitions, undefined);
+});
+
+test("the asserting party points at the tool entry's refId, or at nothing", async (t) => {
+  const host = {
+    "bom-ref": "device:host",
+    type: "device",
+    name: "host",
+    properties: [{ name: "cdx:hbom:serialNumber", value: "SN-123456" }],
+  };
+  const build = (tools) =>
+    createHbomDocument({
+      specVersion: "2.0",
+      includeSensitiveIdentifiers: true,
+      metadata: { ...(tools ? { tools } : {}), component: host },
+    });
+  const partyOf = (document) => {
+    assert.equal(document.definitions.parties.length, 1);
+    return document.definitions.parties[0];
+  };
+
+  const standard = build({
+    components: [{ type: "application", name: "cdx-hbom" }],
+  });
+  assert.equal(partyOf(standard).system.ref, HBOM_TOOL_REF);
+  assertStructurallyValid20(standard);
+  await assertSchemaValid20(t, standard, "standard tool entry");
+
+  const customRef = build({
+    components: [
+      { type: "application", name: "cdx-hbom", refId: "tool-cdx-hbom" },
+    ],
+  });
+  assert.equal(customRef.metadata.tools.components[0].refId, "tool-cdx-hbom");
+  assert.equal(partyOf(customRef).system.ref, "tool-cdx-hbom");
+  assertStructurallyValid20(customRef);
+  await assertSchemaValid20(t, customRef, "custom tool refId");
+
+  const customBomRef = build({
+    components: [
+      { type: "application", name: "cdx-hbom", "bom-ref": "tool-from-1x" },
+    ],
+  });
+  assert.equal(partyOf(customBomRef).system.ref, "tool-from-1x");
+  assertStructurallyValid20(customBomRef);
+
+  for (const tools of [
+    undefined,
+    { components: [] },
+    { components: [{ type: "application", name: "other-tool", refId: "other" }] },
+  ]) {
+    const document = build(tools);
+    const party = partyOf(document);
+    assert.equal(party.refId, HBOM_PARTY_REF);
+    assert.deepEqual(party.system, { label: "cdx-hbom", kind: "automation" });
+    assertStructurallyValid20(document);
+    await assertSchemaValid20(t, document, `tools=${JSON.stringify(tools)}`);
+  }
+});
+
 
 test("identifierIsAssertable requires the option, a raw policy and a raw value", () => {
   const component = (policy, value = "SN-123456") => ({
@@ -615,6 +808,68 @@ test("2.0 dry-run output is valid for every target", async (t) => {
       const label = `${platform}/${architecture} sensitive=${includeSensitiveIdentifiers}`;
       assertStructurallyValid20(document);
       await assertSchemaValid20(t, document, label);
+    }
+  }
+});
+
+/**
+ * Every refId a 2.0 document references (dependency refs, identifier
+ * parties and party system refs) paired with where it was referenced.
+ *
+ * @param {object} document CycloneDX 2.0 document.
+ * @returns {Array<[string, string]>} [reference, location] pairs.
+ */
+function referencedRefIds(document) {
+  const references = [];
+  for (const edge of document.dependencies || []) {
+    references.push([edge.ref, "dependencies[].ref"]);
+    for (const target of edge.dependsOn || []) {
+      references.push([target, `dependsOn of ${edge.ref}`]);
+    }
+  }
+  for (const component of inventoryComponents(document)) {
+    for (const identifier of component.identifiers || []) {
+      references.push([identifier.party, `identifier party on ${component.name}`]);
+    }
+  }
+  for (const party of document.definitions?.parties || []) {
+    if (party.system?.ref !== undefined) {
+      references.push([party.system.ref, `system.ref of ${party.refId}`]);
+    }
+  }
+  return references;
+}
+
+test("every referenced refId resolves in every target's 2.0 dry run", async () => {
+  for (const [platform, architecture] of TARGETS) {
+    for (const includeSensitiveIdentifiers of [false, true]) {
+      const document = await withTargetPlatform(platform, architecture, () =>
+        collectHardware({
+          dryRun: true,
+          specVersion: "2.0",
+          includeSensitiveIdentifiers,
+        }),
+      );
+      const declared = new Set(
+        findKey(document, "refId").map((path) =>
+          path
+            .split("/")
+            .slice(1)
+            .reduce((node, segment) => node[segment], document),
+        ),
+      );
+      const label = `${platform}/${architecture} sensitive=${includeSensitiveIdentifiers}`;
+      for (const [reference, location] of referencedRefIds(document)) {
+        assert.ok(declared.has(reference), `${label}: ${location} ${reference}`);
+      }
+      const toolRefIds = (document.metadata.tools?.components || []).map(
+        (tool) => tool.refId,
+      );
+      for (const party of document.definitions?.parties || []) {
+        if (party.system?.ref !== undefined) {
+          assert.ok(toolRefIds.includes(party.system.ref), label);
+        }
+      }
     }
   }
 });

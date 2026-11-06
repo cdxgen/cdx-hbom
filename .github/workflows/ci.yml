@@ -43,7 +43,31 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # test/cdx20.test.js validates the 2.0 output against the schema files
+      # cdxgen bundles, with the ajv versions cdxgen uses. Only those files are
+      # checked out, from the cdxgen/cdxgen#4763 commit that adds the pinned
+      # CycloneDX 2.0 draft schema.
+      - name: Checkout CycloneDX 2.0 schema from cdxgen
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
+        with:
+          repository: cdxgen/cdxgen
+          ref: d8c052a496d3c325a35d669f32d5a8628a365400
+          path: cdxgen-schema
+          persist-credentials: false
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /data/cyclonedx-2.0-bundled.schema.json
+            /data/cyclonedx-2.0-cryptography-defs.schema.json
+            /data/behavior-taxonomy.schema.json
+            /data/jsf-0.82.schema.json
+            /data/spdx.schema.json
+
+      - name: Install the schema validator
+        run: npm install --prefix cdxgen-schema --no-save --no-package-lock --no-audit --no-fund --ignore-scripts ajv@8.20.0 ajv-formats@3.0.1
+
       - name: Run full test suite
+        env:
+          CDX_HBOM_CDXGEN_ROOT: ${{ github.workspace }}/cdxgen-schema
         run: npm test
 
   publish:

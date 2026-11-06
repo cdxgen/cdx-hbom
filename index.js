@@ -27,6 +27,7 @@ export {
 
 export {
   createHbomDocument,
+  getHbomToolVersion,
   HBOM_BOM_FORMAT,
   HBOM_PARTY_REF,
   HBOM_SCHEMA_URL,
@@ -34,7 +35,6 @@ export {
   HBOM_SPEC_VERSION,
   HBOM_SPEC_VERSION_20,
   HBOM_TOOL_REF,
-  HBOM_TOOL_VERSION,
 } from "./src/common/schema.js";
 export {
   createCollectorTrace,
