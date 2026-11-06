@@ -1,0 +1,33 @@
+.github/workflows/ci.yml
+  s_4435ae7db7ee1b::t_2d74008be65ce7 46-67,69-70
+README.md
+  s_4435ae7db7ee1b::t_5a871dd228cc15 150-153,158-173
+docs/hardware-properties.md
+  s_4435ae7db7ee1b::t_8c6abdd3221ad8 626-628,635-646,665-668,670-671,676-679
+index.js
+  s_4435ae7db7ee1b::t_5dddad675da293 30
+src/common/cdx20.js
+  s_4435ae7db7ee1b::t_f05581c16aa2f8 15-21,24-27,44-47,61-64,99-106,115-120,128,135
+src/common/schema.js
+  s_4435ae7db7ee1b::t_987e47f2189196 14-50,91-101,106-121,130-131,186,195
+test/cdx20.test.js
+  s_4435ae7db7ee1b::t_a199c70272aa30 33-39,43,242-245,314-320,322-331,346,390-558,815-876
+test/schema.test.js
+  s_4435ae7db7ee1b::t_d866f89390dcd0 2-12,14,19,25-29,142,147-204
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d99ea3f8bfb9b4777611a8177ae7cce030de33df",
+  "prompts": {},
+  "sessions": {
+    "s_4435ae7db7ee1b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "42550933-1c9c-482f-8a1f-bb55d9514f4c",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Prabhu Subramanian <prabhu@appthreat.com>"
+    }
+  }
+}
