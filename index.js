@@ -14,11 +14,27 @@ export {
   safeReadlinkSync,
   safeSpawnSync,
 } from "./src/common/safe.js";
+import { createHbomDocument } from "./src/common/schema.js";
+
+export {
+  identifierIsAssertable,
+  isRedactedIdentifier,
+  mapCdx20HardwareComponent,
+  RAW_IDENTIFIER_POLICY,
+  REDACTED_IDENTIFIER_POLICY,
+  toCdx20HardwareComponent,
+} from "./src/common/cdx20.js";
+
 export {
   createHbomDocument,
+  getHbomToolVersion,
   HBOM_BOM_FORMAT,
+  HBOM_PARTY_REF,
   HBOM_SCHEMA_URL,
+  HBOM_SCHEMA_URL_20,
   HBOM_SPEC_VERSION,
+  HBOM_SPEC_VERSION_20,
+  HBOM_TOOL_REF,
 } from "./src/common/schema.js";
 export {
   createCollectorTrace,
@@ -178,6 +194,20 @@ export async function collectHardware(options = {}) {
       throw new Error(`Unsupported HBOM target: ${platform}/${architecture}`);
     }
 
+    // A 2.0 request re-envelopes the 1.x-shaped document the collectors
+    // build; the 1.7 output is untouched.
+    if (options.specVersion === "2.0") {
+      bom = createHbomDocument({
+        metadata: bom.metadata,
+        components: bom.components,
+        dependencies: bom.dependencies,
+        serialNumber: bom.serialNumber,
+        version: bom.version,
+        properties: bom.properties,
+        specVersion: "2.0",
+        includeSensitiveIdentifiers: options.includeSensitiveIdentifiers,
+      });
+    }
     return attachCollectorTrace(bom, trace);
   });
 }

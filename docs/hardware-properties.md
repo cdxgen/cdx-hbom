@@ -597,3 +597,83 @@ These properties may contain unique identifiers and remain redacted by default w
 - `cdx:hbom:switchUid`
 - `cdx:hbom:volumeUuid`
 - `cdx:hbom:ownNumbers`
+
+## CycloneDX 2.0 overlap
+
+`src/common/cdx20.js` (exported as `@cdxgen/cdx-hbom/cdx20`) maps the
+hardware facts that gained native CycloneDX 2.0 fields. cdx-hbom's own 2.0
+output (`--spec-version 2.0`) and cdxgen's 2.0 renderer both use it. The
+mapping is additive: every `cdx:hbom:*` property stays at 2.0 because the
+`hbom-compliance`, `hbom-performance` and `hbom-security` audit rule packs
+read them.
+
+| cdx:hbom property | 2.0 field |
+| --- | --- |
+| `cdx:hbom:serialNumber` | `identifiers[].identities[scheme=serial-number]` |
+| `cdx:hbom:assetTag` | `identifiers[].identities[scheme=asset-tag]` |
+| `cdx:hbom:macAddress` | `identifiers[].identities[scheme=mac-address]` |
+| `cdx:hbom:imei` | `identifiers[].identities[scheme=imei]` |
+| `cdx:hbom:modelNumber` | `identifiers[].identities[scheme=model-number]` |
+| `cdx:hbom:hardwareClass` | `classification.category` |
+| `cdx:hbom:pciClassCode` | `classification.codes[] = { standard: "PCI-SIG class code", value }` |
+| `cdx:hbom:usbClass` | `classification.codes[] = { standard: "USB-IF class code", value }` |
+| `manufacturer` | `parties[role=manufacturer].organization.name` |
+| `bom-ref` | `refId` |
+
+`classification` is set only on `device` and `material` components, the
+types the draft allows it on.
+
+Identifiers are asserted identity. A per-unit identifier (serial number,
+asset tag, MAC address, IMEI) becomes an identifier only when all of these
+hold:
+
+- the caller passed `includeSensitiveIdentifiers: true` (the CLI does so for
+  `--sensitive`); the default is `false`
+- the recorded `cdx:hbom:identifierPolicy` (on the component, or on the
+  document) is absent or `raw-identifiers-enabled`; `redacted-by-default`
+  keeps the mapping closed
+- the value is not a redaction marker
+
+`cdx:hbom:modelNumber` names a product, not a single unit, and the
+collectors do not redact it, so it becomes a `model-number` identifier
+whenever its value is not a redaction marker, without the sensitive option
+or a raw identifier policy.
+
+A redaction marker is an empty value, or a value that starts with `redacted`
+or `withheld` after surrounding whitespace is trimmed, compared without
+case. That covers the bare `redacted` and `redacted:<last4>` forms
+`redactIdentifier` returns, hand-scrubbed values such as `redacted-serial`
+or `Redacted-ABC`, and `withheld`.
+
+The mapper appends its identifier entry after any identifiers the component
+already has, such as purl identities, and returns the party refIds it
+referenced (`mapCdx20HardwareComponent(...).partyRefIds`) so the caller can
+declare them. In cdx-hbom's own 2.0 output the asserting party is:
+
+```json
+{
+  "refId": "party-cdx-hbom",
+  "roles": [{ "role": "asserter" }],
+  "system": {
+    "label": "cdx-hbom",
+    "kind": "automation",
+    "ref": "pkg:npm/@cdxgen/cdx-hbom"
+  }
+}
+```
+
+It goes in `definitions.parties` only when an identifier references it.
+`system.ref` is the refId of the cdx-hbom tool entry in
+`metadata.tools.components`, and is left out when the metadata has no such
+entry. The tool entry carries `version` and
+`refId: "pkg:npm/@cdxgen/cdx-hbom"` at 2.0 only; the 1.7 tool entry is
+unchanged. `version` is read from `package.json` on first use and is left out
+when the file cannot be read, for example in a bundle that does not ship it.
+
+Not mapped: `cdx:hbom:deviceType` (package types such as `bga`/`smd` are
+packaging, not the draft's device-type taxonomy), `cdx:hbom:quantity` (a
+host collector cannot observe it), and the firmware slot labels
+(`cdx:hbom:deviceLocator`, `bankLabel`, `socketDesignation`, `pciSlot`).
+`boardLocation` is not used: `boardLocation.designators` is reserved for PCB
+reference designators such as `U5` or `R12`, so firmware slot labels such as
+`DIMM3` stay in `cdx:hbom:*` properties.

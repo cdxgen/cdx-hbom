@@ -27,7 +27,8 @@
     "./linux/amd64": "./src/linux/amd64/index.js",
     "./linux/arm64": "./src/linux/arm64/index.js",
     "./windows/amd64": "./src/windows/amd64/index.js",
-    "./windows/arm64": "./src/windows/arm64/index.js"
+    "./windows/arm64": "./src/windows/arm64/index.js",
+    "./cdx20": "./src/common/cdx20.js"
   },
   "files": [
     "bin/",

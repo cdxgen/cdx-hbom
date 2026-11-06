@@ -1,12 +1,208 @@
 import { randomUUID } from "node:crypto";
+import { readFileSync } from "node:fs";
+
+import { mapCdx20HardwareComponent } from "./cdx20.js";
 
 export const HBOM_BOM_FORMAT = "CycloneDX";
 export const HBOM_SPEC_VERSION = "1.7";
 export const HBOM_SCHEMA_URL =
   "http://cyclonedx.org/schema/bom-1.7.schema.json";
+export const HBOM_SPEC_VERSION_20 = "2.0";
+export const HBOM_SCHEMA_URL_20 =
+  "https://cyclonedx.org/schema/2.0/cyclonedx-2.0.schema.json";
+export const HBOM_TOOL_REF = "pkg:npm/@cdxgen/cdx-hbom";
+
+const PACKAGE_JSON_URL = new URL("../../package.json", import.meta.url);
 
 /**
- * Create a CycloneDX 1.7 BOM envelope for hardware inventory.
+ * Read the version field of a package.json file.
+ *
+ * @param {URL | string} packageJsonPath Location of the package.json file.
+ * @returns {string | undefined} The version, or undefined when the file is
+ *   missing, unreadable, not JSON or has no string version.
+ */
+export function readHbomToolVersion(packageJsonPath) {
+  try {
+    const { version } = JSON.parse(readFileSync(packageJsonPath, "utf8"));
+    return typeof version === "string" && version.length ? version : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+let toolVersion;
+let toolVersionRead = false;
+
+/**
+ * The cdx-hbom version from the package.json two directories above this
+ * module. The file is read on the first call, so a bundle that ships without
+ * package.json still imports; the version is then undefined and the 2.0 tool
+ * entry has no version.
+ *
+ * @returns {string | undefined} Package version.
+ */
+export function getHbomToolVersion() {
+  if (!toolVersionRead) {
+    toolVersion = readHbomToolVersion(PACKAGE_JSON_URL);
+    toolVersionRead = true;
+  }
+  return toolVersion;
+}
+
+/** refId of the party cdx-hbom declares when it asserts identities at 2.0. */
+export const HBOM_PARTY_REF = "party-cdx-hbom";
+
+/**
+ * Rename every 1.x `bom-ref` key to the 2.0 `refId`, recursively.
+ *
+ * @param {unknown} value Any JSON value.
+ * @returns {unknown} A renamed copy.
+ */
+function renameRefIds(value) {
+  if (Array.isArray(value)) {
+    return value.map(renameRefIds);
+  }
+  if (value && typeof value === "object") {
+    const renamed = {};
+    for (const [key, member] of Object.entries(value)) {
+      renamed[key === "bom-ref" ? "refId" : key] = renameRefIds(member);
+    }
+    return renamed;
+  }
+  return value;
+}
+
+/**
+ * Give the cdx-hbom tool entry its version and refId. Only the 2.0 output
+ * carries them, so the 1.7 tool entry stays exactly what it was.
+ *
+ * @param {object} metadata 2.0 metadata (already renamed).
+ * @returns {object} Metadata with the tool entry completed.
+ */
+function completeToolEntry(metadata) {
+  const tools = metadata?.tools?.components;
+  if (!Array.isArray(tools)) {
+    return metadata;
+  }
+  return {
+    ...metadata,
+    tools: {
+      ...metadata.tools,
+      components: tools.map((tool) => {
+        if (tool?.name !== "cdx-hbom") {
+          return tool;
+        }
+        const version = tool.version ?? getHbomToolVersion();
+        return {
+          ...tool,
+          ...(version ? { version } : {}),
+          refId: tool.refId ?? HBOM_TOOL_REF,
+        };
+      }),
+    },
+  };
+}
+
+/**
+ * The refId of the cdx-hbom tool entry in completed 2.0 metadata.
+ *
+ * @param {object} metadata 2.0 metadata after completeToolEntry.
+ * @returns {string | undefined} The tool refId, or undefined when there is no
+ *   cdx-hbom tool entry.
+ */
+function hbomToolRefId(metadata) {
+  const tools = metadata?.tools?.components;
+  if (!Array.isArray(tools)) {
+    return undefined;
+  }
+  const refId = tools.find((tool) => tool?.name === "cdx-hbom")?.refId;
+  return typeof refId === "string" && refId.length ? refId : undefined;
+}
+
+/**
+ * The 2.0 draft moves the subject component into inventories[0].subject and
+ * the components beside it, renames bom-ref to refId and replaces bomFormat
+ * with specFormat (see cdxgen/cdxgen#4589; pinned draft commit
+ * ea8c3605829d1da13339a0790b6da73548e42a6b). Dependencies keep pointing at
+ * the same ids, which are now refIds. The subject and every component go
+ * through the hardware mapping in cdx20.js. When an identity is asserted,
+ * cdx-hbom declares itself as the asserting party (`party-cdx-hbom`, an
+ * automation system). The party's system.ref is the refId of the cdx-hbom
+ * tool entry, and is left out when the metadata has no such entry.
+ *
+ * @param {{ metadata: Record<string, unknown>, components?: unknown[],
+ *   dependencies?: unknown[], serialNumber?: string, version?: number,
+ *   properties?: Array<{ name: string, value: string }>,
+ *   includeSensitiveIdentifiers?: boolean }} input Document sections in the
+ *   1.x shape.
+ * @returns {object} CycloneDX 2.0 document.
+ */
+function toCdx20(input) {
+  const identifierPolicy = (input.properties ?? []).find(
+    (property) => property?.name === "cdx:hbom:identifierPolicy",
+  )?.value;
+  const mappingOptions = {
+    partyRefId: HBOM_PARTY_REF,
+    includeSensitiveIdentifiers: input.includeSensitiveIdentifiers === true,
+    identifierPolicy,
+  };
+  const referencedParties = new Set();
+  const mapHardware = (component) => {
+    if (!component || typeof component !== "object") {
+      return component;
+    }
+    const { component: mapped, partyRefIds } = mapCdx20HardwareComponent(
+      component,
+      mappingOptions,
+    );
+    for (const refId of partyRefIds) {
+      referencedParties.add(refId);
+    }
+    return renameRefIds(mapped);
+  };
+  const { component: subject, ...metadataRest } = input.metadata ?? {};
+  const metadata = completeToolEntry(renameRefIds(metadataRest));
+  const document = {
+    $schema: HBOM_SCHEMA_URL_20,
+    specFormat: HBOM_BOM_FORMAT,
+    specVersion: HBOM_SPEC_VERSION_20,
+    serialNumber: input.serialNumber ?? `urn:uuid:${randomUUID()}`,
+    version: input.version ?? 1,
+    metadata,
+    inventories: [
+      {
+        subject: subject
+          ? mapHardware(subject)
+          : { type: "device", name: "host" },
+        components: (input.components ?? []).map(mapHardware),
+      },
+    ],
+    properties: input.properties ?? [],
+  };
+  if (input.dependencies?.length) {
+    document.dependencies = renameRefIds(input.dependencies);
+  }
+  if (referencedParties.has(HBOM_PARTY_REF)) {
+    const toolRefId = hbomToolRefId(metadata);
+    document.definitions = {
+      parties: [
+        {
+          refId: HBOM_PARTY_REF,
+          roles: [{ role: "asserter" }],
+          system: {
+            label: "cdx-hbom",
+            kind: "automation",
+            ...(toolRefId ? { ref: toolRefId } : {}),
+          },
+        },
+      ],
+    };
+  }
+  return document;
+}
+
+/**
+ * Create a CycloneDX BOM envelope for hardware inventory.
  *
  * @param {{
  *   metadata: Record<string, unknown>,
@@ -14,21 +210,17 @@ export const HBOM_SCHEMA_URL =
  *   dependencies?: unknown[],
  *   serialNumber?: string,
  *   version?: number,
- *   properties?: Array<{ name: string, value: string }>
- * }} input Document sections.
- * @returns {{
- *   $schema: string,
- *   bomFormat: string,
- *   specVersion: string,
- *   serialNumber: string,
- *   version: number,
- *   metadata: Record<string, unknown>,
- *   components: unknown[],
- *   dependencies?: unknown[],
- *   properties: Array<{ name: string, value: string }>
- * }} CycloneDX 1.7 document.
+ *   properties?: Array<{ name: string, value: string }>,
+ *   specVersion?: string,
+ *   includeSensitiveIdentifiers?: boolean
+ * }} input Document sections. includeSensitiveIdentifiers only affects the
+ *   2.0 output: it allows unredacted identifiers to become 2.0 identifiers.
+ * @returns {object} CycloneDX 1.7 or 2.0 document.
  */
 export function createHbomDocument(input) {
+  if (input.specVersion === HBOM_SPEC_VERSION_20) {
+    return toCdx20(input);
+  }
   const document = {
     $schema: HBOM_SCHEMA_URL,
     bomFormat: HBOM_BOM_FORMAT,

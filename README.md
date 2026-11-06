@@ -43,6 +43,7 @@ Common options:
 - `--privileged` collect sources that need elevated rights. On Linux this enables privileged enrichment and explicit non-interactive `sudo -n` retries for documented permission-sensitive commands that opt in (currently `drm_info`). On Windows it adds the `windows-cim-privileged` batch (TPM, BitLocker, storage reliability counters, `Confirm-SecureBootUEFI`), which only administrators can read; cdx-hbom never elevates itself, so run it from an elevated session to get that data and expect `permission-denied` diagnostics otherwise
 - `--plist-enrichment` enable additional Darwin plist-based enrichment
 - `--strict` fail instead of returning partial results when enrichment fails
+- `--spec-version <value>` CycloneDX version to emit: `1.7` (default) or `2.0`. The 2.0 output is described in [CycloneDX 2.0 output](#cyclonedx-20-output)
 - `--timeout <ms>` set per-command timeout
 
 Examples:
@@ -51,6 +52,7 @@ Examples:
 npx @cdxgen/cdx-hbom --pretty
 npx @cdxgen/cdx-hbom --privileged --pretty > host-hbom.json
 npx @cdxgen/cdx-hbom --plist-enrichment --pretty > mac-hbom.json
+npx @cdxgen/cdx-hbom --spec-version 2.0 --pretty > host-hbom-2.0.json
 ```
 
 ## Library usage
@@ -134,6 +136,60 @@ for (const entry of commandDiagnostics) {
 ```
 
 You can also read serialized command diagnostics from the BOM root by inspecting `cdx:hbom:evidence:commandDiagnostic*` properties.
+
+## CycloneDX 2.0 output
+
+`collectHardware({ specVersion: "2.0" })` and `--spec-version 2.0` emit the
+CycloneDX 2.0 draft (CycloneDX/specification 2.0-dev at
+`ea8c3605829d1da13339a0790b6da73548e42a6b`). The collectors still build the
+1.7 document; the 2.0 envelope is derived from it, so the 1.7 output does not
+change. In the 2.0 document:
+
+- the host component is `inventories[0].subject` and the other components
+  are `inventories[0].components`; every `bom-ref` becomes `refId`
+- the tool entry carries `version` (left out when the package version cannot
+  be read, for example in a bundle without `package.json`) and
+  `refId: "pkg:npm/@cdxgen/cdx-hbom"` (the 1.7 tool entry stays
+  `{ type, name }`)
+- `manufacturer` becomes a `parties[]` entry with the `manufacturer` role
+- `cdx:hbom:hardwareClass` becomes `classification.category`, and
+  `cdx:hbom:pciClassCode` / `cdx:hbom:usbClass` become `classification.codes`
+  entries (`{ standard: "PCI-SIG class code" | "USB-IF class code", value }`)
+- the per-unit identifiers (`serial-number`, `asset-tag`, `mac-address`,
+  `imei`) are emitted only when collection ran with
+  `includeSensitiveIdentifiers` / `--sensitive` and the value is not a
+  redaction marker. `model-number` names a product rather than a unit, so it
+  is emitted whenever its value is not a redaction marker. A redaction marker
+  is an empty value or one that starts with `redacted` or `withheld`, compared
+  without case and surrounding whitespace (`redacted`, `redacted:<last4>`,
+  `redacted-serial`, `Withheld`)
+- identifiers are asserted by the `party-cdx-hbom` party (role `asserter`,
+  system kind `automation`, with `system.ref` set to the refId of the
+  cdx-hbom tool entry, or no `ref` when the metadata has no such entry),
+  which is declared in `definitions.parties` only when an identifier
+  references it
+- `boardLocation` is not emitted: `boardLocation.designators` is reserved for
+  PCB reference designators such as `U5` or `R12`, so firmware slot labels
+  such as `DIMM3` stay in `cdx:hbom:*` properties
+- every `cdx:hbom:*` property is kept
+
+Tools that render their own 2.0 documents, such as cdxgen, can reuse the
+mapping through the `@cdxgen/cdx-hbom/cdx20` export:
+
+```js
+import { mapCdx20HardwareComponent } from "@cdxgen/cdx-hbom/cdx20";
+
+const { component, partyRefIds } = mapCdx20HardwareComponent(hbomComponent, {
+  partyRefId: "party-cdxgen", // a declared party, never a tool refId
+  includeSensitiveIdentifiers: false, // default; true only for --sensitive runs
+});
+// Existing identifiers (for example purl identities) are kept and the hardware
+// identities are appended. Declare every refId in partyRefIds in
+// definitions.parties.
+```
+
+The field-by-field table is in
+[docs/hardware-properties.md](docs/hardware-properties.md#cyclonedx-20-overlap).
 
 ## Native enrichment currently covered
 
