@@ -27,14 +27,15 @@ Options:
                                elevates by itself; run elevated to get the data
   --plist-enrichment           Enable plist enrichment (Darwin)
   --strict                     Fail on partial collection errors
+  --spec-version <value>       CycloneDX version to emit: 1.7 (default) or 2.0
   --timeout <ms>               Command timeout in milliseconds
   --version                    Print version
   --help                       Print this help
 
 Examples:
   cdx-hbom --pretty
-  cdx-hbom --spec-version 2.0 --pretty > host-hbom.json
   cdx-hbom --pretty > host-hbom.json
+  cdx-hbom --spec-version 2.0 --pretty > host-hbom.json
   cdx-hbom --privileged --pretty > host-hbom.json
 `;
 
