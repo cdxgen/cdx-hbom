@@ -7,6 +7,8 @@ import {
   HBOM_BOM_FORMAT,
   HBOM_SCHEMA_URL,
   HBOM_SPEC_VERSION,
+  HBOM_TOOL_REF,
+  HBOM_TOOL_VERSION,
 } from "../index.js";
 
 test("createHbomDocument wraps data in the versioned HBOM envelope", () => {
@@ -111,10 +113,17 @@ test("collectHardware returns the same components at 1.7 and 2.0", async () => {
     ),
   );
   assert.deepEqual(edges20, edges17);
-  const tool17 = bom17.metadata.tools.components[0];
-  const tool20 = bom20.metadata.tools.components[0];
-  assert.equal(tool17["bom-ref"], "pkg:npm/@cdxgen/cdx-hbom");
-  assert.equal(tool20["bom-ref"], "pkg:npm/@cdxgen/cdx-hbom");
-  assert.ok(tool17.version);
-  assert.equal(tool20.version, tool17.version);
+  // The 1.7 tool entry is what main emits; only 2.0 adds version and refId
+  // (cdxgen/cdx-hbom#25 review item 12).
+  assert.deepEqual(bom17.metadata.tools.components, [
+    { type: "application", name: "cdx-hbom" },
+  ]);
+  assert.deepEqual(bom20.metadata.tools.components, [
+    {
+      type: "application",
+      name: "cdx-hbom",
+      version: HBOM_TOOL_VERSION,
+      refId: HBOM_TOOL_REF,
+    },
+  ]);
 });

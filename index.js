@@ -28,8 +28,13 @@ export {
 export {
   createHbomDocument,
   HBOM_BOM_FORMAT,
+  HBOM_PARTY_REF,
   HBOM_SCHEMA_URL,
+  HBOM_SCHEMA_URL_20,
   HBOM_SPEC_VERSION,
+  HBOM_SPEC_VERSION_20,
+  HBOM_TOOL_REF,
+  HBOM_TOOL_VERSION,
 } from "./src/common/schema.js";
 export {
   createCollectorTrace,
@@ -200,6 +205,7 @@ export async function collectHardware(options = {}) {
         version: bom.version,
         properties: bom.properties,
         specVersion: "2.0",
+        includeSensitiveIdentifiers: options.includeSensitiveIdentifiers,
       });
     }
     return attachCollectorTrace(bom, trace);

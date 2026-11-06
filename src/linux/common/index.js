@@ -17,11 +17,7 @@ import {
   safeReadlinkSync,
   safeSpawnSync,
 } from "../../common/safe.js";
-import {
-  createHbomDocument,
-  HBOM_TOOL_REF,
-  HBOM_TOOL_VERSION,
-} from "../../common/schema.js";
+import { createHbomDocument } from "../../common/schema.js";
 import {
   buildDependencyGraph,
   compact,
@@ -1808,8 +1804,6 @@ export function buildLinuxHbom(options) {
             {
               type: "application",
               name: "cdx-hbom",
-              version: HBOM_TOOL_VERSION,
-              "bom-ref": HBOM_TOOL_REF,
             },
           ],
         },
