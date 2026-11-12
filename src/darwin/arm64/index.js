@@ -70,46 +70,34 @@ export function parseSysctlValues(stdout) {
  * short chip names, and feature flags, not per-unit identifiers, so
  * identifier redaction does not apply to them.
  *
+ * On a chip with performance levels, the chip-wide `hw.l1icachesize`,
+ * `hw.l1dcachesize` and `hw.l2cachesize` keys describe only one cluster
+ * (the Efficiency cluster on an M4 Pro), so the per-level sizes are recorded
+ * instead and the chip-wide ones only when `hw.nperflevels` is absent.
+ *
  * @param {Record<string, string>} sysctl Parsed sysctl values.
  * @returns {Array<{ name: string, value: string }>} Processor properties.
  */
 function collectProcessorTopologyProperties(sysctl) {
+  const levelCount = parseSysctlNumber(sysctl["hw.nperflevels"]);
+  const chipWideCaches =
+    levelCount === undefined
+      ? [
+          ["cdx:hbom:l1iCacheBytes", "hw.l1icachesize"],
+          ["cdx:hbom:l1dCacheBytes", "hw.l1dcachesize"],
+          ["cdx:hbom:l2CacheBytes", "hw.l2cachesize"],
+        ]
+      : [];
+
   return compact([
-    createProperty(
-      "cdx:hbom:performanceLevelCount",
-      parseSysctlNumber(sysctl["hw.nperflevels"]),
-    ),
-    createProperty(
-      "cdx:hbom:performanceCoreCount",
-      getPerfLevelNumber(sysctl, "Performance", "physicalcpu"),
-    ),
-    createProperty(
-      "cdx:hbom:efficiencyCoreCount",
-      getPerfLevelNumber(sysctl, "Efficiency", "physicalcpu"),
-    ),
-    createProperty(
-      "cdx:hbom:performanceL2CacheBytes",
-      getPerfLevelNumber(sysctl, "Performance", "l2cachesize"),
-    ),
-    createProperty(
-      "cdx:hbom:efficiencyL2CacheBytes",
-      getPerfLevelNumber(sysctl, "Efficiency", "l2cachesize"),
-    ),
+    createProperty("cdx:hbom:performanceLevelCount", levelCount),
+    ...collectPerfLevelProperties(sysctl),
     createProperty(
       "cdx:hbom:cacheLineBytes",
       parseSysctlNumber(sysctl["hw.cachelinesize"]),
     ),
-    createProperty(
-      "cdx:hbom:l1iCacheBytes",
-      parseSysctlNumber(sysctl["hw.l1icachesize"]),
-    ),
-    createProperty(
-      "cdx:hbom:l1dCacheBytes",
-      parseSysctlNumber(sysctl["hw.l1dcachesize"]),
-    ),
-    createProperty(
-      "cdx:hbom:l2CacheBytes",
-      parseSysctlNumber(sysctl["hw.l2cachesize"]),
+    ...chipWideCaches.map(([name, key]) =>
+      createProperty(name, parseSysctlNumber(sysctl[key])),
     ),
     createProperty(
       "cdx:hbom:l3CacheBytes",
@@ -121,25 +109,50 @@ function collectProcessorTopologyProperties(sysctl) {
 }
 
 /**
- * Read a numeric field from the performance level whose name matches.
+ * Property name prefix for each recognised `hw.perflevelN.name` value.
+ *
+ * @type {ReadonlyMap<string, string>}
+ */
+const PERF_LEVEL_PREFIXES = new Map([
+  ["Performance", "performance"],
+  ["Efficiency", "efficiency"],
+]);
+
+/**
+ * Per-level sysctl field and the property suffix it maps to.
+ *
+ * @type {ReadonlyArray<readonly [string, string]>}
+ */
+const PERF_LEVEL_FIELDS = Object.freeze([
+  ["physicalcpu", "CoreCount"],
+  ["l1icachesize", "L1iCacheBytes"],
+  ["l1dcachesize", "L1dCacheBytes"],
+  ["l2cachesize", "L2CacheBytes"],
+]);
+
+/**
+ * Build core-count and cache properties for each recognised performance level.
  *
  * Level 0 is not assumed to be the performance level on every chip; the
- * `hw.perflevelN.name` key decides.
+ * `hw.perflevelN.name` key decides, and a level with any other name is
+ * skipped rather than mislabelled.
  *
  * @param {Record<string, string>} sysctl Parsed sysctl values.
- * @param {string} levelName Level name such as `Performance`.
- * @param {string} field Field suffix such as `physicalcpu`.
- * @returns {number | undefined} Parsed number.
+ * @returns {Array<{ name: string, value: string } | undefined>} Properties.
  */
-function getPerfLevelNumber(sysctl, levelName, field) {
-  for (const level of [0, 1]) {
-    if (sysctl[`hw.perflevel${level}.name`] !== levelName) {
-      continue;
+function collectPerfLevelProperties(sysctl) {
+  return [0, 1].flatMap((level) => {
+    const prefix = PERF_LEVEL_PREFIXES.get(sysctl[`hw.perflevel${level}.name`]);
+    if (!prefix) {
+      return [];
     }
-    return parseSysctlNumber(sysctl[`hw.perflevel${level}.${field}`]);
-  }
-
-  return undefined;
+    return PERF_LEVEL_FIELDS.map(([field, suffix]) =>
+      createProperty(
+        `cdx:hbom:${prefix}${suffix}`,
+        parseSysctlNumber(sysctl[`hw.perflevel${level}.${field}`]),
+      ),
+    );
+  });
 }
 
 /**

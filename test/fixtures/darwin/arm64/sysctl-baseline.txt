@@ -7,13 +7,11 @@ hw.physicalcpu: 14
 hw.nperflevels: 2
 hw.perflevel0.name: Performance
 hw.perflevel0.physicalcpu: 10
-hw.perflevel0.logicalcpu: 10
 hw.perflevel0.l1icachesize: 196608
 hw.perflevel0.l1dcachesize: 131072
 hw.perflevel0.l2cachesize: 16777216
 hw.perflevel1.name: Efficiency
 hw.perflevel1.physicalcpu: 4
-hw.perflevel1.logicalcpu: 4
 hw.perflevel1.l1icachesize: 131072
 hw.perflevel1.l1dcachesize: 65536
 hw.perflevel1.l2cachesize: 4194304

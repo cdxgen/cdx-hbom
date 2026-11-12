@@ -441,10 +441,28 @@ test("buildDarwinArm64Hbom records Apple Silicon CPU topology from sysctl", () =
     getPropertyValue(processor, "cdx:hbom:efficiencyL2CacheBytes"),
     "4194304",
   );
+  assert.equal(
+    getPropertyValue(processor, "cdx:hbom:performanceL1iCacheBytes"),
+    "196608",
+  );
+  assert.equal(
+    getPropertyValue(processor, "cdx:hbom:performanceL1dCacheBytes"),
+    "131072",
+  );
+  assert.equal(
+    getPropertyValue(processor, "cdx:hbom:efficiencyL1iCacheBytes"),
+    "131072",
+  );
+  assert.equal(
+    getPropertyValue(processor, "cdx:hbom:efficiencyL1dCacheBytes"),
+    "65536",
+  );
   assert.equal(getPropertyValue(processor, "cdx:hbom:cacheLineBytes"), "128");
-  assert.equal(getPropertyValue(processor, "cdx:hbom:l1iCacheBytes"), "131072");
-  assert.equal(getPropertyValue(processor, "cdx:hbom:l1dCacheBytes"), "65536");
-  assert.equal(getPropertyValue(processor, "cdx:hbom:l2CacheBytes"), "4194304");
+  // The chip-wide L1 and L2 keys report the Efficiency cluster on this
+  // chip, so they are not recorded as chip-wide sizes.
+  for (const name of ["l1iCacheBytes", "l1dCacheBytes", "l2CacheBytes"]) {
+    assert.equal(getPropertyValue(processor, `cdx:hbom:${name}`), undefined);
+  }
   assert.equal(
     getPropertyValue(processor, "cdx:hbom:l3CacheBytes"),
     undefined,
@@ -501,6 +519,53 @@ test("buildDarwinArm64Hbom omits properties for keys the host lacks", () => {
     undefined,
   );
   assert.equal(getPropertyValue(processor, "cdx:hbom:l3CacheBytes"), "33554432");
+});
+
+test("buildDarwinArm64Hbom records chip-wide caches without performance levels", () => {
+  const hbom = buildDarwinArm64Hbom({
+    sources: {
+      sysctl: {
+        "hw.cachelinesize": "64",
+        "hw.l1icachesize": "32768",
+        "hw.l1dcachesize": "49152",
+        "hw.l2cachesize": "1310720",
+        "hw.l3cachesize": "25165824",
+      },
+    },
+  });
+  const processor = getProcessorComponent(hbom);
+
+  assert.equal(
+    getPropertyValue(processor, "cdx:hbom:performanceLevelCount"),
+    undefined,
+  );
+  assert.equal(getPropertyValue(processor, "cdx:hbom:l1iCacheBytes"), "32768");
+  assert.equal(getPropertyValue(processor, "cdx:hbom:l1dCacheBytes"), "49152");
+  assert.equal(getPropertyValue(processor, "cdx:hbom:l2CacheBytes"), "1310720");
+  assert.equal(
+    getPropertyValue(processor, "cdx:hbom:l3CacheBytes"),
+    "25165824",
+  );
+});
+
+test("buildDarwinArm64Hbom ignores level names that match object members", () => {
+  const hbom = buildDarwinArm64Hbom({
+    sources: {
+      sysctl: {
+        "hw.nperflevels": "1",
+        "hw.perflevel0.name": "constructor",
+        "hw.perflevel0.physicalcpu": "8",
+      },
+    },
+  });
+  const processor = getProcessorComponent(hbom);
+
+  assert.equal(
+    processor.properties.some((property) =>
+      property.name.includes("CoreCount"),
+    ),
+    false,
+  );
 });
 
 test("buildDarwinArm64Hbom keys performance levels on their name", () => {
