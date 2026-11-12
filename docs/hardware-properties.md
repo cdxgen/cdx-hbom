@@ -195,6 +195,31 @@ composite device as `usbInterfaceCount` and `usbInterfaceDrivers`.
 | `cdx:hbom:bankLabel`                | Windows: module bank label (`Win32_PhysicalMemory.BankLabel`) |
 | `cdx:hbom:deviceLocator`            | Windows: module socket label (`Win32_PhysicalMemory.DeviceLocator`) |
 
+On Darwin the processor component also carries topology facts read from
+`sysctl`. Each one is present only when the host answers for its key.
+
+| Property                                         | Source key                                                          |
+| ------------------------------------------------ | ------------------------------------------------------------------- |
+| `cdx:hbom:performanceLevelCount`                 | `hw.nperflevels`                                                    |
+| `cdx:hbom:performanceCoreCount`                  | `hw.perflevelN.physicalcpu` of the level named `Performance`        |
+| `cdx:hbom:efficiencyCoreCount`                   | `hw.perflevelN.physicalcpu` of the level named `Efficiency`         |
+| `cdx:hbom:{performance,efficiency}L1iCacheBytes` | `hw.perflevelN.l1icachesize` of that level                          |
+| `cdx:hbom:{performance,efficiency}L1dCacheBytes` | `hw.perflevelN.l1dcachesize` of that level                          |
+| `cdx:hbom:{performance,efficiency}L2CacheBytes`  | `hw.perflevelN.l2cachesize` of that level                           |
+| `cdx:hbom:cacheLineBytes`                        | `hw.cachelinesize`                                                  |
+| `cdx:hbom:l1iCacheBytes`                         | `hw.l1icachesize`, only when `hw.nperflevels` is absent             |
+| `cdx:hbom:l1dCacheBytes`                         | `hw.l1dcachesize`, only when `hw.nperflevels` is absent             |
+| `cdx:hbom:l2CacheBytes`                          | `hw.l2cachesize`, only when `hw.nperflevels` is absent              |
+| `cdx:hbom:l3CacheBytes`                          | `hw.l3cachesize`                                                    |
+| `cdx:hbom:armFeatures`                           | `hw.optional.arm.FEAT_*` keys that print 1, sorted, comma-separated |
+| `cdx:hbom:targetType`                            | `hw.targettype`, the board target such as `J616s`                   |
+
+Levels are matched by name, not by index, and a level with any other name is
+skipped. On Apple Silicon the chip-wide `hw.l1icachesize`, `hw.l1dcachesize`
+and `hw.l2cachesize` keys describe a single cluster (the Efficiency cluster on
+an M4 Pro), which is why the per-level sizes replace them whenever performance
+levels exist.
+
 ## Storage, APFS, and NVMe properties
 
 | Property                      | Meaning                                          |

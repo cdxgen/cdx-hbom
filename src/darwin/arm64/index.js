@@ -14,7 +14,6 @@ import { attachCollectorTrace } from "../../common/trace.js";
 import { readSystemProfiler } from "../common/system-profiler.js";
 import {
   DARWIN_ARM64_COMMANDS,
-  DARWIN_ARM64_SYSCTL_KEYS,
   DARWIN_ARM64_SYSTEM_PROFILER_TYPES,
 } from "./commands.js";
 
@@ -34,28 +33,159 @@ export function getDarwinArm64CommandPlan() {
 }
 
 /**
- * Parse ordered `sysctl -n` output into a key/value object.
+ * Parse `sysctl` `name: value` output into a key/value object.
+ *
+ * `sysctl -i <keys>` prints one `name: value` pair per present key and
+ * silently skips the rest, so a missing key cannot shift later values and
+ * only keys the host answered for appear in the result. Lines without a
+ * `name: ` prefix are ignored.
  *
  * @param {string} stdout Command stdout.
- * @param {string[]} [keys=[...DARWIN_ARM64_SYSCTL_KEYS]] Key order.
  * @returns {Record<string, string>} Parsed values.
  */
-export function parseSysctlValues(
-  stdout,
-  keys = [...DARWIN_ARM64_SYSCTL_KEYS],
-) {
-  const values = stdout
-    .trim()
-    .split(/\r?\n/u)
-    .map((value) => value.trim());
+export function parseSysctlValues(stdout) {
+  const result = /** @type {Record<string, string>} */ ({});
 
-  return keys.reduce(
-    (result, key, index) => {
-      result[key] = values[index] ?? "";
-      return result;
-    },
-    /** @type {Record<string, string>} */ ({}),
-  );
+  for (const line of stdout.split(/\r?\n/u)) {
+    const separator = line.indexOf(":");
+    if (separator <= 0) {
+      continue;
+    }
+    const name = line.slice(0, separator).trim();
+    if (!name) {
+      continue;
+    }
+    result[name] = line.slice(separator + 1).trim();
+  }
+
+  return result;
+}
+
+/**
+ * Build the CPU topology properties the sysctl keys describe.
+ *
+ * Each property is emitted only when its key is present, so a host without
+ * a second performance level, an L3 cache, or the ARM feature keys omits
+ * the property instead of failing. The values are core counts, byte sizes,
+ * short chip names, and feature flags, not per-unit identifiers, so
+ * identifier redaction does not apply to them.
+ *
+ * On a chip with performance levels, the chip-wide `hw.l1icachesize`,
+ * `hw.l1dcachesize` and `hw.l2cachesize` keys describe only one cluster
+ * (the Efficiency cluster on an M4 Pro), so the per-level sizes are recorded
+ * instead and the chip-wide ones only when `hw.nperflevels` is absent.
+ *
+ * @param {Record<string, string>} sysctl Parsed sysctl values.
+ * @returns {Array<{ name: string, value: string }>} Processor properties.
+ */
+function collectProcessorTopologyProperties(sysctl) {
+  const levelCount = parseSysctlNumber(sysctl["hw.nperflevels"]);
+  const chipWideCaches =
+    levelCount === undefined
+      ? [
+          ["cdx:hbom:l1iCacheBytes", "hw.l1icachesize"],
+          ["cdx:hbom:l1dCacheBytes", "hw.l1dcachesize"],
+          ["cdx:hbom:l2CacheBytes", "hw.l2cachesize"],
+        ]
+      : [];
+
+  return compact([
+    createProperty("cdx:hbom:performanceLevelCount", levelCount),
+    ...collectPerfLevelProperties(sysctl),
+    createProperty(
+      "cdx:hbom:cacheLineBytes",
+      parseSysctlNumber(sysctl["hw.cachelinesize"]),
+    ),
+    ...chipWideCaches.map(([name, key]) =>
+      createProperty(name, parseSysctlNumber(sysctl[key])),
+    ),
+    createProperty(
+      "cdx:hbom:l3CacheBytes",
+      parseSysctlNumber(sysctl["hw.l3cachesize"]),
+    ),
+    createProperty("cdx:hbom:armFeatures", collectArmFeatures(sysctl)),
+    createProperty("cdx:hbom:targetType", sysctl["hw.targettype"]),
+  ]);
+}
+
+/**
+ * Property name prefix for each recognised `hw.perflevelN.name` value.
+ *
+ * @type {ReadonlyMap<string, string>}
+ */
+const PERF_LEVEL_PREFIXES = new Map([
+  ["Performance", "performance"],
+  ["Efficiency", "efficiency"],
+]);
+
+/**
+ * Per-level sysctl field and the property suffix it maps to.
+ *
+ * @type {ReadonlyArray<readonly [string, string]>}
+ */
+const PERF_LEVEL_FIELDS = Object.freeze([
+  ["physicalcpu", "CoreCount"],
+  ["l1icachesize", "L1iCacheBytes"],
+  ["l1dcachesize", "L1dCacheBytes"],
+  ["l2cachesize", "L2CacheBytes"],
+]);
+
+/**
+ * Build core-count and cache properties for each recognised performance level.
+ *
+ * Level 0 is not assumed to be the performance level on every chip; the
+ * `hw.perflevelN.name` key decides, and a level with any other name is
+ * skipped rather than mislabelled.
+ *
+ * @param {Record<string, string>} sysctl Parsed sysctl values.
+ * @returns {Array<{ name: string, value: string } | undefined>} Properties.
+ */
+function collectPerfLevelProperties(sysctl) {
+  return [0, 1].flatMap((level) => {
+    const prefix = PERF_LEVEL_PREFIXES.get(sysctl[`hw.perflevel${level}.name`]);
+    if (!prefix) {
+      return [];
+    }
+    return PERF_LEVEL_FIELDS.map(([field, suffix]) =>
+      createProperty(
+        `cdx:hbom:${prefix}${suffix}`,
+        parseSysctlNumber(sysctl[`hw.perflevel${level}.${field}`]),
+      ),
+    );
+  });
+}
+
+/**
+ * Parse a decimal sysctl value into a number.
+ *
+ * @param {string | undefined} value Raw sysctl value.
+ * @returns {number | undefined} Parsed number, or undefined when absent or not numeric.
+ */
+function parseSysctlNumber(value) {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  const parsed = Number.parseInt(value, 10);
+  return Number.isNaN(parsed) ? undefined : parsed;
+}
+
+/**
+ * Collect the ARM architecture features the CPU reports as present.
+ *
+ * A feature key with any other value, typically 0, is left out.
+ *
+ * @param {Record<string, string>} sysctl Parsed sysctl values.
+ * @returns {string | undefined} Sorted feature names, comma-separated.
+ */
+function collectArmFeatures(sysctl) {
+  const prefix = "hw.optional.arm.";
+  const features = Object.keys(sysctl)
+    .filter((key) => key.startsWith(`${prefix}FEAT_`) && sysctl[key] === "1")
+    .map((key) => key.slice(prefix.length))
+    .sort();
+
+  return features.length ? features.join(", ") : undefined;
 }
 
 /**
@@ -339,6 +469,7 @@ export function buildDarwinArm64Hbom(options = {}) {
         createProperty("cdx:hbom:coreCount", sysctl["hw.ncpu"]),
         createProperty("cdx:hbom:logicalCpuCount", sysctl["hw.logicalcpu"]),
         createProperty("cdx:hbom:physicalCpuCount", sysctl["hw.physicalcpu"]),
+        ...collectProcessorTopologyProperties(sysctl),
       ]),
     }),
     memoryValue

@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 
 import {
@@ -10,9 +11,23 @@ import {
   parseSysctlValues,
 } from "../src/darwin/arm64/index.js";
 
-test("parseSysctlValues maps ordered values back to keys", () => {
+function readFixture(relativePath) {
+  return readFileSync(
+    new URL(`./fixtures/${relativePath}`, import.meta.url),
+    "utf8",
+  );
+}
+
+test("parseSysctlValues maps name: value lines to keys", () => {
   const parsed = parseSysctlValues(
-    ["Apple M4 Pro", "51539607552", "Mac16,7", "14", "14", "14"].join("\n"),
+    [
+      "machdep.cpu.brand_string: Apple M4 Pro",
+      "hw.memsize: 51539607552",
+      "hw.model: Mac16,7",
+      "hw.ncpu: 14",
+      "hw.logicalcpu: 14",
+      "hw.physicalcpu: 14",
+    ].join("\n"),
   );
 
   assert.deepEqual(parsed, {
@@ -23,6 +38,32 @@ test("parseSysctlValues maps ordered values back to keys", () => {
     "hw.logicalcpu": "14",
     "hw.physicalcpu": "14",
   });
+});
+
+test("parseSysctlValues keeps later values when a key is missing", () => {
+  // `sysctl -i` skips a key the host does not answer for. The printed names
+  // decide the mapping, so the values after the gap land on their own keys.
+  const parsed = parseSysctlValues(
+    [
+      "hw.cachelinesize: 128",
+      "hw.l1dcachesize: 65536",
+      "hw.targettype: J616s",
+    ].join("\n"),
+  );
+
+  assert.deepEqual(parsed, {
+    "hw.cachelinesize": "128",
+    "hw.l1dcachesize": "65536",
+    "hw.targettype": "J616s",
+  });
+});
+
+test("parseSysctlValues ignores lines without a name: value prefix", () => {
+  const parsed = parseSysctlValues(
+    ["hw.cachelinesize: 128", "", "some stray output"].join("\n"),
+  );
+
+  assert.deepEqual(parsed, { "hw.cachelinesize": "128" });
 });
 
 test("parseNetworksetupPorts extracts hardware ports", () => {
@@ -364,6 +405,211 @@ test("buildDarwinArm64Hbom returns a redacted, CycloneDX-like shape by default",
   );
 });
 
+test("buildDarwinArm64Hbom records Apple Silicon CPU topology from sysctl", () => {
+  // Recorded from an M4 Pro MacBook Pro (J616s) with the `sysctl -i` form
+  // the collector runs. The host has no hw.l3cachesize key and
+  // hw.optional.arm.FEAT_MTE prints 0, so the BOM omits l3CacheBytes and
+  // leaves FEAT_MTE out of armFeatures.
+  const hbom = buildDarwinArm64Hbom({
+    collectedAt: "2026-05-12T00:00:00.000Z",
+    sources: {
+      sysctl: parseSysctlValues(
+        readFixture("darwin/arm64/sysctl-baseline.txt"),
+      ),
+    },
+  });
+  const processor = getProcessorComponent(hbom);
+
+  assert.equal(getPropertyValue(processor, "cdx:hbom:coreCount"), "14");
+  assert.equal(
+    getPropertyValue(processor, "cdx:hbom:performanceLevelCount"),
+    "2",
+  );
+  assert.equal(
+    getPropertyValue(processor, "cdx:hbom:performanceCoreCount"),
+    "10",
+  );
+  assert.equal(
+    getPropertyValue(processor, "cdx:hbom:efficiencyCoreCount"),
+    "4",
+  );
+  assert.equal(
+    getPropertyValue(processor, "cdx:hbom:performanceL2CacheBytes"),
+    "16777216",
+  );
+  assert.equal(
+    getPropertyValue(processor, "cdx:hbom:efficiencyL2CacheBytes"),
+    "4194304",
+  );
+  assert.equal(
+    getPropertyValue(processor, "cdx:hbom:performanceL1iCacheBytes"),
+    "196608",
+  );
+  assert.equal(
+    getPropertyValue(processor, "cdx:hbom:performanceL1dCacheBytes"),
+    "131072",
+  );
+  assert.equal(
+    getPropertyValue(processor, "cdx:hbom:efficiencyL1iCacheBytes"),
+    "131072",
+  );
+  assert.equal(
+    getPropertyValue(processor, "cdx:hbom:efficiencyL1dCacheBytes"),
+    "65536",
+  );
+  assert.equal(getPropertyValue(processor, "cdx:hbom:cacheLineBytes"), "128");
+  // The chip-wide L1 and L2 keys report the Efficiency cluster on this
+  // chip, so they are not recorded as chip-wide sizes.
+  for (const name of ["l1iCacheBytes", "l1dCacheBytes", "l2CacheBytes"]) {
+    assert.equal(getPropertyValue(processor, `cdx:hbom:${name}`), undefined);
+  }
+  assert.equal(
+    getPropertyValue(processor, "cdx:hbom:l3CacheBytes"),
+    undefined,
+  );
+  assert.equal(
+    getPropertyValue(processor, "cdx:hbom:armFeatures"),
+    "FEAT_AES, FEAT_BF16, FEAT_BTI, FEAT_I8MM, FEAT_PAuth, FEAT_PMULL, FEAT_SHA256, FEAT_SHA3, FEAT_SHA512, FEAT_SME, FEAT_SME2",
+  );
+  assert.equal(getPropertyValue(processor, "cdx:hbom:targetType"), "J616s");
+  // The chip target type describes the processor, not the host device.
+  assert.equal(
+    hbom.metadata.component.properties.find(
+      (property) => property.name === "cdx:hbom:targetType",
+    ),
+    undefined,
+  );
+});
+
+test("buildDarwinArm64Hbom omits properties for keys the host lacks", () => {
+  // A single performance level and an L3 cache that does answer: the
+  // efficiency properties and the level 1 scans are absent, the L3 size is
+  // recorded.
+  const hbom = buildDarwinArm64Hbom({
+    sources: {
+      sysctl: {
+        "hw.nperflevels": "1",
+        "hw.perflevel0.name": "Performance",
+        "hw.perflevel0.physicalcpu": "8",
+        "hw.cachelinesize": "64",
+        "hw.l3cachesize": "33554432",
+      },
+    },
+  });
+  const processor = getProcessorComponent(hbom);
+
+  assert.equal(
+    getPropertyValue(processor, "cdx:hbom:performanceLevelCount"),
+    "1",
+  );
+  assert.equal(
+    getPropertyValue(processor, "cdx:hbom:performanceCoreCount"),
+    "8",
+  );
+  assert.equal(
+    getPropertyValue(processor, "cdx:hbom:efficiencyCoreCount"),
+    undefined,
+  );
+  assert.equal(
+    getPropertyValue(processor, "cdx:hbom:performanceL2CacheBytes"),
+    undefined,
+  );
+  assert.equal(
+    getPropertyValue(processor, "cdx:hbom:efficiencyL2CacheBytes"),
+    undefined,
+  );
+  assert.equal(getPropertyValue(processor, "cdx:hbom:l3CacheBytes"), "33554432");
+});
+
+test("buildDarwinArm64Hbom records chip-wide caches without performance levels", () => {
+  const hbom = buildDarwinArm64Hbom({
+    sources: {
+      sysctl: {
+        "hw.cachelinesize": "64",
+        "hw.l1icachesize": "32768",
+        "hw.l1dcachesize": "49152",
+        "hw.l2cachesize": "1310720",
+        "hw.l3cachesize": "25165824",
+      },
+    },
+  });
+  const processor = getProcessorComponent(hbom);
+
+  assert.equal(
+    getPropertyValue(processor, "cdx:hbom:performanceLevelCount"),
+    undefined,
+  );
+  assert.equal(getPropertyValue(processor, "cdx:hbom:l1iCacheBytes"), "32768");
+  assert.equal(getPropertyValue(processor, "cdx:hbom:l1dCacheBytes"), "49152");
+  assert.equal(getPropertyValue(processor, "cdx:hbom:l2CacheBytes"), "1310720");
+  assert.equal(
+    getPropertyValue(processor, "cdx:hbom:l3CacheBytes"),
+    "25165824",
+  );
+});
+
+test("buildDarwinArm64Hbom ignores level names that match object members", () => {
+  const hbom = buildDarwinArm64Hbom({
+    sources: {
+      sysctl: {
+        "hw.nperflevels": "1",
+        "hw.perflevel0.name": "constructor",
+        "hw.perflevel0.physicalcpu": "8",
+      },
+    },
+  });
+  const processor = getProcessorComponent(hbom);
+
+  assert.equal(
+    processor.properties.some((property) =>
+      property.name.includes("CoreCount"),
+    ),
+    false,
+  );
+});
+
+test("buildDarwinArm64Hbom keys performance levels on their name", () => {
+  // Level 0 is named neither Performance nor Efficiency, so its cores are
+  // not mislabelled; the Efficiency level is still recognized. A feature
+  // key that prints 0 yields no armFeatures value.
+  const hbom = buildDarwinArm64Hbom({
+    sources: {
+      sysctl: {
+        "hw.nperflevels": "2",
+        "hw.perflevel0.name": "Cluster0",
+        "hw.perflevel0.physicalcpu": "8",
+        "hw.perflevel0.l2cachesize": "8388608",
+        "hw.perflevel1.name": "Efficiency",
+        "hw.perflevel1.physicalcpu": "4",
+        "hw.perflevel1.l2cachesize": "2097152",
+        "hw.optional.arm.FEAT_MTE": "0",
+      },
+    },
+  });
+  const processor = getProcessorComponent(hbom);
+
+  assert.equal(
+    getPropertyValue(processor, "cdx:hbom:performanceCoreCount"),
+    undefined,
+  );
+  assert.equal(
+    getPropertyValue(processor, "cdx:hbom:performanceL2CacheBytes"),
+    undefined,
+  );
+  assert.equal(
+    getPropertyValue(processor, "cdx:hbom:efficiencyCoreCount"),
+    "4",
+  );
+  assert.equal(
+    getPropertyValue(processor, "cdx:hbom:efficiencyL2CacheBytes"),
+    "2097152",
+  );
+  assert.equal(
+    getPropertyValue(processor, "cdx:hbom:armFeatures"),
+    undefined,
+  );
+});
+
 test("buildDarwinArm64Hbom can preserve identifiers when explicitly requested", () => {
   const hbom = buildDarwinArm64Hbom({
     includeSensitiveIdentifiers: true,
@@ -663,6 +909,13 @@ function hasHardwareClass(components, hardwareClass) {
   return components.some(
     (component) =>
       getPropertyValue(component, "cdx:hbom:hardwareClass") === hardwareClass,
+  );
+}
+
+function getProcessorComponent(hbom) {
+  return hbom.components.find(
+    (component) =>
+      getPropertyValue(component, "cdx:hbom:hardwareClass") === "processor",
   );
 }
 

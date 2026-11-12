@@ -19,7 +19,13 @@ export const DARWIN_ARM64_SYSTEM_PROFILER_TYPES = Object.freeze([
 ]);
 
 /**
- * Ordered `sysctl` keys used by the initial collector.
+ * `sysctl` keys used by the initial collector.
+ *
+ * The command prints `name: value` pairs with `-i`, so a key the host does
+ * not have (a second performance level, no L3 cache, an older chip) is left
+ * out of the output instead of shifting later values. The feature list is a
+ * fixed selection of `hw.optional.arm.FEAT_*` keys that matter for crypto,
+ * AI, and security workloads.
  *
  * @type {readonly string[]}
  */
@@ -30,6 +36,35 @@ export const DARWIN_ARM64_SYSCTL_KEYS = Object.freeze([
   "hw.ncpu",
   "hw.logicalcpu",
   "hw.physicalcpu",
+  "hw.nperflevels",
+  "hw.perflevel0.name",
+  "hw.perflevel0.physicalcpu",
+  "hw.perflevel0.l1icachesize",
+  "hw.perflevel0.l1dcachesize",
+  "hw.perflevel0.l2cachesize",
+  "hw.perflevel1.name",
+  "hw.perflevel1.physicalcpu",
+  "hw.perflevel1.l1icachesize",
+  "hw.perflevel1.l1dcachesize",
+  "hw.perflevel1.l2cachesize",
+  "hw.cachelinesize",
+  "hw.l1icachesize",
+  "hw.l1dcachesize",
+  "hw.l2cachesize",
+  "hw.l3cachesize",
+  "hw.targettype",
+  "hw.optional.arm.FEAT_AES",
+  "hw.optional.arm.FEAT_SHA256",
+  "hw.optional.arm.FEAT_SHA512",
+  "hw.optional.arm.FEAT_SHA3",
+  "hw.optional.arm.FEAT_PMULL",
+  "hw.optional.arm.FEAT_BF16",
+  "hw.optional.arm.FEAT_I8MM",
+  "hw.optional.arm.FEAT_SME",
+  "hw.optional.arm.FEAT_SME2",
+  "hw.optional.arm.FEAT_PAuth",
+  "hw.optional.arm.FEAT_BTI",
+  "hw.optional.arm.FEAT_MTE",
 ]);
 
 /**
@@ -82,10 +117,10 @@ export const DARWIN_ARM64_COMMANDS = Object.freeze([
     id: "sysctl-baseline",
     category: "cpu-memory",
     command: "/usr/sbin/sysctl",
-    args: ["-n", ...DARWIN_ARM64_SYSCTL_KEYS],
-    parser: "ordered-lines",
+    args: ["-i", ...DARWIN_ARM64_SYSCTL_KEYS],
+    parser: "named-lines",
     purpose:
-      "Collect low-latency CPU brand, memory bytes, model identifier, and core counts to cross-check system_profiler data.",
+      "Collect low-latency CPU brand, memory bytes, model identifier, core counts, performance-level topology, cache sizes, chip target type, and ARM feature flags as name: value pairs to cross-check system_profiler data.",
     phase: "collector-v1",
   }),
   Object.freeze({
