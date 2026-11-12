@@ -136,6 +136,18 @@ composite device as `usbInterfaceCount` and `usbInterfaceDrivers`.
 | `cdx:hbom:coreCount`                | Reported total core count                          |
 | `cdx:hbom:logicalCpuCount`          | Reported logical CPU count                         |
 | `cdx:hbom:physicalCpuCount`         | Reported physical CPU count                        |
+| `cdx:hbom:performanceLevelCount`    | Darwin: number of performance levels (`hw.nperflevels`) |
+| `cdx:hbom:performanceCoreCount`     | Darwin: core count of the performance level named `Performance` (`hw.perflevelN.physicalcpu`) |
+| `cdx:hbom:efficiencyCoreCount`      | Darwin: core count of the level named `Efficiency` (`hw.perflevelN.physicalcpu`) |
+| `cdx:hbom:performanceL2CacheBytes`  | Darwin: L2 cache of the performance level in bytes (`hw.perflevelN.l2cachesize`) |
+| `cdx:hbom:efficiencyL2CacheBytes`   | Darwin: L2 cache of the efficiency level in bytes (`hw.perflevelN.l2cachesize`) |
+| `cdx:hbom:cacheLineBytes`           | Darwin: cache line size in bytes (`hw.cachelinesize`) |
+| `cdx:hbom:l1iCacheBytes`            | Darwin: L1 instruction cache size in bytes (`hw.l1icachesize`) |
+| `cdx:hbom:l1dCacheBytes`            | Darwin: L1 data cache size in bytes (`hw.l1dcachesize`) |
+| `cdx:hbom:l2CacheBytes`             | Darwin: L2 cache size in bytes (`hw.l2cachesize`) |
+| `cdx:hbom:l3CacheBytes`             | Darwin: L3 cache size in bytes (`hw.l3cachesize`) |
+| `cdx:hbom:armFeatures`              | Darwin: ARM architecture features the CPU reports as present (`hw.optional.arm.FEAT_*` keys printing 1), sorted and comma-separated |
+| `cdx:hbom:targetType`               | Darwin: chip target type such as `J616s` (`hw.targettype`) |
 | `cdx:hbom:socketCount`              | Reported CPU socket count                          |
 | `cdx:hbom:threadsPerCore`           | Reported threads per core                          |
 | `cdx:hbom:cpuFamily`                | CPU family identifier                              |
