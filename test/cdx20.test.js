@@ -18,7 +18,10 @@ import {
   toCdx20HardwareComponent,
 } from "../index.js";
 import { redactIdentifier } from "../src/common/shape.js";
-import { buildDarwinArm64Hbom } from "../src/darwin/arm64/index.js";
+import {
+  buildDarwinArm64Hbom,
+  parseSysctlValues,
+} from "../src/darwin/arm64/index.js";
 import {
   buildLinuxHbom,
   parseDmidecodeText,
@@ -793,6 +796,34 @@ test("Darwin collector: the subject's serial becomes an identifier only on reque
   const redacted = to20(build(false), true);
   assert.equal(redacted.inventories[0].subject.identifiers, undefined);
   assert.equal(redacted.definitions, undefined);
+});
+
+test("Darwin processor topology facts keep the 1.7 and 2.0 documents valid", async (t) => {
+  const bom17 = buildDarwinArm64Hbom({
+    collectedAt: "2026-05-12T00:00:00.000Z",
+    sources: {
+      profiler: {
+        SPHardwareDataType: [
+          {
+            machine_name: "MacBook Pro",
+            machine_model: "Mac16,7",
+            chip_type: "Apple M4 Pro",
+          },
+        ],
+      },
+      sysctl: parseSysctlValues(
+        readFixture("darwin/arm64/sysctl-baseline.txt"),
+      ),
+    },
+  });
+  const processor = bom17.components.find(
+    (component) => propertyValue(component, "cdx:hbom:hardwareClass") === "processor",
+  );
+  assert.equal(propertyValue(processor, "cdx:hbom:performanceCoreCount"), "10");
+  assert.equal(propertyValue(processor, "cdx:hbom:targetType"), "J616s");
+  const document = to20(bom17, false);
+  assertStructurallyValid20(document);
+  await assertSchemaValid20(t, document, "darwin processor topology");
 });
 
 test("2.0 dry-run output is valid for every target", async (t) => {
