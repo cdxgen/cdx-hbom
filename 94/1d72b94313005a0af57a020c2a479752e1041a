@@ -1,0 +1,23 @@
+src/darwin/arm64/index.js
+  s_698d9c37462f65::t_7d9e9a92240c6b 73-77,82-91,93-94,99-100,112-134,137-138,141,143-147,149-155
+docs/hardware-properties.md
+  s_698d9c37462f65::t_c2f502a2040ffe 198-222
+test/collect.test.js
+  s_698d9c37462f65::t_229d8e4bca8d31 444-459,461-465,524-570
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "941d72b94313005a0af57a020c2a479752e1041a",
+  "prompts": {},
+  "sessions": {
+    "s_698d9c37462f65": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "7c115853-0030-4230-a556-ed32c667d7a4",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Prabhu Subramanian <prabhu@appthreat.com>"
+    }
+  }
+}
