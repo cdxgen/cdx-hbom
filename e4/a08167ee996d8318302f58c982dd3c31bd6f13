@@ -1,0 +1,25 @@
+src/darwin/arm64/index.js
+  s_84e4da0847967e::t_ba511addf888c3 36-41,46-59,61
+src/darwin/arm64/commands.js
+  s_84e4da0847967e::t_1672279457be88 22-28,39-69
+  s_84e4da0847967e::t_d0f1976c040e18 122-123,125
+test/collect.test.js
+  s_84e4da0847967e::t_04b4cf700426da 13,15-22,35-59
+  s_84e4da0847967e::t_26fa14f749fb26 60
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "e4a08167ee996d8318302f58c982dd3c31bd6f13",
+  "prompts": {},
+  "sessions": {
+    "s_84e4da0847967e": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "sess_b646b38d-ad15-4713-9267-ef717ae00847",
+        "model": "unknown"
+      },
+      "human_author": "Prabhu Subramanian <prabhu@appthreat.com>"
+    }
+  }
+}
