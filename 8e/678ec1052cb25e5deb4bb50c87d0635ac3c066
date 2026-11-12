@@ -1,0 +1,19 @@
+docs/hardware-properties.md
+  s_84e4da0847967e::t_808dc3d9538c75 139-150
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "8e678ec1052cb25e5deb4bb50c87d0635ac3c066",
+  "prompts": {},
+  "sessions": {
+    "s_84e4da0847967e": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "sess_b646b38d-ad15-4713-9267-ef717ae00847",
+        "model": "unknown"
+      },
+      "human_author": "Prabhu Subramanian <prabhu@appthreat.com>"
+    }
+  }
+}
