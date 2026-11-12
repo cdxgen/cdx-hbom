@@ -14,7 +14,6 @@ import { attachCollectorTrace } from "../../common/trace.js";
 import { readSystemProfiler } from "../common/system-profiler.js";
 import {
   DARWIN_ARM64_COMMANDS,
-  DARWIN_ARM64_SYSCTL_KEYS,
   DARWIN_ARM64_SYSTEM_PROFILER_TYPES,
 } from "./commands.js";
 
@@ -34,28 +33,32 @@ export function getDarwinArm64CommandPlan() {
 }
 
 /**
- * Parse ordered `sysctl -n` output into a key/value object.
+ * Parse `sysctl` `name: value` output into a key/value object.
+ *
+ * `sysctl -i <keys>` prints one `name: value` pair per present key and
+ * silently skips the rest, so a missing key cannot shift later values and
+ * only keys the host answered for appear in the result. Lines without a
+ * `name: ` prefix are ignored.
  *
  * @param {string} stdout Command stdout.
- * @param {string[]} [keys=[...DARWIN_ARM64_SYSCTL_KEYS]] Key order.
  * @returns {Record<string, string>} Parsed values.
  */
-export function parseSysctlValues(
-  stdout,
-  keys = [...DARWIN_ARM64_SYSCTL_KEYS],
-) {
-  const values = stdout
-    .trim()
-    .split(/\r?\n/u)
-    .map((value) => value.trim());
+export function parseSysctlValues(stdout) {
+  const result = /** @type {Record<string, string>} */ ({});
 
-  return keys.reduce(
-    (result, key, index) => {
-      result[key] = values[index] ?? "";
-      return result;
-    },
-    /** @type {Record<string, string>} */ ({}),
-  );
+  for (const line of stdout.split(/\r?\n/u)) {
+    const separator = line.indexOf(":");
+    if (separator <= 0) {
+      continue;
+    }
+    const name = line.slice(0, separator).trim();
+    if (!name) {
+      continue;
+    }
+    result[name] = line.slice(separator + 1).trim();
+  }
+
+  return result;
 }
 
 /**

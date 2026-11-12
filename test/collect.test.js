@@ -10,9 +10,16 @@ import {
   parseSysctlValues,
 } from "../src/darwin/arm64/index.js";
 
-test("parseSysctlValues maps ordered values back to keys", () => {
+test("parseSysctlValues maps name: value lines to keys", () => {
   const parsed = parseSysctlValues(
-    ["Apple M4 Pro", "51539607552", "Mac16,7", "14", "14", "14"].join("\n"),
+    [
+      "machdep.cpu.brand_string: Apple M4 Pro",
+      "hw.memsize: 51539607552",
+      "hw.model: Mac16,7",
+      "hw.ncpu: 14",
+      "hw.logicalcpu: 14",
+      "hw.physicalcpu: 14",
+    ].join("\n"),
   );
 
   assert.deepEqual(parsed, {
@@ -23,6 +30,32 @@ test("parseSysctlValues maps ordered values back to keys", () => {
     "hw.logicalcpu": "14",
     "hw.physicalcpu": "14",
   });
+});
+
+test("parseSysctlValues keeps later values when a key is missing", () => {
+  // `sysctl -i` skips a key the host does not answer for. The printed names
+  // decide the mapping, so the values after the gap land on their own keys.
+  const parsed = parseSysctlValues(
+    [
+      "hw.cachelinesize: 128",
+      "hw.l1dcachesize: 65536",
+      "hw.targettype: J616s",
+    ].join("\n"),
+  );
+
+  assert.deepEqual(parsed, {
+    "hw.cachelinesize": "128",
+    "hw.l1dcachesize": "65536",
+    "hw.targettype": "J616s",
+  });
+});
+
+test("parseSysctlValues ignores lines without a name: value prefix", () => {
+  const parsed = parseSysctlValues(
+    ["hw.cachelinesize: 128", "", "some stray output"].join("\n"),
+  );
+
+  assert.deepEqual(parsed, { "hw.cachelinesize": "128" });
 });
 
 test("parseNetworksetupPorts extracts hardware ports", () => {
