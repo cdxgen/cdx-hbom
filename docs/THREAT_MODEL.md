@@ -203,7 +203,7 @@ Trust boundary 4: published package / CI/CD pipeline ←→ registries and relea
 
 - runtime design is intentionally dependency-free, reducing supply-chain breadth
 - GitHub Actions workflows use pinned SHA digests
-- workflow-level `permissions: {}` enforces least privilege by default
+- the CI, publish and project-sync workflows start from workflow-level `permissions: {}`; the manual windows-capture workflow grants only `contents: read`
 - npm publish uses provenance attestation
 - release automation is centralized in the repository workflow
 
@@ -360,7 +360,7 @@ Trust boundary 4: published package / CI/CD pipeline ←→ registries and relea
 | Partial collection mode            | `allowPartial` default behavior                                                                                     | T1.3, T1.4                          |
 | Evidence tracking                  | `commandsExecuted`, `cdx:hbom:evidence:file*`, `cdx:hbom:evidence:command*`, `cdx:hbom:evidence:commandDiagnostic*` | Auditability across runtime actions |
 | Minimal runtime dependency surface | dependency-free package design                                                                                      | T3.1                                |
-| Hardened release workflow          | pinned Actions SHAs, `permissions: {}`, npm provenance                                                              | T3.1                                |
+| Hardened release workflow          | pinned Actions SHAs, empty default workflow permissions (`contents: read` for windows-capture), npm provenance      | T3.1                                |
 
 ## Recommendations for Deployers
 

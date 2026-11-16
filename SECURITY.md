@@ -70,7 +70,7 @@ These are evaluated case by case:
 | **Identifier redaction**      | Redacting privacy-sensitive identifiers by default                              | `redactIdentifier()`, `identifierPolicy` metadata, tests covering default vs explicit sensitive mode                                                                                                     |
 | **Least-surprise collection** | Keeping default collection scoped to documented local files and commands        | fixed Linux discovery roots, explicit Darwin command registry, frozen Windows PowerShell script registry, opt-in plist enrichment, opt-in privileged enrichment, and scoped `sudo -n` retry only for documented permission-sensitive Linux commands |
 | **Graceful degradation**      | Failing safely when optional enrichment is unavailable                          | `allowPartial` default behavior, `--strict` opt-in for hard failure                                                                                                                                      |
-| **Supply-chain integrity**    | Protecting published artifacts and release automation                           | pinned GitHub Actions SHAs, `permissions: {}`, npm provenance, minimal dependency surface                                                                                                                |
+| **Supply-chain integrity**    | Protecting published artifacts and release automation                           | pinned GitHub Actions SHAs, empty default workflow permissions (`contents: read` for the manual windows-capture workflow), npm provenance, minimal dependency surface                                     |
 
 ### What users are responsible for
 
